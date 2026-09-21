@@ -21,7 +21,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { aliveOnly, id, softDelete, timestamps } from "./common.js";
-import { watchProfiles } from "./profiles.js";
+import { watchProfiles, watchTargets } from "./profiles.js";
 import { tenants } from "./tenancy.js";
 
 export const sourceKindEnum = pgEnum("source_kind", [
@@ -31,6 +31,8 @@ export const sourceKindEnum = pgEnum("source_kind", [
   "google_news",
   "email_inbox",
   "page_diff",
+  "json",
+  "diff",
 ]);
 
 export const sourceStatusEnum = pgEnum("source_status", [
@@ -50,13 +52,16 @@ export const sources = pgTable(
     profileId: uuid("profile_id")
       .notNull()
       .references(() => watchProfiles.id, { onDelete: "cascade" }),
+    /** Links this source to a specific watched target (competitor/platform). */
+    targetId: uuid("target_id").references(() => watchTargets.id, {
+      onDelete: "set null",
+    }),
     kind: sourceKindEnum("kind").notNull(),
     status: sourceStatusEnum("status").notNull().default("active"),
     label: text("label").notNull(),
     /**
-     * The feed URL, subreddit, search query or inbox address. Shape depends on
-     * `kind`; the connector validates it. Null for kinds that carry everything
-     * in `config`.
+     * The feed URL, subreddit, search query, inbox address, page URL or API URL.
+     * Shape depends on `kind`; the connector validates it.
      */
     locator: text("locator"),
     /** Connector-specific settings, validated by that connector's Zod schema. */
@@ -86,6 +91,7 @@ export const sources = pgTable(
   (table) => [
     index("sources_profile_idx").on(table.profileId),
     index("sources_tenant_idx").on(table.tenantId),
+    index("sources_target_idx").on(table.targetId),
     // The scheduler's working query: active sources due for a poll.
     index("sources_due_idx").on(table.status, table.lastPolledAt),
     uniqueIndex("sources_profile_kind_locator_unique")
@@ -141,6 +147,10 @@ export const pageVersions = pgTable(
     /** SHA-256 of the extracted text. Identical hash means no poll-time work. */
     contentHash: text("content_hash").notNull(),
     extractedText: text("extracted_text").notNull(),
+    /** Text added since the previous version (unified diff, added lines only). */
+    addedText: text("added_text"),
+    /** Text removed since the previous version (unified diff, removed lines only). */
+    removedText: text("removed_text"),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

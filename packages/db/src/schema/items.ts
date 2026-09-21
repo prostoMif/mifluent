@@ -22,7 +22,7 @@ import {
   vector,
 } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./common.js";
-import { sources } from "./sources.js";
+import { pageVersions, sources } from "./sources.js";
 import { tenants } from "./tenancy.js";
 
 /**
@@ -64,6 +64,12 @@ export const rawItems = pgTable(
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
     /** Anything connector-specific worth keeping: score, subreddit, comment count. */
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    /** Type of material: article (default), diff, job, release. */
+    kind: text("kind").notNull().default("article"),
+    /** For diff items, links to the page version that produced it. */
+    pageVersionId: uuid("page_version_id").references(() => pageVersions.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamps.createdAt,
   },
   (table) => [
@@ -72,6 +78,7 @@ export const rawItems = pgTable(
     uniqueIndex("raw_items_tenant_hash_unique").on(table.tenantId, table.contentHash),
     index("raw_items_source_fetched_idx").on(table.sourceId, table.fetchedAt),
     index("raw_items_tenant_fetched_idx").on(table.tenantId, table.fetchedAt),
+    index("raw_items_page_version_idx").on(table.pageVersionId),
   ],
 );
 

@@ -8,6 +8,14 @@ function snapshot(overrides: Partial<SelectionSnapshot> = {}): SelectionSnapshot
     topics: [{ label: "pricing", description: null }],
     targets: [{ kind: "platform", name: "Stripe", aliases: [] }],
     stopwords: ["hiring"],
+    facts: {
+      monetization: "subscription",
+      platforms: ["Stripe"],
+      countries: ["US"],
+      customerType: "b2c",
+      whatMatters: "Payment processing reliability",
+      language: "en",
+    },
     ...overrides,
   };
 }
@@ -88,5 +96,32 @@ describe("areSnapshotsEqual", () => {
     const asCompetitor = snapshot({ targets: [{ kind: "competitor", name: "Acme", aliases: [] }] });
 
     expect(areSnapshotsEqual(asPlatform, asCompetitor)).toBe(false);
+  });
+
+  it("notices changed facts", () => {
+    expect(
+      areSnapshotsEqual(
+        snapshot(),
+        snapshot({ facts: { ...snapshot().facts, monetization: "free" } }),
+      ),
+    ).toBe(false);
+  });
+
+  it("ignores order of platforms and countries in facts", () => {
+    const first = snapshot({
+      facts: {
+        ...snapshot().facts,
+        platforms: ["Stripe", "Vercel"],
+        countries: ["US", "EU"],
+      },
+    });
+    const second = snapshot({
+      facts: {
+        ...snapshot().facts,
+        platforms: ["Vercel", "Stripe"],
+        countries: ["EU", "US"],
+      },
+    });
+    expect(areSnapshotsEqual(first, second)).toBe(true);
   });
 });

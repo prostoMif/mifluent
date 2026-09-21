@@ -39,6 +39,8 @@ export const userActionKindEnum = pgEnum("user_action_kind", [
   "opened_source",
   "marked_irrelevant",
   "card_viewed",
+  "not_following_target",
+  "not_important",
 ]);
 
 export const pipelineStepEnum = pgEnum("pipeline_step", [

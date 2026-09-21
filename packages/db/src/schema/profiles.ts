@@ -53,6 +53,22 @@ export const watchProfiles = pgTable(
     /** The site the description was derived from, if any. */
     websiteUrl: text("website_url"),
     /**
+     * Structural facts about the business: monetization, platforms, countries,
+     * customerType, whatMatters, language. Changing facts creates a new profile
+     * version because it affects source/target selection.
+     */
+    facts: jsonb("facts")
+      .$type<{
+        monetization?: "free" | "trial" | "subscription" | "one_time" | "unknown";
+        platforms?: string[];
+        countries?: string[];
+        customerType?: string;
+        whatMatters?: string;
+        language?: "en" | "ru";
+      }>()
+      .notNull()
+      .default({}),
+    /**
      * Selection strictness, 0..1. Deliberately a stored setting rather than a
      * constant: the right threshold differs by niche, and hard-coding it means
      * arguing about it in issues instead of changing it.

@@ -19,6 +19,34 @@ import type { WatchProfileInput } from "./schemas.js";
 import { areSnapshotsEqual, type SelectionSnapshot } from "./snapshot.js";
 import type { WatchProfileDetail } from "./types.js";
 
+function makeFacts(
+  facts: {
+    monetization?: "free" | "trial" | "subscription" | "one_time" | "unknown" | null;
+    platforms?: string[];
+    countries?: string[];
+    customerType?: string | null;
+    whatMatters?: string | null;
+    language?: "en" | "ru" | null;
+  } | null,
+): SelectionSnapshot["facts"] {
+  if (!facts) return null;
+  const monetization = (facts.monetization ?? "unknown") as
+    | "free"
+    | "trial"
+    | "subscription"
+    | "one_time"
+    | "unknown";
+  const result: SelectionSnapshot["facts"] = {
+    monetization,
+    platforms: facts.platforms ?? [],
+    countries: facts.countries ?? [],
+    customerType: facts.customerType ?? "",
+    whatMatters: facts.whatMatters ?? "",
+    language: (facts.language ?? "en") as "en" | "ru",
+  };
+  return result;
+}
+
 export interface SaveProfileOptions {
   readonly db: Database;
   readonly tenantId: string;
@@ -158,6 +186,7 @@ async function buildSelectionSnapshot(
     .select({
       businessDescription: schema.watchProfiles.businessDescription,
       relevanceThreshold: schema.watchProfiles.relevanceThreshold,
+      facts: schema.watchProfiles.facts,
     })
     .from(schema.watchProfiles)
     .where(scopedAlive(schema.watchProfiles, tenantId, eq(schema.watchProfiles.id, profileId)))
@@ -173,7 +202,18 @@ async function buildSelectionSnapshot(
     listStopwords(db, tenantId, profileId),
   ]);
 
-  return {
+  const facts = profile.facts as {
+    monetization?: "free" | "trial" | "subscription" | "one_time" | "unknown" | null;
+    platforms?: string[];
+    countries?: string[];
+    customerType?: string | null;
+    whatMatters?: string | null;
+    language?: "en" | "ru" | null;
+  } | null;
+
+  const factsResult = makeFacts(facts);
+
+  const result: SelectionSnapshot = {
     businessDescription: profile.businessDescription,
     relevanceThreshold: profile.relevanceThreshold,
     topics: topics.map((topic) => ({ label: topic.label, description: topic.description })),
@@ -183,7 +223,10 @@ async function buildSelectionSnapshot(
       aliases: target.aliases,
     })),
     stopwords,
+    facts: factsResult,
   };
+
+  return result;
 }
 
 interface StoredVersion {
@@ -212,6 +255,20 @@ const storedSnapshotSchema = z.object({
     )
     .catch([]),
   stopwords: z.array(z.string()).catch([]),
+  facts: z
+    .object({
+      monetization: z
+        .enum(["free", "trial", "subscription", "one_time", "unknown"])
+        .optional()
+        .catch(undefined),
+      platforms: z.array(z.string()).catch([]),
+      countries: z.array(z.string()).catch([]),
+      customerType: z.string().nullable().catch(null),
+      whatMatters: z.string().nullable().catch(null),
+      language: z.enum(["en", "ru"]).optional().catch(undefined),
+    })
+    .nullable()
+    .catch(null),
 });
 
 const EMPTY_SNAPSHOT: SelectionSnapshot = {
@@ -220,6 +277,7 @@ const EMPTY_SNAPSHOT: SelectionSnapshot = {
   topics: [],
   targets: [],
   stopwords: [],
+  facts: null,
 };
 
 /**
@@ -273,7 +331,7 @@ function readSnapshot(stored: unknown): SelectionSnapshot {
   const result = storedSnapshotSchema.safeParse(stored);
 
   if (result.success) {
-    return result.data;
+    return result.data as SelectionSnapshot;
   }
 
   return EMPTY_SNAPSHOT;

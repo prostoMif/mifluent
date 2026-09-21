@@ -13,6 +13,9 @@ permission:
     "git status*": allow
     "git diff*": allow
     "git log*": allow
+    "git add *": allow
+    "git commit *": allow
+    "docker compose -f docker-compose.dev.yml*": allow
     "ls *": allow
     "cat *": allow
     "gh *": deny

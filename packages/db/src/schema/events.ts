@@ -15,7 +15,18 @@
  */
 
 import { relations } from "drizzle-orm";
-import { index, integer, jsonb, pgTable, real, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  real,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { id, timestamps } from "./common.js";
 import { rawItems } from "./items.js";
 import { watchProfiles, watchProfileVersions, watchTargets } from "./profiles.js";
@@ -51,6 +62,10 @@ export const events = pgTable(
     summary: text("summary").notNull(),
     /** Why it touches this business. Tied to the profile's own description. */
     implication: text("implication"),
+    /** Kind of change: price, plan, feature, policy, hiring, copy, incident, news, other. */
+    kind: text("kind"),
+    /** Whether this event requires immediate attention. */
+    isUrgent: boolean("is_urgent").notNull().default(false),
     /** When the underlying change happened, as best as can be established. */
     occurredAt: timestamp("occurred_at", { withTimezone: true }),
     createdAt: timestamps.createdAt,
@@ -92,6 +107,35 @@ export const facts = pgTable(
   (table) => [index("facts_event_idx").on(table.eventId)],
 );
 
+export const eventItems = pgTable(
+  "event_items",
+  {
+    id: id(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    rawItemId: uuid("raw_item_id")
+      .notNull()
+      .references(() => rawItems.id, { onDelete: "cascade" }),
+    /** True for the primary item that triggered the event. */
+    isPrimary: boolean("is_primary").notNull().default(false),
+    createdAt: timestamps.createdAt,
+  },
+  (table) => [
+    uniqueIndex("event_items_event_raw_item_unique").on(table.eventId, table.rawItemId),
+    index("event_items_tenant_idx").on(table.tenantId),
+    index("event_items_raw_item_idx").on(table.rawItemId),
+  ],
+);
+
+export const eventItemsRelations = relations(eventItems, ({ one }) => ({
+  event: one(events, { fields: [eventItems.eventId], references: [events.id] }),
+  rawItem: one(rawItems, { fields: [eventItems.rawItemId], references: [rawItems.id] }),
+}));
+
 export const eventsRelations = relations(events, ({ many, one }) => ({
   profile: one(watchProfiles, {
     fields: [events.profileId],
@@ -100,6 +144,7 @@ export const eventsRelations = relations(events, ({ many, one }) => ({
   rawItem: one(rawItems, { fields: [events.rawItemId], references: [rawItems.id] }),
   target: one(watchTargets, { fields: [events.targetId], references: [watchTargets.id] }),
   facts: many(facts),
+  items: many(eventItems),
 }));
 
 export const factsRelations = relations(facts, ({ one }) => ({
