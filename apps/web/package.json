@@ -1,0 +1,30 @@
+{
+  "name": "@mifluent/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Next.js application — interface and API",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "dev": "node --env-file-if-exists=../../.env ../../node_modules/next/dist/bin/next dev",
+    "build": "node --env-file-if-exists=../../.env ../../node_modules/next/dist/bin/next build",
+    "start": "node --env-file-if-exists=../../.env ../../node_modules/next/dist/bin/next start",
+    "typecheck": "tsc --noEmit",
+    "account:set-password": "node --env-file-if-exists=../../.env --import tsx scripts/set-password.ts"
+  },
+  "dependencies": {
+    "@mifluent/core": "*",
+    "@mifluent/db": "*",
+    "@mifluent/domain": "*",
+    "better-auth": "^1.3.0",
+    "next": "^15.4.0",
+    "nodemailer": "^9.0.5",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^8.0.1",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tsx": "^4.19.0"
+  }
+}

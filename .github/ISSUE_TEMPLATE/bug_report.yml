@@ -1,0 +1,75 @@
+name: Bug report
+description: Something behaves differently from how it is documented.
+labels: ["bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. The more of this you fill in, the less
+        back-and-forth before a fix.
+
+        **Do not paste API keys, session tokens, or `.env` contents.** Redact
+        anything secret before submitting.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you see?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Add a source of type ...
+        2. Run ...
+        3. Open ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: "v0.1.0, or the commit SHA"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: how-running
+    attributes:
+      label: How are you running it
+      options:
+        - Docker Compose (the documented setup)
+        - Docker, custom setup
+        - From source, locally
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Node version, Postgres version.
+      placeholder: |
+        OS: Ubuntu 24.04
+        Node: 22.11.0
+        Postgres: 17
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Redact secrets first. This is rendered as a code block.
+      render: shell

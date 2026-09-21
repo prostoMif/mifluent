@@ -1,0 +1,23 @@
+{
+  "name": "@mifluent/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared errors, API envelope, logging and utilities",
+  "license": "AGPL-3.0-only",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean"
+  },
+  "dependencies": {
+    "zod": "^4.0.0"
+  }
+}

@@ -1,0 +1,99 @@
+/*
+ * The watch profile editor.
+ *
+ * A profile is one document with a single save, so the sections below are
+ * dividers rather than separate forms. On a phone every row stacks; the grid
+ * only appears once there is width for it.
+ */
+
+.section {
+  border-top: 1px solid var(--colour-border);
+  padding-top: var(--space-4);
+}
+
+.sectionTitle {
+  font-size: 1.125rem;
+  margin-bottom: var(--space-1);
+}
+
+.sectionHint {
+  color: var(--colour-text-muted);
+  font-size: 0.9375rem;
+  margin-bottom: var(--space-3);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.row {
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  background: var(--colour-surface);
+}
+
+@media (min-width: 40rem) {
+  .rowColumns {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.rowActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.removeButton {
+  font: inherit;
+  font-size: 0.875rem;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  color: var(--colour-danger);
+  cursor: pointer;
+}
+
+.thresholdRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.thresholdValue {
+  font-variant-numeric: tabular-nums;
+  min-width: 3ch;
+}
+
+.profileList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-4);
+}
+
+.profileCard {
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.profileName {
+  font-size: 1.125rem;
+  margin-bottom: var(--space-1);
+}
+
+.profileMeta {
+  color: var(--colour-text-muted);
+  font-size: 0.875rem;
+  margin: 0;
+}

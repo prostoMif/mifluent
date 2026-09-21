@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.base.json",
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/db" },
+    { "path": "./packages/domain" },
+    { "path": "./packages/discovery" },
+    { "path": "./packages/llm" },
+    { "path": "./packages/sources" }
+  ]
+}

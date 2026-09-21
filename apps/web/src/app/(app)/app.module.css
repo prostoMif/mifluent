@@ -1,0 +1,167 @@
+/*
+ * The signed-in shell.
+ *
+ * Phone first, and specifically morning-phone first: the digest is read
+ * standing up, one-handed, before anything else has happened that day. So the
+ * navigation is a single row that stays put, and the content column is narrow
+ * enough to read without moving your eyes across a desk monitor.
+ */
+
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  border-bottom: 1px solid var(--colour-border);
+  background: var(--colour-background);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.headerInner {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  font-weight: 700;
+  color: var(--colour-text);
+  text-decoration: none;
+}
+
+.nav {
+  display: flex;
+  gap: var(--space-3);
+  /* Long labels on a narrow phone scroll sideways rather than pushing the
+     account controls off the screen. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  white-space: nowrap;
+  color: var(--colour-text-muted);
+  text-decoration: none;
+}
+
+.navLinkCurrent {
+  color: var(--colour-text);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--colour-accent);
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  color: var(--colour-text-muted);
+}
+
+.identity {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roleBadge {
+  border: 1px solid var(--colour-border);
+  border-radius: 999px;
+  padding: 0 var(--space-2);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-3) var(--space-5);
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+}
+
+.pageLead {
+  color: var(--colour-text-muted);
+  margin-bottom: var(--space-4);
+}
+
+/*
+ * Empty states are a first-class screen here, not a fallback. On a fresh
+ * instance every page is empty, and "nothing yet" with no next step is where
+ * people close the tab.
+ */
+.empty {
+  border: 1px dashed var(--colour-border);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-3);
+  background: var(--colour-surface);
+}
+
+.emptyTitle {
+  font-size: 1.125rem;
+}
+
+.emptyBody {
+  color: var(--colour-text-muted);
+}
+
+/*
+ * The footer strip. Deliberately quiet: "report a problem" has to be findable
+ * when something is wrong and invisible the rest of the time.
+ */
+.footer {
+  border-top: 1px solid var(--colour-border);
+  margin-top: var(--space-5);
+  padding-top: var(--space-3);
+}
+
+.footerButton {
+  font: inherit;
+  font-size: 0.875rem;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  background: none;
+  border: 0;
+  color: var(--colour-text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.reportPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  background: var(--colour-surface);
+}
+
+.reportTitle {
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+.reportHint {
+  color: var(--colour-text-muted);
+  font-size: 0.875rem;
+  margin: 0;
+}

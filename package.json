@@ -1,0 +1,45 @@
+{
+  "name": "mifluent",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Open-source morning brief on what changed around your business",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check . && npm run typecheck && npm test",
+    "check:fix": "biome check --write .",
+    "dev": "npm run build && npm run dev --workspace @mifluent/web",
+    "build": "tsc --build",
+    "typecheck": "tsc --build --force && npm run typecheck --workspace @mifluent/web && npm run typecheck --workspace @mifluent/worker",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:up": "docker compose -f docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f docker-compose.dev.yml down",
+    "db:generate": "npm run db:generate --workspace @mifluent/db",
+    "db:migrate": "npm run build && npm run db:migrate --workspace @mifluent/db",
+    "db:studio": "npm run db:studio --workspace @mifluent/db",
+    "prepare": "lefthook install || exit 0",
+    "account:set-password": "npm run build && npm run account:set-password --workspace @mifluent/web --",
+    "poll": "npm run build && npm run poll --workspace @mifluent/worker",
+    "worker": "npm run build && npm run start --workspace @mifluent/worker",
+    "discover": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/discover.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "@types/node": "^22.0.0",
+    "lefthook": "^1.11.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.0.0"
+  }
+}

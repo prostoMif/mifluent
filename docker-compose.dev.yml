@@ -1,0 +1,39 @@
+# Development dependencies only — the database.
+#
+# The application itself is not containerised yet; it runs on the host during
+# development. The user-facing docker-compose.yml, the one the README will point
+# at, arrives with the first release and starts four services: web, worker,
+# postgres and migrations.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml down          # keeps data
+#   docker compose -f docker-compose.dev.yml down -v       # deletes data
+
+name: mifluent-dev
+
+services:
+  postgres:
+    # pgvector ships inside the image so nobody has to install the extension by
+    # hand. Postgres 16 is the declared minimum; 17 is what is developed against.
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mifluent
+      POSTGRES_PASSWORD: mifluent
+      POSTGRES_DB: mifluent
+      # Faster and stricter collation handling than the default.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      TZ: UTC
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mifluent -d mifluent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres-data:

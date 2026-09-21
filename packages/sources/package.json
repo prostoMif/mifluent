@@ -1,0 +1,25 @@
+{
+  "name": "@mifluent/sources",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Connectors: fetching material from feeds, forums and pages",
+  "license": "AGPL-3.0-only",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean"
+  },
+  "dependencies": {
+    "@mifluent/core": "*",
+    "ipaddr.js": "^2.5.0",
+    "fast-xml-parser": "^5.11.0"
+  }
+}

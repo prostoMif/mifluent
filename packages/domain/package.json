@@ -1,0 +1,30 @@
+{
+  "name": "@mifluent/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Business rules: tenancy, roles, watch profiles",
+  "license": "AGPL-3.0-only",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./schemas": {
+      "types": "./dist/schemas.d.ts",
+      "default": "./dist/schemas.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean"
+  },
+  "dependencies": {
+    "@mifluent/core": "*",
+    "@mifluent/db": "*",
+    "drizzle-orm": "^0.44.0",
+    "zod": "^4.0.0"
+  }
+}

@@ -1,0 +1,57 @@
+name: Feature request
+description: Suggest something Mifluent should do that it does not do yet.
+labels: ["enhancement", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before writing: some things are deliberately out of scope for v1 —
+        a public feed, an external API, X and Meta connectors, and video
+        transcription. They are postponed, not forgotten.
+
+        Requests describing a **problem** land better than requests describing
+        a **solution**. The problem is the part nobody else can guess.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you running into
+      description: What are you trying to do, and where does it fall down today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you think should happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: How you work around it now
+      description: If you do not work around it, say that — it is useful signal.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the product
+      options:
+        - Sources and connectors
+        - Filtering and relevance
+        - The digest itself
+        - Delivery (Telegram, email)
+        - Onboarding
+        - Self-hosting and operations
+        - Something else
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true

@@ -1,0 +1,25 @@
+{
+  "name": "@mifluent/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Collector: polls sources on a schedule and runs the pipeline",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "start": "node --env-file-if-exists=../../.env --import tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "poll": "node --env-file-if-exists=../../.env --import tsx src/main.ts --once"
+  },
+  "dependencies": {
+    "@mifluent/core": "*",
+    "@mifluent/db": "*",
+    "@mifluent/domain": "*",
+    "@mifluent/discovery": "*",
+    "@mifluent/llm": "*",
+    "@mifluent/sources": "*",
+    "pg-boss": "^12.27.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}

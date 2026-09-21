@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/prostoMif/mifluent/security/advisories/new
+    about: Do not open a public issue. Report privately here instead.
+  - name: Question or idea
+    url: https://github.com/prostoMif/mifluent/discussions
+    about: For open-ended questions and half-formed ideas, use Discussions.

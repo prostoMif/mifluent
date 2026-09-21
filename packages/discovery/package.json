@@ -1,0 +1,26 @@
+{
+  "name": "@mifluent/discovery",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Business discovery: URL or text → profile with targets and verified surfaces",
+  "license": "AGPL-3.0-only",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean"
+  },
+  "dependencies": {
+    "@mifluent/core": "*",
+    "@mifluent/llm": "*",
+    "@mifluent/sources": "*",
+    "zod": "^4.0.0"
+  }
+}

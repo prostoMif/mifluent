@@ -1,0 +1,81 @@
+name: Suggest an analyst
+description: Propose someone for the curated analyst registry.
+labels: ["analyst suggestion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The analyst registry is curated by the maintainer. **Pull requests that
+        edit the registry file directly will be closed** — please use this form
+        instead.
+
+        Analysts here are not competitor-watchers or AI commentators. They are
+        people who explain what is happening in a market clearly and are worth
+        linking to next to a fact.
+
+        There are hard filters. If a candidate fails one, they will not be added
+        regardless of how good they are.
+
+  - type: input
+    id: name
+    attributes:
+      label: Name
+    validations:
+      required: true
+
+  - type: input
+    id: feed
+    attributes:
+      label: RSS feed, newsletter or blog URL
+      description: There has to be a machine-readable channel, or it cannot be connected.
+    validations:
+      required: true
+
+  - type: input
+    id: niche
+    attributes:
+      label: What they cover
+      placeholder: "e-commerce logistics, payments regulation, ..."
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: hard-filters
+    attributes:
+      label: Hard filters
+      description: All four must be true.
+      options:
+        - label: Publishes in the open — no paywall.
+          required: true
+        - label: Has an RSS feed, newsletter or public blog.
+          required: true
+        - label: Publishes at least once a week.
+          required: true
+        - label: Has a meaningful audience (roughly 50k as a reference point).
+          required: true
+
+  - type: textarea
+    id: falsifiable
+    attributes:
+      label: A checkable claim they made
+      description: |
+        Link one piece from about a year ago containing a claim that could turn
+        out wrong — "the rate will be around X by year end" counts, "the market
+        may rise but could also correct" does not. This is the test that
+        separates an analyst from a commentator.
+    validations:
+      required: true
+
+  - type: textarea
+    id: admits-error
+    attributes:
+      label: Have they ever admitted being wrong
+      description: A link if you have one. Never admitting error is disqualifying.
+
+  - type: textarea
+    id: conflicts
+    attributes:
+      label: Conflicts of interest
+      description: |
+        Do they sell signals, talk up their own positions, or sell a
+        get-rich course? Say so plainly.

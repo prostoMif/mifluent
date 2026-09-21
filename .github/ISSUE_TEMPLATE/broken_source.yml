@@ -1,0 +1,63 @@
+name: Broken source
+description: A connector stopped fetching, or is fetching the wrong thing.
+labels: ["broken source", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sources break constantly — sites change their markup, feeds move, APIs
+        tighten their limits. These reports are genuinely useful, not noise.
+
+  - type: dropdown
+    id: source-type
+    attributes:
+      label: Source type
+      options:
+        - RSS / Atom feed
+        - Reddit
+        - Hacker News
+        - Google News query
+        - Email inbox
+        - Page diff
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: source-url
+    attributes:
+      label: Source URL
+      description: Leave blank if it is private or identifies you.
+
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: What is wrong
+      options:
+        - Fetches nothing at all
+        - Fetches, but the content is empty or truncated
+        - Fetches the wrong content
+        - Marked as broken in the UI
+        - Duplicates the same item repeatedly
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: last-worked
+    attributes:
+      label: When did it last work
+      placeholder: "Two days ago / never worked / unsure"
+
+  - type: textarea
+    id: error
+    attributes:
+      label: Error message or log output
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true

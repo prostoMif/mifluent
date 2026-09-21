@@ -1,0 +1,155 @@
+/*
+ * Form styling, shared by every form in the application.
+ *
+ * Phone first. Two decisions here are not cosmetic:
+ *
+ * - Inputs are 16px. Mobile Safari zooms the whole page in on focus for
+ *   anything smaller, and the person then has to pinch back out to see the
+ *   button they are trying to reach.
+ * - Controls are at least 44px tall, which is the smallest target most people
+ *   can hit reliably with a thumb.
+ */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.label {
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.hint {
+  color: var(--colour-text-muted);
+  font-size: 0.875rem;
+}
+
+.control {
+  font: inherit;
+  font-size: 1rem;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--colour-text);
+  background: var(--colour-background);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  width: 100%;
+}
+
+.control:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+textarea.control {
+  min-height: 7rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.invalid {
+  border-color: var(--colour-danger);
+}
+
+.fieldError {
+  color: var(--colour-danger);
+  font-size: 0.875rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.button {
+  font: inherit;
+  font-weight: 600;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: var(--colour-accent);
+  color: var(--colour-accent-contrast);
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.secondary {
+  background: transparent;
+  color: var(--colour-text);
+  border-color: var(--colour-border);
+}
+
+.danger {
+  background: transparent;
+  color: var(--colour-danger);
+  border-color: var(--colour-danger);
+}
+
+.notice {
+  padding: var(--space-3);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  background: var(--colour-surface);
+  font-size: 0.9375rem;
+}
+
+.noticeError {
+  border-color: var(--colour-danger);
+  color: var(--colour-danger);
+}
+
+.noticeSuccess {
+  border-color: var(--colour-success);
+  color: var(--colour-success);
+}
+
+/*
+ * The password field and its show/hide button.
+ *
+ * A password box that cannot be revealed makes people choose shorter passwords,
+ * because a long one is a long one typed blind. The button sits inside the box
+ * so the pair reads as one control, and the input is padded so the text never
+ * runs underneath it.
+ */
+.passwordRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.passwordRow .control {
+  padding-right: 5rem;
+}
+
+.reveal {
+  position: absolute;
+  right: var(--space-1);
+  font: inherit;
+  font-size: 0.875rem;
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--colour-accent);
+  cursor: pointer;
+}
+
+.reveal:hover {
+  text-decoration: underline;
+}
