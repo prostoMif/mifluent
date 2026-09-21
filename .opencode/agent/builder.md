@@ -15,6 +15,10 @@ permission:
     "git log*": allow
     "ls *": allow
     "cat *": allow
+    "gh *": deny
+    "git push*": deny
+    "git remote*": deny
+    "git config*": deny
     "*": ask
   webfetch: deny
 ---

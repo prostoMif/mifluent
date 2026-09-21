@@ -158,6 +158,9 @@ No abbreviations except `id`, `url`, `api`.
 
 ## Do not touch without explicit permission
 
+- GitHub: repository settings, `gh` commands, `git push`, remotes, git config.
+  The owner manages the repository himself; agents only edit files locally.
+
 - database migrations
 - CI/CD configuration
 - authentication and authorisation files

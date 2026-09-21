@@ -4,7 +4,12 @@ mode: primary
 temperature: 0.1
 permission:
   edit: deny
-  bash: ask
+  bash:
+    "gh *": deny
+    "git push*": deny
+    "git remote*": deny
+    "git config*": deny
+    "*": ask
   webfetch: deny
 ---
 
