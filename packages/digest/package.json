@@ -1,0 +1,26 @@
+{
+  "name": "@mifluent/digest",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Digest assembly: weekly/urgent digests from events",
+  "license": "AGPL-3.0-only",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean"
+  },
+  "dependencies": {
+    "@mifluent/core": "*",
+    "@mifluent/db": "*",
+    "@mifluent/domain": "*",
+    "date-fns-tz": "^3.0.0"
+  }
+}
