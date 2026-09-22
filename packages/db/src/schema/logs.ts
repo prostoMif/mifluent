@@ -30,6 +30,8 @@ import { user } from "./auth.js";
 import { id } from "./common.js";
 import { digestCards } from "./digests.js";
 import { events } from "./events.js";
+import { rawItems } from "./items.js";
+import { watchProfiles } from "./profiles.js";
 import { tenants } from "./tenancy.js";
 
 export const userActionKindEnum = pgEnum("user_action_kind", [
@@ -116,3 +118,30 @@ export const userActionsRelations = relations(userActions, ({ one }) => ({
   card: one(digestCards, { fields: [userActions.cardId], references: [digestCards.id] }),
   event: one(events, { fields: [userActions.eventId], references: [events.id] }),
 }));
+
+export const rejectionReasonEnum = pgEnum("rejection_reason", [
+  "below_cosine",
+  "stopword",
+  "model_rejected",
+]);
+
+export const rejections = pgTable(
+  "rejections",
+  {
+    id: id(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => watchProfiles.id, { onDelete: "cascade" }),
+    rawItemId: uuid("raw_item_id").references(() => rawItems.id, { onDelete: "set null" }),
+    reason: rejectionReasonEnum("reason").notNull(),
+    score: numeric("score", { precision: 4, scale: 3 }).notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("rejections_profile_occurred_idx").on(table.profileId, table.occurredAt),
+    index("rejections_raw_item_idx").on(table.rawItemId),
+  ],
+);

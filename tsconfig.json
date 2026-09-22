@@ -9,6 +9,7 @@
     { "path": "./packages/discovery" },
     { "path": "./packages/embeddings" },
     { "path": "./packages/llm" },
+    { "path": "./packages/pipeline" },
     { "path": "./packages/sources" }
   ]
 }
