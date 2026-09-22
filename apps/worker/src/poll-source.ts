@@ -25,7 +25,7 @@ import {
   recordPollFailure,
   recordPollSuccess,
 } from "@mifluent/domain";
-import { hasFailedTooOften, type PolledItem, pollRssSource } from "@mifluent/sources";
+import { hasFailedTooOften, type PolledItem, pollPageDiff, pollRssSource } from "@mifluent/sources";
 import { getDatabase, logger, USER_AGENT } from "./runtime.js";
 
 export interface PollOutcome {
@@ -50,6 +50,11 @@ export async function pollSource(source: PollableSource, now: Date): Promise<Pol
 
 async function collect(source: PollableSource, locator: string, now: Date): Promise<PollOutcome> {
   const database = getDatabase();
+
+  // Handle diff kind separately
+  if (source.kind === "diff") {
+    return await collectDiff(source, locator, now);
+  }
 
   const result = await pollRssSource({
     feedUrl: locator,
@@ -164,4 +169,169 @@ function toStorableItem(item: PolledItem): StorableItem {
     content: item.content ?? item.summary,
     publishedAt: item.publishedAt,
   };
+}
+
+async function collectDiff(
+  source: PollableSource,
+  locator: string,
+  now: Date,
+): Promise<PollOutcome> {
+  const database = getDatabase();
+
+  const { schema } = await import("@mifluent/db");
+  const { uuidv7 } = await import("@mifluent/core");
+  const { eq, desc } = await import("drizzle-orm");
+
+  // Get the latest page version for this source
+  const [latestVersion] = await database
+    .select({
+      contentHash: schema.pageVersions.contentHash,
+      extractedText: schema.pageVersions.extractedText,
+      addedText: schema.pageVersions.addedText,
+      removedText: schema.pageVersions.removedText,
+    })
+    .from(schema.pageVersions)
+    .where(eq(schema.pageVersions.sourceId, source.id))
+    .orderBy(desc(schema.pageVersions.fetchedAt))
+    .limit(1);
+
+  const previousHash = latestVersion?.contentHash ?? null;
+  const previousText = latestVersion?.extractedText ?? null;
+
+  const diffResult = await pollPageDiff({
+    url: locator,
+    userAgent: USER_AGENT,
+    previousHash: previousHash ?? undefined,
+    previousText: previousText ?? undefined,
+  });
+
+  if (diffResult.isUnchanged) {
+    await recordPollSuccess({
+      db: database,
+      tenantId: source.tenantId,
+      sourceId: source.id,
+      now,
+    });
+
+    return { label: source.label, result: "unchanged", stored: 0, duplicates: 0 };
+  }
+
+  // Baseline (first poll): store page_versions but don't create raw_item
+  if (diffResult.added === "" && diffResult.removed === "") {
+    await database.insert(schema.pageVersions).values({
+      id: uuidv7(),
+      tenantId: source.tenantId,
+      sourceId: source.id,
+      contentHash: diffResult.contentHash,
+      extractedText: diffResult.extractedText,
+      addedText: null,
+      removedText: null,
+      fetchedAt: now,
+    });
+
+    await recordPollSuccess({
+      db: database,
+      tenantId: source.tenantId,
+      sourceId: source.id,
+      now,
+    });
+
+    // Cleanup old versions (keep max 20)
+    await cleanupOldVersions(database, source.tenantId, source.id);
+
+    return { label: source.label, result: "stored", stored: 0, duplicates: 0 };
+  }
+
+  // Changed: store new page_version + raw_item
+  const pageVersionId = uuidv7();
+
+  await database.transaction(async (tx) => {
+    // Store page version
+    await tx.insert(schema.pageVersions).values({
+      id: pageVersionId,
+      tenantId: source.tenantId,
+      sourceId: source.id,
+      contentHash: diffResult.contentHash,
+      extractedText: diffResult.extractedText,
+      addedText: diffResult.added,
+      removedText: diffResult.removed,
+      fetchedAt: now,
+    });
+
+    // Create raw_item
+    const rawItemId = uuidv7();
+    const content = `ADDED:\n${diffResult.added}\n\nREMOVED:\n${diffResult.removed}`;
+    const fingerprint = (await import("@mifluent/sources")).fingerprintItem({
+      externalId: null,
+      url: locator,
+      title: source.label,
+      content,
+      feedUrl: locator,
+    });
+
+    await tx.insert(schema.rawItems).values({
+      id: rawItemId,
+      tenantId: source.tenantId,
+      sourceId: source.id,
+      externalId: null,
+      url: locator,
+      title: source.label,
+      author: null,
+      content,
+      contentHash: fingerprint,
+      publishedAt: now,
+      fetchedAt: now,
+      kind: "diff",
+      pageVersionId,
+    });
+  });
+
+  await recordPollSuccess({
+    db: database,
+    tenantId: source.tenantId,
+    sourceId: source.id,
+    now,
+  });
+
+  // Cleanup old versions (keep max 20)
+  await cleanupOldVersions(database, source.tenantId, source.id);
+
+  logger.info("sources.polled", {
+    sourceId: source.id,
+    stored: 1,
+    duplicates: 0,
+  });
+
+  return {
+    label: source.label,
+    result: "stored",
+    stored: 1,
+    duplicates: 0,
+  };
+}
+
+async function cleanupOldVersions(
+  database: import("@mifluent/db").Database,
+  _tenantId: string,
+  sourceId: string,
+): Promise<void> {
+  const { schema } = await import("@mifluent/db");
+  const { eq, desc } = await import("drizzle-orm");
+
+  const versions = await database
+    .select({ id: schema.pageVersions.id })
+    .from(schema.pageVersions)
+    .where(eq(schema.pageVersions.sourceId, sourceId))
+    .orderBy(desc(schema.pageVersions.fetchedAt))
+    .limit(21);
+
+  if (versions.length > 20) {
+    const toDelete = versions.slice(20);
+    await database.delete(schema.pageVersions).where(
+      (await import("drizzle-orm")).inArray(
+        schema.pageVersions.id,
+        toDelete.map((item: { id: string }) => item.id),
+      ),
+    );
+  }
 }

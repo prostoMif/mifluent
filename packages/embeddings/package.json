@@ -1,9 +1,9 @@
 {
-  "name": "@mifluent/sources",
+  "name": "@mifluent/embeddings",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Connectors: fetching material from feeds, forums and pages",
+  "description": "Local embeddings: ONNX runtime with transformers.js",
   "license": "AGPL-3.0-only",
   "exports": {
     ".": {
@@ -19,8 +19,6 @@
   },
   "dependencies": {
     "@mifluent/core": "*",
-    "diff": "^8.0.4",
-    "fast-xml-parser": "^5.11.0",
-    "ipaddr.js": "^2.5.0"
+    "@huggingface/transformers": "^4.3.0"
   }
 }

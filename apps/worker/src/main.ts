@@ -15,10 +15,13 @@
 import { listActiveSources, type PollableSource } from "@mifluent/domain";
 import { isDueForPoll } from "@mifluent/sources";
 import type { PgBoss } from "pg-boss";
+import { processEmbedJob } from "./embed-item.js";
 import { pollSource } from "./poll-source.js";
 import {
   createQueueClient,
   declareQueues,
+  EMBED_QUEUE,
+  type EmbedJobData,
   POLL_QUEUE,
   type PollJobData,
   queuePoll,
@@ -110,6 +113,28 @@ async function runForever(): Promise<void> {
     }
 
     await pollSource(source, new Date());
+  });
+
+  await boss.work<EmbedJobData>(EMBED_QUEUE, async (jobs) => {
+    const [job] = jobs;
+
+    if (job === undefined) {
+      return;
+    }
+
+    const { tenantId, limit } = job.data;
+    const db = getDatabase();
+
+    try {
+      const result = await processEmbedJob(db, tenantId, limit);
+      logger.info("items.embedded", { tenantId, ...result });
+    } catch (error) {
+      logger.error("items.embed_failed", {
+        tenantId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   });
 
   await boss.schedule(TICK_QUEUE, TICK_CRON);

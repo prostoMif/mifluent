@@ -33,7 +33,8 @@
     "account:set-password": "npm run build && npm run account:set-password --workspace @mifluent/web --",
     "poll": "npm run build && npm run poll --workspace @mifluent/worker",
     "worker": "npm run build && npm run start --workspace @mifluent/worker",
-    "discover": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/discover.ts"
+    "discover": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/discover.ts",
+    "embed:bench": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/embed-bench.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",

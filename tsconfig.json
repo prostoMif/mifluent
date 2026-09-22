@@ -7,6 +7,7 @@
     { "path": "./packages/db" },
     { "path": "./packages/domain" },
     { "path": "./packages/discovery" },
+    { "path": "./packages/embeddings" },
     { "path": "./packages/llm" },
     { "path": "./packages/sources" }
   ]

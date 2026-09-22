@@ -26,15 +26,12 @@ import { pageVersions, sources } from "./sources.js";
 import { tenants } from "./tenancy.js";
 
 /**
- * Embedding width. bge-m3 emits 1024 dimensions.
+ * Embedding width. intfloat/multilingual-e5-small emits 384 dimensions.
  *
- * Truncating the vector and quantising to int8 roughly quarters the storage for
- * a small accuracy cost, and is worth doing — but only once there is real data
- * to measure the cost against. Changing this number later means recomputing
- * every stored vector, so it is a constant in one place rather than a literal
- * scattered through the schema.
+ * Changing this number later means recomputing every stored vector, so it is
+ * a constant in one place rather than a literal scattered through the schema.
  */
-export const EMBEDDING_DIMENSIONS = 1024;
+export const EMBEDDING_DIMENSIONS = 384;
 
 export const rawItems = pgTable(
   "raw_items",
@@ -70,6 +67,10 @@ export const rawItems = pgTable(
     pageVersionId: uuid("page_version_id").references(() => pageVersions.id, {
       onDelete: "set null",
     }),
+    /** For diff items: the text that was added. */
+    addedText: text("added_text"),
+    /** For diff items: the text that was removed. */
+    removedText: text("removed_text"),
     createdAt: timestamps.createdAt,
   },
   (table) => [

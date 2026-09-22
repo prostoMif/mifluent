@@ -32,6 +32,7 @@ import { PgBoss } from "pg-boss";
 /** Queue names follow `<domain>:<action>`, the same as job names elsewhere. */
 export const TICK_QUEUE = "sources:tick";
 export const POLL_QUEUE = "sources:poll";
+export const EMBED_QUEUE = "items:embed";
 
 /**
  * Once a minute.
@@ -49,6 +50,11 @@ const RETRY_LIMIT = 2;
 
 export interface PollJobData {
   readonly sourceId: string;
+}
+
+export interface EmbedJobData {
+  readonly tenantId: string;
+  readonly limit?: number;
 }
 
 export function createQueueClient(): PgBoss {
@@ -72,6 +78,7 @@ export function createQueueClient(): PgBoss {
 export async function declareQueues(boss: PgBoss): Promise<void> {
   await boss.createQueue(TICK_QUEUE);
   await boss.createQueue(POLL_QUEUE);
+  await boss.createQueue(EMBED_QUEUE);
 }
 
 export async function queuePoll(boss: PgBoss, sourceId: string): Promise<void> {
@@ -80,5 +87,14 @@ export async function queuePoll(boss: PgBoss, sourceId: string): Promise<void> {
     retryLimit: RETRY_LIMIT,
     retryBackoff: true,
     expireInSeconds: POLL_TIMEOUT_SECONDS,
+  });
+}
+
+export async function queueEmbed(boss: PgBoss, tenantId: string, limit?: number): Promise<void> {
+  await boss.send(EMBED_QUEUE, { tenantId, limit: limit ?? undefined } as EmbedJobData, {
+    singletonKey: `embed:${tenantId}`,
+    retryLimit: RETRY_LIMIT,
+    retryBackoff: true,
+    expireInSeconds: 600,
   });
 }

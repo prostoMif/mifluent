@@ -8,6 +8,12 @@
 
 export { type CostRecordInput, type CostRecordResult, recordCost } from "./costs/record.js";
 export {
+  type Chunk,
+  type ChunkInput,
+  chunkRawItem,
+  chunkText,
+} from "./items/chunk.js";
+export {
   findWatchProfile,
   listStopwords,
   listTargets,

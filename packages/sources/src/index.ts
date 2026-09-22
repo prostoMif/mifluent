@@ -1,3 +1,4 @@
+export { type PageDiffOptions, type PageDiffResult, pollPageDiff } from "./connectors/page-diff.js";
 export {
   type PolledItem,
   pollRssSource,
