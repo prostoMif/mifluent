@@ -1,6 +1,7 @@
+import { createLogger } from "@mifluent/core";
 import { describe, expect, it } from "vitest";
 import { findClusterAnchor } from "./cluster.js";
-import { factsFromDiff, verifyFacts } from "./extract.js";
+import { factsFromDiff, screenBlock, verifyFacts } from "./extract.js";
 
 describe("verifyFacts", () => {
   const content = "Fathom announced a new Business plan. It costs $99 per month and adds SSO.";
@@ -78,5 +79,27 @@ describe("findClusterAnchor", () => {
     const anchor = findClusterAnchor([1, 0], [{ eventId: "other", centroid: [0.5, 0.86] }], 0.92);
 
     expect(anchor).toBeNull();
+  });
+});
+
+describe("screenBlock", () => {
+  const logger = createLogger({ level: "error" });
+
+  it("keeps an explanation of what a change means", () => {
+    const text = "Their Pro is now $29 against your $19, so you are the cheaper option.";
+
+    expect(screenBlock(text, logger, "e1", "implication")).toBe(text);
+  });
+
+  it("drops an interpretation that tells the reader what to do", () => {
+    // The model's own reading is where material that says "tell the reader to
+    // switch" is likeliest to come back out as advice.
+    const text = "You should raise your price to match theirs.";
+
+    expect(screenBlock(text, logger, "e1", "interpretation")).toBeNull();
+  });
+
+  it("treats an empty block as absent", () => {
+    expect(screenBlock("   ", logger, "e1", "interpretation")).toBeNull();
   });
 });

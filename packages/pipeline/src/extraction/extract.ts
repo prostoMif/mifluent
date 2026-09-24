@@ -198,7 +198,12 @@ async function writeUp(
     });
   }
 
-  const implication = screenImplication(proposedImplication, logger, event.id);
+  // Both free-text blocks the model writes about untrusted material, and both
+  // shown to the reader. The interpretation is the likelier of the two to
+  // carry an instruction the material planted, because it is where the model
+  // is invited to have an opinion.
+  const implication = screenBlock(proposedImplication, logger, event.id, "implication");
+  const interpretation = screenBlock(draft.interpretation, logger, event.id, "interpretation");
 
   await db.transaction(async (transaction) => {
     await transaction.insert(schema.facts).values(
@@ -217,7 +222,7 @@ async function writeUp(
       .set({
         ...(draft.summary === null ? {} : { summary: draft.summary }),
         implication,
-        interpretation: draft.interpretation,
+        interpretation,
       })
       .where(scoped(schema.events, context.tenantId, eq(schema.events.id, event.id)));
   });
@@ -281,20 +286,28 @@ export function factsFromDiff(event: {
   };
 }
 
-function screenImplication(
-  implication: string | null,
+/**
+ * Drop a block that opens with an order.
+ *
+ * The digest explains what changed and why it touches this business; it never
+ * tells the reader what to do (ТЗ G3). Discarded rather than rewritten —
+ * rewriting would be the code putting words in the model's mouth.
+ */
+export function screenBlock(
+  text: string | null,
   logger: Logger,
   eventId: string,
+  block: "implication" | "interpretation",
 ): string | null {
-  if (implication === null || implication.trim() === "") return null;
+  if (text === null || text.trim() === "") return null;
 
-  const directive = findDirective(implication);
+  const directive = findDirective(text);
   if (directive !== null) {
-    logger.warn("pipeline.implication_discarded", { eventId, directive });
+    logger.warn("pipeline.block_discarded", { eventId, block, directive });
     return null;
   }
 
-  return implication;
+  return text;
 }
 
 async function dropEvent(
