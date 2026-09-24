@@ -15,12 +15,12 @@
 import { AppError, uuidv7 } from "@mifluent/core";
 import { type Queryable, schema, scoped } from "@mifluent/db";
 import { eq } from "drizzle-orm";
-import type { CardAction } from "./card-action-kinds.js";
+import type { TelegramCardAction } from "./card-action-kinds.js";
 
 export interface CardActionInput {
   readonly tenantId: string;
   readonly cardId: string;
-  readonly action: CardAction;
+  readonly action: TelegramCardAction;
   readonly surface: "web" | "telegram";
   /** The signed-in person on the web; unknown for a Telegram press. */
   readonly userId?: string | undefined;

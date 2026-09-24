@@ -65,10 +65,23 @@ const SECRET_KEY_PATTERNS: readonly string[] = [
   "otp",
 ];
 
+/**
+ * Field names carrying what a person wrote, rather than a secret.
+ *
+ * Matched on the whole name rather than as a substring, because the substring
+ * rule above would swallow `context`, `addedText` and every other field that
+ * merely ends in the same four letters. The one that matters is `text`: a
+ * decision is the reader's own strategy, and `docs/security.md` §8 keeps it
+ * out of logs, telemetry and prompts alike. Nothing in the codebase passes it
+ * to a logger — this is the backstop for the day something does.
+ */
+const CONTENT_KEY_NAMES: readonly string[] = ["text", "decisiontext"];
+
 const MAX_REDACT_DEPTH = 6;
 
 function isSecretKey(key: string): boolean {
   const normalised = key.toLowerCase().replace(/[^a-z]/g, "");
+  if (CONTENT_KEY_NAMES.includes(normalised)) return true;
   return SECRET_KEY_PATTERNS.some((pattern) => normalised.includes(pattern.replace(/[^a-z]/g, "")));
 }
 

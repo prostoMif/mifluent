@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createLogger } from "./logger.js";
+import { __testing, createLogger } from "./logger.js";
 
 function captureStdout(): { lines: () => Record<string, unknown>[] } {
   const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
@@ -116,5 +116,19 @@ describe("redaction", () => {
 
     expect(() => createLogger().info("weird.input", { cyclic })).not.toThrow();
     expect(JSON.stringify(out.lines()[0])).toContain("[truncated]");
+  });
+});
+
+describe("redaction of what a person wrote", () => {
+  it("replaces a field called text, wherever it appears", () => {
+    const line = __testing.redact({ decision: { text: "we are dropping the Team plan" } });
+
+    expect(JSON.stringify(line)).not.toContain("dropping the Team plan");
+  });
+
+  it("leaves fields that merely end in the same letters alone", () => {
+    const line = __testing.redact({ context: { runId: "r1" }, addedText: "Pro is now $29" });
+
+    expect(line).toEqual({ context: { runId: "r1" }, addedText: "Pro is now $29" });
   });
 });
