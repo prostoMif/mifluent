@@ -59,5 +59,12 @@ FROM postgres:17-alpine AS backup
 RUN apk add --no-cache openssl
 COPY scripts/backup.sh /usr/local/bin/mifluent-backup
 RUN chmod 0755 /usr/local/bin/mifluent-backup
+
+# Same reason as /models above: Docker creates a missing mount point as root,
+# and the backup script runs as `postgres`. Without this the first dump fails
+# on permission and the container restarts forever — with no backups and
+# nothing obviously wrong until somebody needs one.
+RUN mkdir -p /backups && chown postgres:postgres /backups
+
 USER postgres
 CMD ["mifluent-backup"]
