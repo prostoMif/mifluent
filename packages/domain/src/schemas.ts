@@ -17,6 +17,33 @@
  * before anything is bundled.
  */
 
+export { CARD_ACTIONS, type CardAction, isCardAction } from "./actions/card-action-kinds.js";
+export {
+  type DiscoveryJob,
+  discoveryJobSchema,
+  type FirstRunJob,
+  firstRunJobSchema,
+  INTERACTIVE_PRIORITY,
+  QUEUES,
+  type QueueName,
+} from "./jobs/queues.js";
+export {
+  isPlanName,
+  PLAN_NAMES,
+  type PlanLimits,
+  type PlanName,
+  type PlanOverrides,
+  resolvePlans,
+} from "./plans/plans.js";
+export {
+  DISCOVERY_SURFACE_TYPES,
+  type DiscoveredSurfaceInput,
+  type DiscoveredTargetInput,
+  discoveredSurfaceSchema,
+  discoveredTargetSchema,
+  type ProfileFromDiscoveryInput,
+  profileFromDiscoverySchema,
+} from "./profiles/from-discovery-schema.js";
 export {
   type TopicInput,
   topicInputSchema,

@@ -12,6 +12,7 @@ import { AppError, uuidv7 } from "@mifluent/core";
 import { type Database, type Queryable, schema, scoped, scopedAlive } from "@mifluent/db";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
+import { assertProfileWithinPlan } from "../plans/limits.js";
 import { findWatchProfile, listStopwords, listTargets, listTopics } from "./read.js";
 import type { ChildScope } from "./reconcile.js";
 import { syncStopwords, syncTargets, syncTopics } from "./reconcile.js";
@@ -62,6 +63,12 @@ export async function createWatchProfile(options: SaveProfileOptions): Promise<W
   const profileId = uuidv7();
 
   await db.transaction(async (transaction) => {
+    await assertProfileWithinPlan(transaction, {
+      tenantId,
+      profileId: undefined,
+      targetCount: input.targets.length,
+    });
+
     await transaction.insert(schema.watchProfiles).values({
       id: profileId,
       tenantId,
@@ -82,6 +89,12 @@ export async function saveWatchProfile(options: UpdateProfileOptions): Promise<W
   const { db, tenantId, profileId, input } = options;
 
   await db.transaction(async (transaction) => {
+    await assertProfileWithinPlan(transaction, {
+      tenantId,
+      profileId,
+      targetCount: input.targets.length,
+    });
+
     const updated = await transaction
       .update(schema.watchProfiles)
       .set({
@@ -128,7 +141,8 @@ export async function deleteWatchProfile(
   }
 }
 
-async function writeChildren(
+/** Exported for the discovery flow, which writes a profile in its own transaction. */
+export async function writeChildren(
   db: Queryable,
   scope: ChildScope,
   input: WatchProfileInput,
@@ -146,7 +160,8 @@ async function writeChildren(
  * the deduplication and trimming that happened on the way in — so a version
  * always describes rows that exist.
  */
-async function recordVersionIfChanged(
+/** Exported for the discovery flow, which writes a profile in its own transaction. */
+export async function recordVersionIfChanged(
   db: Queryable,
   tenantId: string,
   profileId: string,

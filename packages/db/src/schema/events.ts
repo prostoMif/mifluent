@@ -62,6 +62,12 @@ export const events = pgTable(
     summary: text("summary").notNull(),
     /** Why it touches this business. Tied to the profile's own description. */
     implication: text("implication"),
+    /**
+     * The model's own reading of the event, when it had one. Kept apart from
+     * `implication` because the card labels it as the model's opinion, and a
+     * column is the only way that label cannot get lost.
+     */
+    interpretation: text("interpretation"),
     /** Kind of change: price, plan, feature, policy, hiring, copy, incident, news, other. */
     kind: text("kind"),
     /** Whether this event requires immediate attention. */

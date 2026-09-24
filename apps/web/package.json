@@ -2,7 +2,7 @@
   "name": "@mifluent/web",
   "version": "0.0.0",
   "private": true,
-  "description": "Next.js application — interface and API",
+  "description": "Next.js application \u2014 interface and API",
   "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "node --env-file-if-exists=../../.env ../../node_modules/next/dist/bin/next dev",
@@ -14,12 +14,17 @@
   "dependencies": {
     "@mifluent/core": "*",
     "@mifluent/db": "*",
+    "@mifluent/delivery": "*",
+    "@mifluent/digest": "*",
+    "@mifluent/discovery": "*",
     "@mifluent/domain": "*",
     "better-auth": "^1.3.0",
     "next": "^15.4.0",
     "nodemailer": "^9.0.5",
+    "pg-boss": "^12.27.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.1",

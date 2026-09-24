@@ -1,16 +1,17 @@
 /**
  * What a person may type when adding a source.
  *
- * Only RSS is listed. The others exist in the database enum because the schema
- * was written for all of them at once, but a connector that does not exist yet
- * must not be offerable — a source that can be added and never polled is worse
- * than one that cannot be added.
+ * Only kinds with a working connector are listed: feeds, public job boards
+ * (`json`) and page diffs. The others exist in the database enum because the
+ * schema was written for all of them at once, but a connector that does not
+ * exist yet must not be offerable — a source that can be added and never polled
+ * is worse than one that cannot be added.
  */
 
 import { httpUrlSchema } from "@mifluent/core";
 import { z } from "zod";
 
-export const AVAILABLE_SOURCE_KINDS = ["rss"] as const;
+export const AVAILABLE_SOURCE_KINDS = ["rss", "json", "diff"] as const;
 
 export type AvailableSourceKind = (typeof AVAILABLE_SOURCE_KINDS)[number];
 

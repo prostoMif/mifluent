@@ -46,6 +46,8 @@ export const userActionKindEnum = pgEnum("user_action_kind", [
 ]);
 
 export const pipelineStepEnum = pgEnum("pipeline_step", [
+  /** Onboarding: reading a site to propose what to watch. */
+  "discover",
   "fetch",
   "embed",
   "classify",
@@ -123,8 +125,17 @@ export const rejectionReasonEnum = pgEnum("rejection_reason", [
   "below_cosine",
   "stopword",
   "model_rejected",
+  /** Extraction found no quote that exists verbatim in the source. */
+  "no_verified_quote",
 ]);
 
+/**
+ * Why a piece of material did not make it into a digest.
+ *
+ * Kept for fourteen days, then pruned: long enough to build the "closest
+ * misses" line of a weekly digest and to answer "why didn't I see X", short
+ * enough that a table written on every poll stays small.
+ */
 export const rejections = pgTable(
   "rejections",
   {
@@ -137,6 +148,8 @@ export const rejections = pgTable(
       .references(() => watchProfiles.id, { onDelete: "cascade" }),
     rawItemId: uuid("raw_item_id").references(() => rawItems.id, { onDelete: "set null" }),
     reason: rejectionReasonEnum("reason").notNull(),
+    /** The model's one-line reason, or which stopword matched. Shown to the reader. */
+    detail: text("detail"),
     score: numeric("score", { precision: 4, scale: 3 }).notNull(),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
   },

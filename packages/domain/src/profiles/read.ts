@@ -8,6 +8,7 @@
  */
 
 import { type Queryable, schema, scopedAlive } from "@mifluent/db";
+import type { ProfileDelivery } from "@mifluent/db/schema";
 import { asc, eq } from "drizzle-orm";
 import type {
   WatchProfileDetail,
@@ -122,4 +123,19 @@ export async function listStopwords(
     .orderBy(asc(schema.stopwords.term));
 
   return rows.map((row) => row.term);
+}
+
+/** When and where the profile's digest goes. Empty settings mean the defaults. */
+export async function findProfileDelivery(
+  db: Queryable,
+  tenantId: string,
+  profileId: string,
+): Promise<ProfileDelivery | undefined> {
+  const [row] = await db
+    .select({ delivery: schema.watchProfiles.delivery })
+    .from(schema.watchProfiles)
+    .where(scopedAlive(schema.watchProfiles, tenantId, eq(schema.watchProfiles.id, profileId)))
+    .limit(1);
+
+  return row?.delivery;
 }

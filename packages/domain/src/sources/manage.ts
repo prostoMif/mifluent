@@ -10,6 +10,7 @@
 import { AppError, uuidv7 } from "@mifluent/core";
 import { type Queryable, schema, scopedAlive } from "@mifluent/db";
 import { and, asc, count, eq, isNull } from "drizzle-orm";
+import { findTenantPlan } from "../plans/limits.js";
 import type { SourceInput, SourceStatus, SourceSummary } from "./schemas.js";
 
 export async function listSources(
@@ -47,10 +48,13 @@ export interface CreateSourceOptions {
   readonly tenantId: string;
   readonly profileId: string;
   readonly input: SourceInput;
+  /** The watched company or platform this source is about, if any. */
+  readonly targetId?: string | null | undefined;
 }
 
 export async function createSource(options: CreateSourceOptions): Promise<string> {
   const sourceId = uuidv7();
+  const pollIntervalMinutes = await applyPlanInterval(options);
 
   try {
     await options.db.insert(schema.sources).values({
@@ -58,9 +62,10 @@ export async function createSource(options: CreateSourceOptions): Promise<string
       tenantId: options.tenantId,
       profileId: options.profileId,
       kind: options.input.kind,
+      targetId: options.targetId ?? null,
       label: options.input.label,
       locator: options.input.locator,
-      pollIntervalMinutes: options.input.pollIntervalMinutes,
+      pollIntervalMinutes,
     });
   } catch (error) {
     /*
@@ -72,6 +77,18 @@ export async function createSource(options: CreateSourceOptions): Promise<string
   }
 
   return sourceId;
+}
+
+/**
+ * A page diff is a full page fetch, and the plan sets how often one may run.
+ * Asking for more often is not an error — the source is simply added at the
+ * fastest interval the plan allows.
+ */
+async function applyPlanInterval(options: CreateSourceOptions): Promise<number> {
+  if (options.input.kind !== "diff") return options.input.pollIntervalMinutes;
+
+  const { limits } = await findTenantPlan(options.db, options.tenantId);
+  return Math.max(options.input.pollIntervalMinutes, limits.diffIntervalMin);
 }
 
 export async function deleteSource(
@@ -94,6 +111,7 @@ export async function deleteSource(
 export interface PollableSource {
   readonly id: string;
   readonly tenantId: string;
+  readonly profileId: string;
   readonly kind: string;
   readonly status: SourceStatus;
   readonly label: string;
@@ -103,7 +121,24 @@ export interface PollableSource {
   readonly consecutiveFailures: number;
   readonly etag: string | null;
   readonly lastModifiedHeader: string | null;
+  readonly config: Record<string, unknown>;
 }
+
+const pollableColumns = {
+  id: schema.sources.id,
+  tenantId: schema.sources.tenantId,
+  profileId: schema.sources.profileId,
+  kind: schema.sources.kind,
+  status: schema.sources.status,
+  label: schema.sources.label,
+  locator: schema.sources.locator,
+  pollIntervalMinutes: schema.sources.pollIntervalMinutes,
+  lastPolledAt: schema.sources.lastPolledAt,
+  consecutiveFailures: schema.sources.consecutiveFailures,
+  etag: schema.sources.etag,
+  lastModifiedHeader: schema.sources.lastModifiedHeader,
+  config: schema.sources.config,
+};
 
 /**
  * Every source that is still being polled, across every tenant.
@@ -115,22 +150,32 @@ export interface PollableSource {
  */
 export async function listActiveSources(db: Queryable): Promise<PollableSource[]> {
   const rows = await db
-    .select({
-      id: schema.sources.id,
-      tenantId: schema.sources.tenantId,
-      kind: schema.sources.kind,
-      status: schema.sources.status,
-      label: schema.sources.label,
-      locator: schema.sources.locator,
-      pollIntervalMinutes: schema.sources.pollIntervalMinutes,
-      lastPolledAt: schema.sources.lastPolledAt,
-      consecutiveFailures: schema.sources.consecutiveFailures,
-      etag: schema.sources.etag,
-      lastModifiedHeader: schema.sources.lastModifiedHeader,
-    })
+    .select(pollableColumns)
     .from(schema.sources)
     .where(and(eq(schema.sources.status, "active"), isNull(schema.sources.deletedAt)))
     .orderBy(asc(schema.sources.lastPolledAt));
+
+  return rows.map((row) => ({ ...row, status: row.status as SourceStatus }));
+}
+
+/** The active sources of one profile, for a person asking "run it now". */
+export async function listProfilePollableSources(
+  db: Queryable,
+  tenantId: string,
+  profileId: string,
+): Promise<PollableSource[]> {
+  const rows = await db
+    .select(pollableColumns)
+    .from(schema.sources)
+    .where(
+      scopedAlive(
+        schema.sources,
+        tenantId,
+        eq(schema.sources.profileId, profileId),
+        eq(schema.sources.status, "active"),
+      ),
+    )
+    .orderBy(asc(schema.sources.createdAt));
 
   return rows.map((row) => ({ ...row, status: row.status as SourceStatus }));
 }

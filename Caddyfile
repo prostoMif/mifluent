@@ -1,0 +1,17 @@
+# HTTPS in front of the web application.
+#
+# PUBLIC_HOST is the instance's address. Without a domain of your own, use
+# <server-ip-with-dashes>.sslip.io — for example 203-0-113-7.sslip.io — and
+# Caddy obtains a Let's Encrypt certificate for it automatically.
+
+{$PUBLIC_HOST} {
+	encode zstd gzip
+
+	header {
+		# A year, subdomains included. Only ever served over HTTPS by Caddy.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	reverse_proxy web:3000
+}

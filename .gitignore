@@ -69,3 +69,7 @@ desktop.ini
 
 .vercel
 .env*
+# Examples hold no values and are the documentation of every setting; they
+# must stay in the repository despite the pattern above.
+!.env.example
+!.env.production.example

@@ -82,6 +82,30 @@ const configSchema = z.object({
   LLM_PRICE_DEEP_OUT: z.coerce.number().default(0),
 
   TELEGRAM_BOT_TOKEN: z.string().optional(),
+  /** The bot's @name without the @, shown in the "send /start" instruction. */
+  TELEGRAM_BOT_USERNAME: z
+    .string()
+    .regex(/^[A-Za-z0-9_]{5,32}$/, "must be the bot's username without @")
+    .optional(),
+  /**
+   * Part of the webhook path and the value Telegram echoes back in a header.
+   * Long enough that guessing it is not a plan.
+   */
+  TELEGRAM_WEBHOOK_SECRET: z
+    .string()
+    .min(32, "must be at least 32 characters — generate one with: openssl rand -hex 32")
+    .optional(),
+  /**
+   * Local development only: the worker asks Telegram for updates instead of
+   * waiting for a webhook, because a laptop has no public address to receive one.
+   */
+  TELEGRAM_POLLING: booleanish.default(false),
+
+  /** Shared secret for the billing stub. Absent means the endpoint refuses everything. */
+  BILLING_WEBHOOK_SECRET: z
+    .string()
+    .min(32, "must be at least 32 characters — generate one with: openssl rand -hex 32")
+    .optional(),
 
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().default(587),
@@ -109,6 +133,34 @@ const configSchema = z.object({
   DEFAULT_TIMEZONE: z.string().default("UTC"),
   DIGEST_DEFAULT_TIME: timeOfDay.default("07:00"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+
+  /**
+   * Where the local embedding model is cached. Downloaded once, ~120 MB. In a
+   * container this should be a volume, or every restart downloads it again.
+   * Unset means `~/.cache/mifluent/models`.
+   */
+  MODELS_DIR: z.string().optional(),
+
+  /**
+   * Cosine similarity above which two events are the same story. 0.92 is where
+   * multilingual-e5-small puts reprints of one press release and keeps two
+   * different announcements by the same company apart; lower it and unrelated
+   * news from one competitor starts merging.
+   */
+  CLUSTER_THRESHOLD: z.coerce.number().min(0).max(1).default(0.92),
+
+  /**
+   * The worker touches this file once a minute. The container healthcheck
+   * reads its age: a worker whose event loop is stuck stops touching it even
+   * though the process is still alive.
+   */
+  WORKER_HEARTBEAT_FILE: z.string().optional(),
+
+  /**
+   * Hard ceiling on model spend for the whole instance per UTC day. When it is
+   * crossed, every job that would call a model stops until midnight UTC.
+   */
+  DAILY_COST_CAP_USD: z.coerce.number().min(0).default(1),
 });
 
 export type RawConfig = z.infer<typeof configSchema>;
@@ -129,8 +181,41 @@ export interface Features {
 
 export interface Config extends RawConfig {
   readonly features: Features;
+  /**
+   * `PLAN_<NAME>_<FIELD>` variables, keyed as `{ free: { maxTargets: "5" } }`.
+   * Left as strings: which fields exist and what type each has is the plans
+   * module's knowledge, not configuration's, and it validates them there.
+   */
+  readonly planOverrides: Readonly<Record<string, Readonly<Record<string, string>>>>;
   readonly isProduction: boolean;
   readonly isDevelopment: boolean;
+}
+
+const PLAN_OVERRIDE_PATTERN = /^PLAN_([A-Z]+)_([A-Z][A-Z_]*)$/;
+
+/** `MAX_TARGETS` → `maxTargets`. */
+function toCamelCase(screaming: string): string {
+  return screaming
+    .toLowerCase()
+    .replace(/_([a-z])/g, (_match, letter: string) => letter.toUpperCase());
+}
+
+function readPlanOverrides(
+  source: Record<string, string | undefined>,
+): Record<string, Record<string, string>> {
+  const overrides: Record<string, Record<string, string>> = {};
+
+  for (const [name, value] of Object.entries(source)) {
+    const match = PLAN_OVERRIDE_PATTERN.exec(name);
+    const plan = match?.[1];
+    const field = match?.[2];
+    if (value === undefined || plan === undefined || field === undefined) continue;
+
+    const planName = plan.toLowerCase();
+    overrides[planName] = { ...overrides[planName], [toCamelCase(field)]: value };
+  }
+
+  return overrides;
 }
 
 function deriveFeatures(raw: RawConfig): Features {
@@ -197,7 +282,8 @@ function withoutBlanks(
 }
 
 export function parseConfig(source: Record<string, string | undefined>): Config {
-  const result = configSchema.safeParse(withoutBlanks(source));
+  const present = withoutBlanks(source);
+  const result = configSchema.safeParse(present);
 
   if (!result.success) {
     throw new AppError("configuration_invalid", formatIssues(result.error.issues), {
@@ -208,6 +294,7 @@ export function parseConfig(source: Record<string, string | undefined>): Config 
   return {
     ...result.data,
     features: deriveFeatures(result.data),
+    planOverrides: readPlanOverrides(present),
     isProduction: result.data.NODE_ENV === "production",
     isDevelopment: result.data.NODE_ENV === "development",
   };

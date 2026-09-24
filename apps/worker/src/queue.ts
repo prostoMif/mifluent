@@ -12,49 +12,72 @@
  * start. Nothing here is in our migrations, which is why the schema does not
  * mention jobs at all.
  *
- * Two decisions worth stating, because both look like omissions otherwise:
+ * The cascade as jobs, each handing on to the next:
  *
- * **One job per source at a time.** `singletonKey` is the source's identifier,
- * so a poll that is still running cannot have a second one queued behind it. A
- * slow feed on a short interval would otherwise pile up jobs faster than they
- * drain, and the pile would be indistinguishable from a working system until
- * the disk filled.
+ *   sources:tick → sources:poll → items:embed → pipeline:select
+ *     → pipeline:extract → (urgent) digest:deliver
+ *   digest:tick → digest:build → digest:deliver
+ *
+ * **One job per key at a time.** Per-source and per-profile queues use the
+ * `stately` policy with a singleton key: at most one queued and one running
+ * job per source or profile. A slow feed on a short interval would otherwise
+ * pile up jobs faster than they drain. (A `singletonKey` on a `standard` queue
+ * does nothing in pg-boss 10+, which is how the first version of this file
+ * came to have no protection at all.)
  *
  * **Few retries.** A source that cannot be read is recorded as a source
- * problem, not as a failed job — see `poll-source.ts`. So a job failing here
+ * problem, not as a failed job — see `poll-source.ts`. A job failing here
  * means something unexpected went wrong, and the small retry count is for a
  * database that blinked rather than for a feed that is down.
  */
 
 import { getConfig } from "@mifluent/core";
-import { PgBoss } from "pg-boss";
+import { QUEUES } from "@mifluent/domain";
+import { PgBoss, type Queue } from "pg-boss";
 
-/** Queue names follow `<domain>:<action>`, the same as job names elsewhere. */
-export const TICK_QUEUE = "sources:tick";
-export const POLL_QUEUE = "sources:poll";
-export const EMBED_QUEUE = "items:embed";
+export { QUEUES };
 
-/**
- * Once a minute.
- *
- * The tick does not poll anything itself — it asks which sources are due and
- * queues those. Running it often is cheap, and it means a source added at
- * 10:00 is read at 10:01 rather than at the top of the next hour.
- */
-export const TICK_CRON = "* * * * *";
+/** Every minute: finds due sources. Cheap, and a new source is read within a minute. */
+export const SOURCES_TICK_CRON = "* * * * *";
 
-/** Enough for a slow feed on a slow morning, short enough to notice a hang. */
-const POLL_TIMEOUT_SECONDS = 120;
+/** On the hour: digests go out at a whole hour in each reader's zone. */
+export const DIGEST_TICK_CRON = "0 * * * *";
+
+/** 03:15 UTC: pruning, when nobody is waiting for a digest. */
+export const MAINTENANCE_CRON = "15 3 * * *";
 
 const RETRY_LIMIT = 2;
 
-export interface PollJobData {
+const STATELY: Omit<Queue, "name"> = { policy: "stately" };
+
+const QUEUE_OPTIONS: Readonly<Record<string, Omit<Queue, "name">>> = {
+  [QUEUES.sourcesPoll]: { ...STATELY, expireInSeconds: 120 },
+  [QUEUES.itemsEmbed]: { ...STATELY, expireInSeconds: 900 },
+  [QUEUES.pipelineSelect]: { ...STATELY, expireInSeconds: 900 },
+  [QUEUES.pipelineExtract]: { ...STATELY, expireInSeconds: 1_800 },
+  [QUEUES.digestBuild]: { ...STATELY, expireInSeconds: 300 },
+  [QUEUES.digestDeliver]: { ...STATELY, expireInSeconds: 300 },
+  // A person is watching a progress screen for these two.
+  [QUEUES.discoveryRun]: { expireInSeconds: 300, retryLimit: 0 },
+  [QUEUES.profileFirstRun]: { ...STATELY, expireInSeconds: 1_800, retryLimit: 0 },
+};
+
+export interface SourceJob {
   readonly sourceId: string;
 }
 
-export interface EmbedJobData {
+export interface TenantJob {
   readonly tenantId: string;
-  readonly limit?: number;
+}
+
+export interface ProfileJob {
+  readonly tenantId: string;
+  readonly profileId: string;
+}
+
+export interface DigestJob {
+  readonly tenantId: string;
+  readonly digestId: string;
 }
 
 export function createQueueClient(): PgBoss {
@@ -76,25 +99,31 @@ export function createQueueClient(): PgBoss {
  * a queue name should be an error, not a new queue nobody reads.
  */
 export async function declareQueues(boss: PgBoss): Promise<void> {
-  await boss.createQueue(TICK_QUEUE);
-  await boss.createQueue(POLL_QUEUE);
-  await boss.createQueue(EMBED_QUEUE);
+  for (const name of Object.values(QUEUES)) {
+    await boss.createQueue(name, {
+      retryLimit: RETRY_LIMIT,
+      retryBackoff: true,
+      ...QUEUE_OPTIONS[name],
+    });
+  }
 }
 
 export async function queuePoll(boss: PgBoss, sourceId: string): Promise<void> {
-  await boss.send(POLL_QUEUE, { sourceId } satisfies PollJobData, {
-    singletonKey: sourceId,
-    retryLimit: RETRY_LIMIT,
-    retryBackoff: true,
-    expireInSeconds: POLL_TIMEOUT_SECONDS,
-  });
+  await boss.send(QUEUES.sourcesPoll, { sourceId } satisfies SourceJob, { singletonKey: sourceId });
 }
 
-export async function queueEmbed(boss: PgBoss, tenantId: string, limit?: number): Promise<void> {
-  await boss.send(EMBED_QUEUE, { tenantId, limit: limit ?? undefined } as EmbedJobData, {
-    singletonKey: `embed:${tenantId}`,
-    retryLimit: RETRY_LIMIT,
-    retryBackoff: true,
-    expireInSeconds: 600,
-  });
+export async function queueEmbed(boss: PgBoss, tenantId: string): Promise<void> {
+  await boss.send(QUEUES.itemsEmbed, { tenantId } satisfies TenantJob, { singletonKey: tenantId });
+}
+
+export async function queueProfileStep(
+  boss: PgBoss,
+  queue: typeof QUEUES.pipelineSelect | typeof QUEUES.pipelineExtract | typeof QUEUES.digestBuild,
+  job: ProfileJob,
+): Promise<void> {
+  await boss.send(queue, job satisfies ProfileJob, { singletonKey: job.profileId });
+}
+
+export async function queueDelivery(boss: PgBoss, job: DigestJob): Promise<void> {
+  await boss.send(QUEUES.digestDeliver, job satisfies DigestJob, { singletonKey: job.digestId });
 }

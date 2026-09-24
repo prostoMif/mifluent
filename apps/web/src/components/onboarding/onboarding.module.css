@@ -1,0 +1,116 @@
+/*
+ * Onboarding: one field, then "here is what I understood", then progress.
+ *
+ * The review screen is long on purpose — every target with its reason and
+ * every place it will be read from — so each row is compact and the
+ * checkboxes are large enough for a thumb.
+ */
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.facts {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 40rem) {
+  .facts {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.targets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.target {
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.targetMuted {
+  opacity: 0.6;
+}
+
+.checkRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-height: 44px;
+}
+
+.checkRow input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.targetName {
+  font-weight: 600;
+}
+
+.kind {
+  color: var(--colour-text-muted);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.reason {
+  color: var(--colour-text-muted);
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.surfaces {
+  list-style: none;
+  padding: 0 0 0 var(--space-4);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 0.9375rem;
+}
+
+.surfaceUrl {
+  color: var(--colour-text-muted);
+  word-break: break-all;
+  font-size: 0.8125rem;
+}
+
+.verified {
+  color: var(--colour-success, inherit);
+}
+
+.unverified {
+  color: var(--colour-text-muted);
+}
+
+.counters {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.0625rem;
+}
+
+.counterDone {
+  color: var(--colour-text-muted);
+}

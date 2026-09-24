@@ -9,7 +9,7 @@
 
 import { toDisplayMessage } from "./error-message";
 
-type Method = "POST" | "PATCH" | "DELETE";
+type Method = "GET" | "POST" | "PATCH" | "DELETE";
 
 export interface RequestOptions {
   readonly method: Method;
@@ -37,6 +37,9 @@ export async function sendRequest<T>(options: RequestOptions): Promise<T> {
   // refuses — correctly, since that is not the same as having no body.
   const init: RequestInit = {
     method: options.method,
+    // Every answer here is per-user and changes; a cached one would show a
+    // progress screen that never moves.
+    cache: "no-store",
     // JSON is not a form content type, so the browser preflights it and a
     // cross-site page cannot send it silently. The server checks the origin
     // as well; this is not the control, only the reason it is cheap.

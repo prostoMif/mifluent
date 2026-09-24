@@ -9,8 +9,9 @@
  * runs, not for a hypothetical one.
  */
 
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   jsonb,
@@ -80,6 +81,7 @@ export const rawItems = pgTable(
     index("raw_items_source_fetched_idx").on(table.sourceId, table.fetchedAt),
     index("raw_items_tenant_fetched_idx").on(table.tenantId, table.fetchedAt),
     index("raw_items_page_version_idx").on(table.pageVersionId),
+    check("raw_items_kind_check", sql`${table.kind} IN ('article', 'diff', 'job', 'release')`),
   ],
 );
 
@@ -103,11 +105,19 @@ export const chunks = pgTable(
      */
     startOffset: integer("start_offset").notNull(),
     endOffset: integer("end_offset").notNull(),
+    /**
+     * SHA-256 of `content`. The same press release reaches many tenants, and
+     * embedding it once per tenant is wasted CPU on a one-core server; this is
+     * the key the embedding job looks an existing vector up by. Only the
+     * vector is reused — never another tenant's text.
+     */
+    contentHash: text("content_hash"),
     createdAt: timestamps.createdAt,
   },
   (table) => [
     uniqueIndex("chunks_item_ordinal_unique").on(table.rawItemId, table.ordinal),
     index("chunks_tenant_idx").on(table.tenantId),
+    index("chunks_content_hash_idx").on(table.contentHash),
   ],
 );
 

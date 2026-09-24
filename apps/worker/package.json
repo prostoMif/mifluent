@@ -8,16 +8,27 @@
   "scripts": {
     "start": "node --env-file-if-exists=../../.env --import tsx src/main.ts",
     "typecheck": "tsc --noEmit",
-    "poll": "node --env-file-if-exists=../../.env --import tsx src/main.ts --once"
+    "poll": "node --env-file-if-exists=../../.env --import tsx src/main.ts --once",
+    "discover": "node --env-file-if-exists=../../.env --import tsx src/discover.ts",
+    "digest:build": "node --env-file-if-exists=../../.env --import tsx src/digest-build.ts",
+    "pipeline:dry": "node --env-file-if-exists=../../.env --import tsx src/pipeline-dry-run.ts",
+    "embed:bench": "node --env-file-if-exists=../../.env --import tsx src/embed-bench.ts",
+    "telegram:webhook": "node --env-file-if-exists=../../.env --import tsx src/telegram-webhook.ts"
   },
   "dependencies": {
     "@mifluent/core": "*",
     "@mifluent/db": "*",
-    "@mifluent/domain": "*",
+    "@mifluent/delivery": "*",
+    "@mifluent/digest": "*",
     "@mifluent/discovery": "*",
+    "@mifluent/domain": "*",
+    "@mifluent/embeddings": "*",
     "@mifluent/llm": "*",
+    "@mifluent/pipeline": "*",
     "@mifluent/sources": "*",
-    "pg-boss": "^12.27.0"
+    "drizzle-orm": "^0.44.0",
+    "pg-boss": "^12.27.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "tsx": "^4.19.0"

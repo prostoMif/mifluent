@@ -1,0 +1,28 @@
+{
+  "name": "@mifluent/delivery",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Delivery channels: Telegram now, email later",
+  "license": "AGPL-3.0-only",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean"
+  },
+  "dependencies": {
+    "@mifluent/core": "*",
+    "@mifluent/db": "*",
+    "@mifluent/digest": "*",
+    "@mifluent/domain": "*",
+    "drizzle-orm": "^0.44.0",
+    "zod": "^4.0.0"
+  }
+}

@@ -1,0 +1,116 @@
+/*
+ * A digest, on a phone, in the morning.
+ *
+ * Each card is its blocks, visibly separated: the fact with its quote, "why
+ * it matters", and the model's reading set apart in a muted, labelled box. The
+ * reader must see at a glance which sentence was checked and which is an
+ * opinion.
+ */
+
+.digestHeader {
+  margin-bottom: var(--space-3);
+}
+
+.period {
+  color: var(--colour-text-muted);
+  font-size: 0.875rem;
+}
+
+.notice {
+  border-left: 3px solid var(--colour-accent);
+  padding: var(--space-2) var(--space-3);
+  background: var(--colour-surface);
+  margin: 0 0 var(--space-3);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.card {
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.cardUrgent {
+  border-color: var(--colour-danger);
+}
+
+.headline {
+  font-size: 1.0625rem;
+  margin: 0;
+}
+
+.age {
+  color: var(--colour-text-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.fact {
+  margin: 0;
+}
+
+.quote {
+  display: block;
+  font-style: italic;
+  color: var(--colour-text-muted);
+  margin-top: var(--space-1);
+}
+
+.implication {
+  margin: 0;
+}
+
+.interpretation {
+  margin: 0;
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  background: var(--colour-surface);
+  color: var(--colour-text-muted);
+  font-size: 0.9375rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.actionButton {
+  font: inherit;
+  font-size: 0.875rem;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  background: transparent;
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius);
+  color: var(--colour-text);
+  cursor: pointer;
+}
+
+.actionButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.misses {
+  color: var(--colour-text-muted);
+  font-size: 0.9375rem;
+}
+
+.profileSwitch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}

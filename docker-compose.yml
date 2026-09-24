@@ -1,0 +1,137 @@
+# Mifluent: the whole instance, for a small VPS or a self-hosted server.
+#
+#   cp .env.production.example .env    # then fill it in
+#   docker compose up -d
+#
+# Memory limits add up to about 2.5 GB, which leaves room for the operating
+# system on a 4 GiB server. See docs/deploy.md.
+
+name: mifluent
+
+x-app: &app
+  build:
+    context: .
+    target: runner
+  image: mifluent:latest
+  env_file: .env
+  environment:
+    DATABASE_URL: postgres://mifluent:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/mifluent
+    NODE_ENV: production
+  restart: unless-stopped
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mifluent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: mifluent
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      TZ: UTC
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mifluent -d mifluent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    mem_limit: 512m
+
+  # Runs the pending migrations and exits. The application starts only after
+  # it has finished successfully.
+  migrate:
+    <<: *app
+    restart: "no"
+    command: ["npm", "run", "db:migrate", "--workspace", "@mifluent/db"]
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 512m
+
+  web:
+    <<: *app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    mem_limit: 768m
+
+  worker:
+    <<: *app
+    command: ["npm", "run", "start", "--workspace", "@mifluent/worker"]
+    environment:
+      DATABASE_URL: postgres://mifluent:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/mifluent
+      NODE_ENV: production
+      # The model and its runtime live outside the JavaScript heap; the heap
+      # itself is capped well below the container limit.
+      NODE_OPTIONS: --max-old-space-size=768
+      MODELS_DIR: /models
+      WORKER_HEARTBEAT_FILE: /tmp/mifluent-worker.heartbeat
+    volumes:
+      # The embedding model is downloaded once (~120 MB), not on every restart.
+      - models:/models
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # Unhealthy when the heartbeat is older than three minutes.
+      test: ["CMD-SHELL", "find /tmp/mifluent-worker.heartbeat -mmin -3 | grep -q ."]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    mem_limit: 1g
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?set PUBLIC_HOST in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+    mem_limit: 128m
+
+  backup:
+    build:
+      context: .
+      target: backup
+    image: mifluent-backup:latest
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: mifluent
+      PGDATABASE: mifluent
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:?set BACKUP_PASSPHRASE in .env}
+      BACKUPS_KEPT: "7"
+    volumes:
+      - backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 128m
+
+volumes:
+  postgres-data:
+  models:
+  caddy-data:
+  caddy-config:
+  backups:

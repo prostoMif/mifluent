@@ -16,8 +16,9 @@
  * whether to act on it.
  */
 
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   jsonb,
@@ -32,6 +33,18 @@ import { id, timestamps } from "./common.js";
 import { events } from "./events.js";
 import { watchProfiles, watchProfileVersions } from "./profiles.js";
 import { tenants } from "./tenancy.js";
+
+/**
+ * A line in a digest that is about the watching rather than about an event.
+ *
+ * `target_quiet` is the "X has been quieter than usual" line. It is a notice
+ * rather than a card because a card is an event with facts behind it, and
+ * silence has neither.
+ */
+export type DigestNotice =
+  | { readonly code: "baseline_recorded" }
+  | { readonly code: "cost_cap_reached" }
+  | { readonly code: "target_quiet"; readonly targetName: string };
 
 export const digestStatusEnum = pgEnum("digest_status", ["pending", "delivered", "failed"]);
 
@@ -81,6 +94,12 @@ export const digests = pgTable(
       .$type<{ title: string; url: string | null; reason: string }[]>()
       .notNull()
       .default([]),
+    /**
+     * Service lines the renderer turns into a sentence in the reader's
+     * language. Codes rather than text so the digest can be rendered for
+     * Telegram and the web alike.
+     */
+    notices: jsonb("notices").$type<DigestNotice[]>().notNull().default([]),
     ...timestamps,
   },
   (table) => [
@@ -112,8 +131,16 @@ export const digestCards = pgTable(
       .references(() => events.id, { onDelete: "cascade" }),
     /** Display order within the digest, most significant first. */
     position: integer("position").notNull(),
+    /**
+     * "event" for one event; "group" when a busy week folds several events
+     * about one target into a single card, which then shows the first few
+     * facts and says how many more there were.
+     */
+    kind: text("kind").notNull().default("event"),
     headline: text("headline").notNull(),
     sourceUrl: text("source_url"),
+    /** For a group card: events folded in but not shown. */
+    moreCount: integer("more_count").notNull().default(0),
     /**
      * How old the underlying change was at delivery time. Shown on the card —
      * "this happened 6 days ago" — because it is the one line that makes the
@@ -125,6 +152,7 @@ export const digestCards = pgTable(
   (table) => [
     uniqueIndex("digest_cards_digest_position_unique").on(table.digestId, table.position),
     index("digest_cards_event_idx").on(table.eventId),
+    check("digest_cards_kind_check", sql`${table.kind} IN ('event', 'group')`),
   ],
 );
 

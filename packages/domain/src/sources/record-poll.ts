@@ -22,6 +22,8 @@ import { eq } from "drizzle-orm";
  * `content` is text, never markup: the connector converts before it gets here,
  * so nothing downstream has to remember to.
  */
+export type RawItemKind = "article" | "diff" | "job" | "release";
+
 export interface PollableItem {
   readonly fingerprint: string;
   readonly externalId: string | null;
@@ -30,6 +32,8 @@ export interface PollableItem {
   readonly author: string | null;
   readonly content: string | null;
   readonly publishedAt: Date | null;
+  /** Connector-specific extras worth keeping: department, provider, closed. */
+  readonly metadata?: Readonly<Record<string, unknown>> | undefined;
 }
 
 export interface RecordItemsOptions {
@@ -37,6 +41,8 @@ export interface RecordItemsOptions {
   readonly tenantId: string;
   readonly sourceId: string;
   readonly items: readonly PollableItem[];
+  /** What kind of material the connector produced. Articles unless said otherwise. */
+  readonly kind?: RawItemKind | undefined;
   readonly now?: Date | undefined;
 }
 
@@ -77,6 +83,8 @@ export async function recordPolledItems(options: RecordItemsOptions): Promise<Re
         contentHash: item.fingerprint,
         publishedAt: item.publishedAt,
         fetchedAt: now,
+        kind: options.kind ?? "article",
+        metadata: { ...item.metadata },
       })),
     )
     .onConflictDoNothing({

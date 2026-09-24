@@ -1,87 +1,66 @@
 /**
- * Embedding benchmark.
+ * Embedding benchmark: 200 chunks through the local model.
  *
- * Runs a local embedding benchmark with 200 chunks and reports
- * seconds per chunk and memory usage.
+ * Prints seconds per chunk and the process's resident memory, the two numbers
+ * TASK-006 sets limits on (≤ 0.3 s/chunk on one CPU, ≤ 800 MB). RSS rather than
+ * heap: the model's weights live outside the JavaScript heap, and heap alone
+ * would report a number far below what the server actually has to hold.
+ *
+ * Usage: npm run embed:bench
  */
 
-import { createLogger } from "@mifluent/core";
-import { getEmbeddingProvider } from "@mifluent/embeddings";
+import { getEmbedder } from "./runtime.js";
 
 const CHUNK_COUNT = 200;
+const MAX_SECONDS_PER_CHUNK = 0.3;
+const MAX_RSS_MB = 800;
 
-const logger = createLogger({ level: "info" });
+const TOPICS = [
+  "a price change on the Pro plan",
+  "a new integration with Shopify",
+  "an outage in the EU region",
+  "новый тариф для небольших команд",
+  "изменение правил маркетплейса",
+];
 
-function generateChunk(index: number): string {
-  const topics = [
-    "pricing changes",
-    "new feature release",
-    "security update",
-    "API changes",
-    "performance improvement",
-    "bug fix",
-    "documentation update",
-    "integration added",
-    "deprecation notice",
-    "migration guide",
-  ];
-  const topic = topics[index % topics.length];
-  return `${topic}: This is a test chunk for benchmarking purposes. It contains enough text to simulate a real document chunk of approximately 400 tokens. The content discusses ${topic} in detail with multiple sentences to reach the target length. `;
+function say(line: string): void {
+  process.stdout.write(`${line}\n`);
+}
+
+function sampleChunk(index: number): string {
+  const topic = TOPICS[index % TOPICS.length] ?? "";
+  // About 400 tokens, the chunk size the pipeline produces.
+  return `Chunk ${index} about ${topic}. ${"This paragraph discusses the change in some detail. ".repeat(30)}`;
 }
 
 async function main(): Promise<void> {
-  logger.info("embedding.bench_started", { chunkCount: CHUNK_COUNT });
+  const provider = getEmbedder();
+  const chunks = Array.from({ length: CHUNK_COUNT }, (_, index) => sampleChunk(index));
 
-  const provider = getEmbeddingProvider({ logger });
+  say(`Model: ${provider.model} (${provider.dimensions} dimensions)`);
+  say("Loading and warming up…");
+  await provider.embedPassage(chunks.slice(0, 4));
 
-  // Generate test chunks
-  const chunks = Array.from({ length: CHUNK_COUNT }, (_, i) => generateChunk(i));
-
-  // Warm-up
-  logger.info("embedding.warmup_started");
-  await provider.embedPassage(chunks.slice(0, 8));
-  logger.info("embedding.warmup_completed");
-
-  // Benchmark
-  const startTime = process.hrtime.bigint();
-  const startMemory = process.memoryUsage().heapUsed;
-
+  const startedAt = performance.now();
   await provider.embedPassage(chunks);
+  const seconds = (performance.now() - startedAt) / 1000;
 
-  const endTime = process.hrtime.bigint();
-  const endMemory = process.memoryUsage().heapUsed;
+  const perChunk = seconds / CHUNK_COUNT;
+  const rssMb = process.memoryUsage().rss / 1024 / 1024;
 
-  const durationMs = Number(endTime - startTime) / 1_000_000;
-  const durationSec = durationMs / 1000;
-  const memoryDeltaMB = (endMemory - startMemory) / 1024 / 1024;
-  const peakMemoryMB = process.memoryUsage().heapUsed / 1024 / 1024;
-  const perChunkMs = durationMs / CHUNK_COUNT;
-  const perChunkSec = perChunkMs / 1000;
-
-  logger.info("embedding.bench_completed", {
-    chunkCount: CHUNK_COUNT,
-    totalDurationMs: Math.round(durationMs),
-    totalDurationSec: durationSec.toFixed(2),
-    perChunkMs: Math.round(perChunkMs),
-    perChunkSec: perChunkSec.toFixed(4),
-    memoryDeltaMB: Math.round(memoryDeltaMB * 100) / 100,
-    peakMemoryMB: Math.round(peakMemoryMB * 100) / 100,
-    model: "intfloat/multilingual-e5-small",
-    dimensions: 384,
-  });
-
-  // Check acceptance criteria
-  if (perChunkSec > 0.3) {
-    logger.warn(`Per chunk time ${perChunkSec.toFixed(4)}s exceeds 0.3s target`);
-  }
-  if (peakMemoryMB > 800) {
-    logger.warn(`Peak memory ${Math.round(peakMemoryMB)} MB exceeds 800 MB target`);
-  }
+  say(`Chunks:        ${CHUNK_COUNT}`);
+  say(`Total:         ${seconds.toFixed(1)} s`);
+  say(
+    `Per chunk:     ${perChunk.toFixed(3)} s   (limit ${MAX_SECONDS_PER_CHUNK} s) ${perChunk <= MAX_SECONDS_PER_CHUNK ? "✓" : "✗"}`,
+  );
+  say(
+    `Process RSS:   ${rssMb.toFixed(0)} MB  (limit ${MAX_RSS_MB} MB) ${rssMb <= MAX_RSS_MB ? "✓" : "✗"}`,
+  );
 }
 
-main().catch((error) => {
-  logger.error("embedding.bench_failed", {
-    error: error instanceof Error ? error.message : String(error),
-  });
+main().catch((error: unknown) => {
+  process.stderr.write(
+    `Benchmark failed: ${error instanceof Error ? error.message : String(error)}\n`,
+  );
   process.exit(1);
 });

@@ -1,0 +1,32 @@
+[
+  {
+    "additionalPlain": "Benefits: health, equity.",
+    "additional": "<div>Benefits: health, equity.</div>",
+    "categories": {
+      "commitment": "Full-time",
+      "location": "San Francisco, CA",
+      "team": "Engineering",
+      "allLocations": ["San Francisco, CA"]
+    },
+    "createdAt": 1705312200000,
+    "descriptionPlain": "We are looking for a Senior Software Engineer to join our team.\n\nRequirements: 5+ years experience.",
+    "description": "<div>We are looking for a Senior Software Engineer to join our team.</div>",
+    "id": "abc123",
+    "lists": [],
+    "text": "Senior Software Engineer",
+    "country": "US",
+    "workplaceType": "hybrid",
+    "hostedUrl": "https://jobs.lever.co/example/abc123",
+    "applyUrl": "https://jobs.lever.co/example/abc123/apply"
+  },
+  {
+    "categories": { "commitment": "Full-time", "location": "New York, NY", "team": "Product" },
+    "createdAt": 1705225200000,
+    "descriptionPlain": "Product Manager needed for exciting new initiative.",
+    "id": "def456",
+    "lists": [],
+    "text": "Product Manager",
+    "hostedUrl": "https://jobs.lever.co/example/def456",
+    "applyUrl": "https://jobs.lever.co/example/def456/apply"
+  }
+]

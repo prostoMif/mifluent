@@ -18,8 +18,17 @@
  * system needs.
  */
 
-import { relations } from "drizzle-orm";
-import { index, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import {
+  check,
+  index,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { user } from "./auth.js";
 import { aliveOnly, id, softDelete, timestamps } from "./common.js";
 
@@ -32,10 +41,19 @@ export const tenants = pgTable(
     name: text("name").notNull(),
     /** IANA zone, e.g. "Europe/Moscow". Storage stays UTC regardless. */
     timezone: text("timezone").notNull().default("UTC"),
+    /**
+     * Which set of limits applies. Text with a check rather than an enum: the
+     * plan list will change with pricing, and dropping an enum value is a
+     * migration nobody enjoys. The limits themselves live in code.
+     */
+    plan: text("plan").notNull().default("free"),
     ...timestamps,
     ...softDelete,
   },
-  (table) => [index("tenants_deleted_at_idx").on(table.deletedAt)],
+  (table) => [
+    index("tenants_deleted_at_idx").on(table.deletedAt),
+    check("tenants_plan_check", sql`${table.plan} IN ('free', 'pro', 'team')`),
+  ],
 );
 
 export const memberships = pgTable(

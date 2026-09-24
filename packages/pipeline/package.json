@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Pipeline: relevance selection, extraction, clustering, digest assembly",
+  "description": "The cascade after fetching: embedding, selection, extraction, clustering",
   "license": "AGPL-3.0-only",
   "exports": {
     ".": {
@@ -21,7 +21,9 @@
     "@mifluent/core": "*",
     "@mifluent/db": "*",
     "@mifluent/domain": "*",
+    "@mifluent/embeddings": "*",
     "@mifluent/llm": "*",
+    "drizzle-orm": "^0.44.0",
     "zod": "^4.0.0"
   }
 }

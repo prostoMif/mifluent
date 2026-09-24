@@ -27,3 +27,33 @@ export const httpUrlSchema = z
   .string()
   .trim()
   .refine(isHttpUrl, { message: "Use a full address starting with http:// or https://" });
+
+/**
+ * A link from source material, made safe to put in front of a person — or null.
+ *
+ * Material is written by strangers, and a link in a digest carries the trust
+ * the person places in the digest. So a link has to pass three checks before it
+ * is shown: a web scheme, a real host, and no credentials in the authority part
+ * (`https://bank.com@evil.example` reads as the bank and goes to the other one).
+ * Anything that fails is dropped rather than repaired.
+ *
+ * The fragment is removed because callers append their own text fragment, and
+ * a link carrying two is a link that highlights nothing.
+ */
+export function toSafeLink(value: string | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value.trim());
+  } catch {
+    return null;
+  }
+
+  if (!ALLOWED_PROTOCOLS.includes(parsed.protocol)) return null;
+  if (parsed.hostname === "" || !parsed.hostname.includes(".")) return null;
+  if (parsed.username !== "" || parsed.password !== "") return null;
+
+  parsed.hash = "";
+  return parsed.toString();
+}

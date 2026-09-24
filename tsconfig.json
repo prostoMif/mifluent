@@ -5,6 +5,7 @@
   "references": [
     { "path": "./packages/core" },
     { "path": "./packages/db" },
+    { "path": "./packages/delivery" },
     { "path": "./packages/digest" },
     { "path": "./packages/domain" },
     { "path": "./packages/discovery" },

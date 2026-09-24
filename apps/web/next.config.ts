@@ -6,7 +6,17 @@ const config: NextConfig = {
   // The packages are TypeScript source in this repository, not published
   // builds. Transpiling them here keeps the dev server from needing a separate
   // watch-and-rebuild step for every edit in packages/.
-  transpilePackages: ["@mifluent/core", "@mifluent/db", "@mifluent/domain"],
+  transpilePackages: [
+    "@mifluent/core",
+    "@mifluent/db",
+    "@mifluent/delivery",
+    "@mifluent/digest",
+    "@mifluent/domain",
+  ],
+
+  // Loaded by the server at runtime rather than bundled: pg-boss reads its
+  // own SQL at startup and does not survive being inlined.
+  serverExternalPackages: ["pg-boss"],
 
   // Produces a self-contained server bundle, which is what the Docker image
   // will copy. Without it the image has to carry all of node_modules.

@@ -36,9 +36,17 @@ export default async function WatchingPage() {
             Writing the description properly is the part that matters. A vague one produces a vague
             digest.
           </p>
-          <Link className={formStyles["button"]} href="/watching/new">
-            Create a profile
-          </Link>
+          <div className={formStyles["actions"]}>
+            <Link className={formStyles["button"]} href="/watching/start">
+              Start with your website
+            </Link>
+            <Link
+              className={`${formStyles["button"]} ${formStyles["secondary"]}`}
+              href="/watching/new"
+            >
+              Describe it by hand
+            </Link>
+          </div>
         </section>
       ) : (
         <>
@@ -59,12 +67,20 @@ export default async function WatchingPage() {
             ))}
           </ul>
 
-          <Link
-            className={`${formStyles["button"]} ${formStyles["secondary"]}`}
-            href="/watching/new"
-          >
-            Add another profile
-          </Link>
+          <div className={formStyles["actions"]}>
+            <Link
+              className={`${formStyles["button"]} ${formStyles["secondary"]}`}
+              href="/watching/start"
+            >
+              Add a profile from a website
+            </Link>
+            <Link
+              className={`${formStyles["button"]} ${formStyles["secondary"]}`}
+              href="/watching/new"
+            >
+              Add one by hand
+            </Link>
+          </div>
         </>
       )}
     </>

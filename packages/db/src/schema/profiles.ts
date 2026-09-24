@@ -24,11 +24,35 @@ import {
   pgTable,
   real,
   text,
+  timestamp,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { aliveOnly, id, softDelete, timestamps } from "./common.js";
 import { tenants } from "./tenancy.js";
+
+/**
+ * When and where a profile's digest goes.
+ *
+ * Every field optional, with the defaults applied in code: the default
+ * timezone is instance configuration, and a column default cannot read it.
+ * Changing any of this does not create a profile version — it changes when
+ * something is sent, not what gets selected.
+ */
+export interface ProfileDelivery {
+  readonly cadence?: "weekly" | "daily";
+  /** ISO weekday, Monday = 1. Ignored for a daily cadence. */
+  readonly weekday?: number;
+  /** Local hour in `timezone`, 0..23. */
+  readonly hour?: number;
+  readonly timezone?: string;
+  /**
+   * Where Telegram delivery goes. Kept here rather than on the account
+   * because the digest is per profile, and a chat identifier is not a secret
+   * but is personal data — it never appears in a log line.
+   */
+  readonly telegramChatId?: string;
+}
 
 /** What kind of thing is being watched. Drives how it is described and matched. */
 export const watchTargetKindEnum = pgEnum("watch_target_kind", [
@@ -76,6 +100,7 @@ export const watchProfiles = pgTable(
     relevanceThreshold: real("relevance_threshold").notNull().default(0.5),
     /** Points at the version currently in force. */
     currentVersionId: uuid("current_version_id"),
+    delivery: jsonb("delivery").$type<ProfileDelivery>().notNull().default({}),
     ...timestamps,
     ...softDelete,
   },
@@ -160,6 +185,8 @@ export const watchTargets = pgTable(
     aliases: jsonb("aliases").$type<string[]>().notNull().default([]),
     /** Why this matters to the business. Written by the model, editable. */
     reason: text("reason"),
+    /** When paused by user action (e.g., "not following this target"). */
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
     ...timestamps,
     ...softDelete,
   },
@@ -188,6 +215,36 @@ export const stopwords = pgTable(
   },
   (table) => [
     uniqueIndex("stopwords_profile_term_unique").on(table.profileId, table.term).where(aliveOnly),
+  ],
+);
+
+/**
+ * One-time codes for binding a Telegram chat to a watch profile.
+ *
+ * The code is typed into a chat with a bot, so whoever holds it can point a
+ * profile's digests at their own chat. Stored hashed for the same reason
+ * invitation tokens are: a leaked backup must not hand out working codes.
+ * Ten minutes of life, single use, hard-deleted once used or expired.
+ */
+export const telegramBindings = pgTable(
+  "telegram_bindings",
+  {
+    id: id(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => watchProfiles.id, { onDelete: "cascade" }),
+    /** SHA-256 of the code, never the code itself. */
+    codeHash: text("code_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamps.createdAt,
+  },
+  (table) => [
+    uniqueIndex("telegram_bindings_code_hash_unique").on(table.codeHash),
+    index("telegram_bindings_tenant_idx").on(table.tenantId),
+    index("telegram_bindings_expires_idx").on(table.expiresAt),
   ],
 );
 

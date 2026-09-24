@@ -1,10 +1,11 @@
-import { isUuid } from "@mifluent/core";
-import { can, findWatchProfile, listSources } from "@mifluent/domain";
+import { getConfig, isUuid } from "@mifluent/core";
+import { can, findProfileDelivery, findWatchProfile, listSources } from "@mifluent/domain";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DeleteProfileButton } from "@/components/profiles/delete-profile-button";
 import { SourcesPanel } from "@/components/profiles/sources-panel";
 import { WatchProfileForm } from "@/components/profiles/watch-profile-form";
+import { TelegramBinding } from "@/components/telegram/telegram-binding";
 import { getDatabase } from "@/lib/db";
 import { requireSessionWith } from "@/lib/session";
 import appStyles from "../../app.module.css";
@@ -37,7 +38,9 @@ export default async function WatchProfilePage({ params }: PageProps) {
   }
 
   const sources = await listSources(getDatabase(), session.tenantId, profile.id);
+  const delivery = await findProfileDelivery(getDatabase(), session.tenantId, profile.id);
   const canEdit = can(session.role, "profile:write");
+  const config = getConfig();
 
   return (
     <>
@@ -51,6 +54,18 @@ export default async function WatchProfilePage({ params }: PageProps) {
       <WatchProfileForm profile={profile} />
 
       <SourcesPanel canEdit={canEdit} profileId={profile.id} sources={sources} />
+
+      {canEdit ? (
+        <section aria-labelledby="telegram-heading" style={{ marginTop: "2.5rem" }}>
+          <h2 id="telegram-heading">Telegram</h2>
+          <TelegramBinding
+            botUsername={config.TELEGRAM_BOT_USERNAME}
+            isBound={delivery?.telegramChatId !== undefined}
+            isConfigured={config.features.telegram}
+            profileId={profile.id}
+          />
+        </section>
+      ) : null}
 
       {canEdit ? (
         <section aria-labelledby="danger-heading" style={{ marginTop: "2.5rem" }}>

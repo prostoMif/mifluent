@@ -1,0 +1,41 @@
+{
+  "jobs": [
+    {
+      "absolute_url": "https://job-boards.greenhouse.io/example/jobs/12345",
+      "internal_job_id": 6417799002,
+      "location": { "name": "San Francisco, CA" },
+      "metadata": [],
+      "id": 12345,
+      "updated_at": "2026-01-15T10:30:00-05:00",
+      "requisition_id": "6401",
+      "title": "Senior Software Engineer",
+      "company_name": "Example",
+      "first_published": "2026-01-10T09:00:00-05:00",
+      "language": "en",
+      "content": "&lt;p&gt;We are looking for a &lt;strong&gt;Senior Software Engineer&lt;/strong&gt; to join our team.&lt;/p&gt;&lt;p&gt;Requirements:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;5+ years experience&lt;/li&gt;&lt;li&gt;TypeScript &amp;amp; Node.js&lt;/li&gt;&lt;/ul&gt;",
+      "departments": [
+        { "id": 4069215002, "name": "Engineering", "child_ids": [], "parent_id": null }
+      ],
+      "offices": [
+        { "id": 4112140002, "name": "US", "location": null, "child_ids": [], "parent_id": null }
+      ]
+    },
+    {
+      "absolute_url": "https://job-boards.greenhouse.io/example/jobs/12346",
+      "internal_job_id": 6417799003,
+      "location": { "name": "New York, NY" },
+      "metadata": [],
+      "id": 12346,
+      "updated_at": "2026-01-14T14:20:00Z",
+      "requisition_id": "6402",
+      "title": "Product Manager",
+      "company_name": "Example",
+      "first_published": "2026-01-12T09:00:00Z",
+      "language": "en",
+      "content": "&lt;p&gt;Product Manager needed for exciting new initiative.&lt;/p&gt;",
+      "departments": [],
+      "offices": []
+    }
+  ],
+  "meta": { "total": 2 }
+}

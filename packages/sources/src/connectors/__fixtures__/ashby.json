@@ -1,0 +1,46 @@
+{
+  "apiVersion": "1",
+  "jobs": [
+    {
+      "id": "7458d4e9-da2e-47bd-98cb-adfda43d42b2",
+      "title": "Senior Software Engineer",
+      "department": "Engineering",
+      "team": "Platform",
+      "employmentType": "FullTime",
+      "location": "San Francisco, CA",
+      "secondaryLocations": [],
+      "publishedAt": "2026-01-15T10:30:00.000+00:00",
+      "isListed": true,
+      "isRemote": false,
+      "jobUrl": "https://jobs.ashbyhq.com/example/7458d4e9-da2e-47bd-98cb-adfda43d42b2",
+      "applyUrl": "https://jobs.ashbyhq.com/example/7458d4e9-da2e-47bd-98cb-adfda43d42b2/application",
+      "descriptionHtml": "<p>We are looking for a <strong>Senior Software Engineer</strong>.</p>",
+      "descriptionPlain": "We are looking for a Senior Software Engineer."
+    },
+    {
+      "id": "8d1f0b52-1111-4d7a-9a55-2f0c1e2d3b4a",
+      "title": "Product Manager",
+      "department": "Product",
+      "team": "Core",
+      "employmentType": "FullTime",
+      "location": "New York, NY",
+      "secondaryLocations": [],
+      "publishedAt": "2026-01-14T14:20:00.000+00:00",
+      "isListed": true,
+      "isRemote": false,
+      "jobUrl": "https://jobs.ashbyhq.com/example/8d1f0b52-1111-4d7a-9a55-2f0c1e2d3b4a",
+      "applyUrl": "https://jobs.ashbyhq.com/example/8d1f0b52-1111-4d7a-9a55-2f0c1e2d3b4a/application",
+      "descriptionPlain": "Product Manager needed for exciting new initiative."
+    },
+    {
+      "id": "0e9c2a11-2222-4b7a-8c55-3f0c1e2d3b4b",
+      "title": "Unlisted Role",
+      "department": "Engineering",
+      "location": "Remote",
+      "publishedAt": "2026-01-13T09:00:00.000+00:00",
+      "isListed": false,
+      "jobUrl": "https://jobs.ashbyhq.com/example/0e9c2a11-2222-4b7a-8c55-3f0c1e2d3b4b",
+      "descriptionPlain": "Not public."
+    }
+  ]
+}

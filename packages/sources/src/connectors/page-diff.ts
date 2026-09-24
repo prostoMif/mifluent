@@ -32,12 +32,17 @@ export interface PageDiffResultChanged {
 
 export type PageDiffResult = PageDiffResultUnchanged | PageDiffResultChanged;
 
+/**
+ * Lines that change on every load without meaning anything: dates, counters,
+ * copyright years. `\p{P}` and `\p{S}` rather than `\W`, because `\W` treats
+ * every non-Latin letter as noise — a Russian pricing page would diff as empty.
+ */
 const NOISE_PATTERNS = [
   /^\s*$/,
-  /^[\s\d\W]*$/,
+  /^[\s\d\p{P}\p{S}]*$/u,
   /^[\s\d]*\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4}[\s\d]*$/,
   /^[\s\d]*\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2}[\s\d]*$/,
-  /^[©®™]/i,
+  /^(©|®|™|\(c\)|copyright\b)/iu,
 ];
 
 function isNoiseLine(line: string): boolean {
@@ -59,31 +64,30 @@ function computeHash(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
+/** Longest a single added or removed line may be; a page of minified text is one line. */
+const MAX_LINE_LENGTH = 2_000;
+
 export function diffText(oldText: string, newText: string): { added: string; removed: string } {
-  const diff = diffLines(oldText, newText);
+  // Both sides end in a newline, or `diffLines` reports the last line as
+  // changed merely because one of them gained a line after it.
+  const parts = diffLines(withTrailingNewline(oldText), withTrailingNewline(newText));
 
-  let added = "";
-  let removed = "";
+  const added: string[] = [];
+  const removed: string[] = [];
 
-  for (const part of diff) {
-    if (part.added) {
-      added += part.value;
-    } else if (part.removed) {
-      removed += part.value;
+  for (const part of parts) {
+    const target = part.added ? added : part.removed ? removed : undefined;
+    if (target === undefined) continue;
+    for (const line of part.value.split("\n")) {
+      if (line !== "") target.push(line.slice(0, MAX_LINE_LENGTH));
     }
   }
 
-  // Limit each line to 2000 chars as per spec
-  const truncate = (text: string): string =>
-    text
-      .split("\n")
-      .map((line) => (line.length > 2000 ? line.slice(0, 2000) : line))
-      .join("\n");
+  return { added: added.join("\n"), removed: removed.join("\n") };
+}
 
-  return {
-    added: truncate(added),
-    removed: truncate(removed),
-  };
+function withTrailingNewline(text: string): string {
+  return text === "" || text.endsWith("\n") ? text : `${text}\n`;
 }
 
 export async function pollPageDiff(options: PageDiffOptions): Promise<PageDiffResult> {

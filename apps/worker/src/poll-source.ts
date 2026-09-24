@@ -16,45 +16,84 @@
  * It also keeps the two backoffs from fighting. The source has its own, which
  * doubles the interval as failures pile up; letting the queue retry as well
  * would multiply one by the other and produce delays nobody chose.
+ *
+ * Takes the database handle as an argument so the dry run (TASK-013) can poll
+ * inside a transaction it rolls back.
  */
 
 import { toAppError } from "@mifluent/core";
+import type { Queryable } from "@mifluent/db";
 import {
+  findLatestPageVersion,
+  type PollableItem,
   type PollableSource,
+  type RawItemKind,
+  recordPageBaseline,
+  recordPageChange,
   recordPolledItems,
   recordPollFailure,
   recordPollSuccess,
+  updateSourceConfig,
 } from "@mifluent/domain";
-import { hasFailedTooOften, type PolledItem, pollPageDiff, pollRssSource } from "@mifluent/sources";
-import { getDatabase, logger, USER_AGENT } from "./runtime.js";
+import {
+  type AtsPolledItem,
+  fingerprintItem,
+  hasFailedTooOften,
+  type KnownJob,
+  pollAtsBoard,
+  pollPageDiff,
+  pollRssSource,
+  type PolledItem as RssPolledItem,
+} from "@mifluent/sources";
+import { z } from "zod";
+import { logger, USER_AGENT } from "./runtime.js";
 
 export interface PollOutcome {
   readonly label: string;
-  readonly result: "stored" | "unchanged" | "failed" | "skipped";
+  readonly result: "stored" | "unchanged" | "baseline" | "failed" | "skipped";
   readonly stored: number;
   readonly duplicates: number;
   readonly message?: string | undefined;
 }
 
-export async function pollSource(source: PollableSource, now: Date): Promise<PollOutcome> {
+export interface PollSourceOptions {
+  readonly db: Queryable;
+  readonly source: PollableSource;
+  readonly now: Date;
+}
+
+/** What the job-board connector remembers between polls, in `sources.config`. */
+const jobMemorySchema = z.object({
+  lastJobs: z.array(z.object({ id: z.string(), title: z.string() })).catch([]),
+});
+
+export async function pollSource(options: PollSourceOptions): Promise<PollOutcome> {
+  const { source } = options;
+
   if (source.locator === null) {
     return { label: source.label, result: "skipped", stored: 0, duplicates: 0 };
   }
 
   try {
-    return await collect(source, source.locator, now);
+    return await collect(options, source.locator);
   } catch (thrown) {
-    return await recordFailure(source, thrown, now);
+    return await recordFailure(options, thrown);
   }
 }
 
-async function collect(source: PollableSource, locator: string, now: Date): Promise<PollOutcome> {
-  const database = getDatabase();
-
-  // Handle diff kind separately
-  if (source.kind === "diff") {
-    return await collectDiff(source, locator, now);
+async function collect(options: PollSourceOptions, locator: string): Promise<PollOutcome> {
+  switch (options.source.kind) {
+    case "diff":
+      return collectPageDiff(options, locator);
+    case "json":
+      return collectJobBoard(options, locator);
+    default:
+      return collectFeed(options, locator);
   }
+}
+
+async function collectFeed(options: PollSourceOptions, locator: string): Promise<PollOutcome> {
+  const { db, source, now } = options;
 
   const result = await pollRssSource({
     feedUrl: locator,
@@ -71,57 +110,126 @@ async function collect(source: PollableSource, locator: string, now: Date): Prom
 
   if (result.isUnchanged) {
     await recordPollSuccess({
-      db: database,
+      db,
       tenantId: source.tenantId,
       sourceId: source.id,
       ...validators,
       now,
     });
-
     return { label: source.label, result: "unchanged", stored: 0, duplicates: 0 };
   }
 
   const written = await recordPolledItems({
-    db: database,
+    db,
     tenantId: source.tenantId,
     sourceId: source.id,
-    items: result.items.map(toStorableItem),
+    items: result.items.map(fromFeedItem),
+    kind: feedItemKind(locator),
     now,
   });
 
   await recordPollSuccess({
-    db: database,
+    db,
     tenantId: source.tenantId,
     sourceId: source.id,
     ...validators,
     now,
   });
-
-  logger.info("sources.polled", {
-    sourceId: source.id,
-    stored: written.stored,
-    duplicates: written.duplicates,
-  });
-
-  return {
-    label: source.label,
-    result: "stored",
-    stored: written.stored,
-    duplicates: written.duplicates,
-  };
+  return logStored(source, written.stored, written.duplicates);
 }
 
-async function recordFailure(
-  source: PollableSource,
-  thrown: unknown,
-  now: Date,
-): Promise<PollOutcome> {
+async function collectPageDiff(options: PollSourceOptions, locator: string): Promise<PollOutcome> {
+  const { db, source, now } = options;
+  const previous = await findLatestPageVersion(db, source.tenantId, source.id);
+
+  const diff = await pollPageDiff({
+    url: locator,
+    userAgent: USER_AGENT,
+    previousHash: previous?.contentHash,
+    previousText: previous?.extractedText,
+  });
+
+  if (diff.isUnchanged) {
+    await recordPollSuccess({ db, tenantId: source.tenantId, sourceId: source.id, now });
+    return { label: source.label, result: "unchanged", stored: 0, duplicates: 0 };
+  }
+
+  const version = {
+    tenantId: source.tenantId,
+    sourceId: source.id,
+    contentHash: diff.contentHash,
+    extractedText: diff.extractedText,
+    fetchedAt: now,
+  };
+
+  if (previous === undefined) {
+    await recordPageBaseline(db, version);
+    await recordPollSuccess({ db, tenantId: source.tenantId, sourceId: source.id, now });
+    return { label: source.label, result: "baseline", stored: 0, duplicates: 0 };
+  }
+
+  const isStored = await recordPageChange(db, {
+    ...version,
+    pageUrl: locator,
+    label: source.label,
+    added: diff.added,
+    removed: diff.removed,
+    // Identity by source and time, not by URL: every change to one page has
+    // the same URL, and a fingerprint built from it would keep only the first
+    // change ever seen. The time also makes a page that flips A→B, back, and
+    // A→B again count as two changes.
+    fingerprint: fingerprintItem({
+      externalId: `${source.id}:${now.toISOString()}`,
+      url: null,
+      title: source.label,
+      content: `${diff.added}\n${diff.removed}`,
+      feedUrl: locator,
+    }),
+  });
+
+  await recordPollSuccess({ db, tenantId: source.tenantId, sourceId: source.id, now });
+  return logStored(source, isStored ? 1 : 0, isStored ? 0 : 1);
+}
+
+async function collectJobBoard(options: PollSourceOptions, locator: string): Promise<PollOutcome> {
+  const { db, source, now } = options;
+  const memory = jobMemorySchema.parse(source.config);
+
+  const result = await pollAtsBoard({
+    boardUrl: locator,
+    userAgent: USER_AGENT,
+    // Empty on the first poll, so nothing is reported as closed before the
+    // board has been seen once.
+    previousJobs: memory.lastJobs,
+    now,
+  });
+
+  const written = await recordPolledItems({
+    db,
+    tenantId: source.tenantId,
+    sourceId: source.id,
+    items: [...result.items, ...result.closedItems].map(fromJobItem),
+    kind: "job",
+    now,
+  });
+
+  await updateSourceConfig(db, source.tenantId, source.id, {
+    ...source.config,
+    lastJobs: result.currentJobs satisfies readonly KnownJob[],
+  });
+  await recordPollSuccess({ db, tenantId: source.tenantId, sourceId: source.id, now });
+
+  return logStored(source, written.stored, written.duplicates);
+}
+
+async function recordFailure(options: PollSourceOptions, thrown: unknown): Promise<PollOutcome> {
+  const { db, source, now } = options;
   const error = toAppError(thrown);
   const failures = source.consecutiveFailures + 1;
   const isBroken = hasFailedTooOften(failures);
 
   await recordPollFailure({
-    db: getDatabase(),
+    db,
     tenantId: source.tenantId,
     sourceId: source.id,
     code: error.code,
@@ -147,191 +255,42 @@ async function recordFailure(
   };
 }
 
-interface StorableItem {
-  readonly fingerprint: string;
-  readonly externalId: string | null;
-  readonly url: string | null;
-  readonly title: string | null;
-  readonly author: string | null;
-  readonly content: string | null;
-  readonly publishedAt: Date | null;
+function logStored(source: PollableSource, stored: number, duplicates: number): PollOutcome {
+  logger.info("sources.polled", { sourceId: source.id, stored, duplicates });
+  return { label: source.label, result: "stored", stored, duplicates };
 }
 
-function toStorableItem(item: PolledItem): StorableItem {
+function fromFeedItem(item: RssPolledItem): PollableItem {
   return {
     fingerprint: item.fingerprint,
     externalId: item.externalId,
     url: item.url,
     title: item.title,
     author: item.author,
-    // The teaser is used when the feed carries no body, because a title alone
-    // gives the classifier almost nothing to work with.
-    content: item.content ?? item.summary,
+    // The teaser is used when the feed carries no body, and the title when
+    // there is not even that: a title alone is thin, but an item with no text
+    // at all could never be embedded and would stall the queue behind it.
+    content: item.content ?? item.summary ?? item.title,
     publishedAt: item.publishedAt,
   };
 }
 
-async function collectDiff(
-  source: PollableSource,
-  locator: string,
-  now: Date,
-): Promise<PollOutcome> {
-  const database = getDatabase();
-
-  const { schema } = await import("@mifluent/db");
-  const { uuidv7 } = await import("@mifluent/core");
-  const { eq, desc } = await import("drizzle-orm");
-
-  // Get the latest page version for this source
-  const [latestVersion] = await database
-    .select({
-      contentHash: schema.pageVersions.contentHash,
-      extractedText: schema.pageVersions.extractedText,
-      addedText: schema.pageVersions.addedText,
-      removedText: schema.pageVersions.removedText,
-    })
-    .from(schema.pageVersions)
-    .where(eq(schema.pageVersions.sourceId, source.id))
-    .orderBy(desc(schema.pageVersions.fetchedAt))
-    .limit(1);
-
-  const previousHash = latestVersion?.contentHash ?? null;
-  const previousText = latestVersion?.extractedText ?? null;
-
-  const diffResult = await pollPageDiff({
-    url: locator,
-    userAgent: USER_AGENT,
-    previousHash: previousHash ?? undefined,
-    previousText: previousText ?? undefined,
-  });
-
-  if (diffResult.isUnchanged) {
-    await recordPollSuccess({
-      db: database,
-      tenantId: source.tenantId,
-      sourceId: source.id,
-      now,
-    });
-
-    return { label: source.label, result: "unchanged", stored: 0, duplicates: 0 };
-  }
-
-  // Baseline (first poll): store page_versions but don't create raw_item
-  if (diffResult.added === "" && diffResult.removed === "") {
-    await database.insert(schema.pageVersions).values({
-      id: uuidv7(),
-      tenantId: source.tenantId,
-      sourceId: source.id,
-      contentHash: diffResult.contentHash,
-      extractedText: diffResult.extractedText,
-      addedText: null,
-      removedText: null,
-      fetchedAt: now,
-    });
-
-    await recordPollSuccess({
-      db: database,
-      tenantId: source.tenantId,
-      sourceId: source.id,
-      now,
-    });
-
-    // Cleanup old versions (keep max 20)
-    await cleanupOldVersions(database, source.tenantId, source.id);
-
-    return { label: source.label, result: "stored", stored: 0, duplicates: 0 };
-  }
-
-  // Changed: store new page_version + raw_item
-  const pageVersionId = uuidv7();
-
-  await database.transaction(async (tx) => {
-    // Store page version
-    await tx.insert(schema.pageVersions).values({
-      id: pageVersionId,
-      tenantId: source.tenantId,
-      sourceId: source.id,
-      contentHash: diffResult.contentHash,
-      extractedText: diffResult.extractedText,
-      addedText: diffResult.added,
-      removedText: diffResult.removed,
-      fetchedAt: now,
-    });
-
-    // Create raw_item
-    const rawItemId = uuidv7();
-    const content = `ADDED:\n${diffResult.added}\n\nREMOVED:\n${diffResult.removed}`;
-    const fingerprint = (await import("@mifluent/sources")).fingerprintItem({
-      externalId: null,
-      url: locator,
-      title: source.label,
-      content,
-      feedUrl: locator,
-    });
-
-    await tx.insert(schema.rawItems).values({
-      id: rawItemId,
-      tenantId: source.tenantId,
-      sourceId: source.id,
-      externalId: null,
-      url: locator,
-      title: source.label,
-      author: null,
-      content,
-      contentHash: fingerprint,
-      publishedAt: now,
-      fetchedAt: now,
-      kind: "diff",
-      pageVersionId,
-    });
-  });
-
-  await recordPollSuccess({
-    db: database,
-    tenantId: source.tenantId,
-    sourceId: source.id,
-    now,
-  });
-
-  // Cleanup old versions (keep max 20)
-  await cleanupOldVersions(database, source.tenantId, source.id);
-
-  logger.info("sources.polled", {
-    sourceId: source.id,
-    stored: 1,
-    duplicates: 0,
-  });
-
+function fromJobItem(item: AtsPolledItem): PollableItem {
   return {
-    label: source.label,
-    result: "stored",
-    stored: 1,
-    duplicates: 0,
+    fingerprint: item.fingerprint,
+    externalId: item.externalId,
+    url: item.url,
+    title: item.title,
+    author: item.author,
+    content: item.content === "" ? item.title : item.content,
+    publishedAt: item.publishedAt,
+    metadata: item.metadata,
   };
 }
 
-async function cleanupOldVersions(
-  database: import("@mifluent/db").Database,
-  _tenantId: string,
-  sourceId: string,
-): Promise<void> {
-  const { schema } = await import("@mifluent/db");
-  const { eq, desc } = await import("drizzle-orm");
-
-  const versions = await database
-    .select({ id: schema.pageVersions.id })
-    .from(schema.pageVersions)
-    .where(eq(schema.pageVersions.sourceId, sourceId))
-    .orderBy(desc(schema.pageVersions.fetchedAt))
-    .limit(21);
-
-  if (versions.length > 20) {
-    const toDelete = versions.slice(20);
-    await database.delete(schema.pageVersions).where(
-      (await import("drizzle-orm")).inArray(
-        schema.pageVersions.id,
-        toDelete.map((item: { id: string }) => item.id),
-      ),
-    );
-  }
+/** A GitHub releases feed carries releases, which the selection prompt treats differently. */
+function feedItemKind(locator: string): RawItemKind {
+  const url = new URL(locator);
+  const isGithubReleases = url.hostname === "github.com" && url.pathname.endsWith("/releases.atom");
+  return isGithubReleases ? "release" : "article";
 }

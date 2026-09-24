@@ -23,6 +23,10 @@ export type ErrorCode =
   | "model_unavailable"
   | "model_response_invalid"
   | "quote_not_found"
+  // Delivery and limits
+  | "delivery_failed"
+  | "plan_limit_reached"
+  | "cost_cap_reached"
   // Configuration and everything else
   | "configuration_invalid"
   | "internal_error";
@@ -45,6 +49,10 @@ const HTTP_STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {
   model_unavailable: 503,
   model_response_invalid: 502,
   quote_not_found: 422,
+
+  delivery_failed: 502,
+  plan_limit_reached: 403,
+  cost_cap_reached: 503,
 
   configuration_invalid: 500,
   internal_error: 500,

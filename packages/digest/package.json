@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Digest assembly: weekly/urgent digests from events",
+  "description": "Digest assembly: which events go into which digest, and when",
   "license": "AGPL-3.0-only",
   "exports": {
     ".": {
@@ -21,6 +21,7 @@
     "@mifluent/core": "*",
     "@mifluent/db": "*",
     "@mifluent/domain": "*",
-    "date-fns-tz": "^3.0.0"
+    "drizzle-orm": "^0.44.0",
+    "zod": "^4.0.0"
   }
 }

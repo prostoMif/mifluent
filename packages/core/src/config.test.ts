@@ -116,4 +116,29 @@ describe("blank variables", () => {
   it("still refuses a required variable that is blank", () => {
     expect(() => parseConfig({ ...VALID, DATABASE_URL: "" })).toThrow();
   });
+
+  it("collects plan overrides by plan and camel-cased field", () => {
+    const config = parseConfig({
+      ...VALID,
+      PLAN_FREE_MAX_TARGETS: "5",
+      PLAN_PRO_DAILY_DIGEST: "true",
+    });
+
+    expect(config.planOverrides).toEqual({
+      free: { maxTargets: "5" },
+      pro: { dailyDigest: "true" },
+    });
+  });
+
+  it("refuses a webhook secret too short to be unguessable", () => {
+    const parse = (): unknown => parseConfig({ ...VALID, TELEGRAM_WEBHOOK_SECRET: "short" });
+
+    expect(parse).toThrow(/TELEGRAM_WEBHOOK_SECRET/);
+  });
+
+  it("defaults the daily cost cap to one dollar", () => {
+    const config = parseConfig(VALID);
+
+    expect(config.DAILY_COST_CAP_USD).toBe(1);
+  });
 });

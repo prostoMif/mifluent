@@ -6,7 +6,26 @@
  * point client components use, and which explains why the split exists.
  */
 
-export { type CostRecordInput, type CostRecordResult, recordCost } from "./costs/record.js";
+export {
+  type CardActionInput,
+  type CardOwner,
+  findCardOwner,
+  recordCardAction,
+} from "./actions/card-actions.js";
+export {
+  type CostCapState,
+  readCostCap,
+  type SpendByPurpose,
+  type SpendSummary,
+  startOfUtcDay,
+  summariseSpend,
+} from "./costs/cap.js";
+export {
+  type CostPurpose,
+  type CostRecordInput,
+  isCostPurpose,
+  recordCost,
+} from "./costs/record.js";
 export {
   type Chunk,
   type ChunkInput,
@@ -14,6 +33,28 @@ export {
   chunkText,
 } from "./items/chunk.js";
 export {
+  assertCanRunDiscovery,
+  assertProfileWithinPlan,
+  type DiscoveryAllowance,
+  findTenantPlan,
+  readDiscoveryAllowance,
+  readTargetAllowance,
+  setTenantPlan,
+  type TargetAllowance,
+  type TenantPlan,
+} from "./plans/limits.js";
+export {
+  type CreateFromDiscoveryOptions,
+  createProfileFromDiscovery,
+} from "./profiles/from-discovery.js";
+export {
+  listTargetsWithoutSources,
+  type ProfileProgress,
+  readProfileProgress,
+  type TargetWithoutSources,
+} from "./profiles/progress.js";
+export {
+  findProfileDelivery,
   findWatchProfile,
   listStopwords,
   listTargets,

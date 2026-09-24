@@ -1,4 +1,20 @@
-export { type PageDiffOptions, type PageDiffResult, pollPageDiff } from "./connectors/page-diff.js";
+export {
+  type AtsPollOptions,
+  type AtsPollResult,
+  type AtsProvider,
+  atsLocatorSchema,
+  type KnownJob,
+  type PolledItem as AtsPolledItem,
+  pollAtsBoard,
+  readBoard,
+} from "./connectors/ats.js";
+export {
+  diffText,
+  normalizeText,
+  type PageDiffOptions,
+  type PageDiffResult,
+  pollPageDiff,
+} from "./connectors/page-diff.js";
 export {
   type PolledItem,
   pollRssSource,

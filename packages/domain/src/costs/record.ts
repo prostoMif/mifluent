@@ -1,81 +1,52 @@
 /**
  * Cost recording.
  *
- * Writes a row to `operation_costs` with the token usage and computed USD cost.
- * The LLM adapter does not know about the database — it only fires the hook.
+ * Writes one row to `operation_costs` per model call. The LLM adapter knows
+ * nothing about the database — it fires a usage hook, and the hook calls this.
+ *
+ * The step column is derived from the call's purpose rather than passed in, so
+ * a new caller cannot file its spend under the wrong stage of the cascade.
  */
 
-import type { Logger } from "@mifluent/core";
 import { uuidv7 } from "@mifluent/core";
-import type { Database } from "@mifluent/db";
-import * as schema from "@mifluent/db/schema";
+import { type Queryable, schema } from "@mifluent/db";
+
+export type CostPurpose = "discovery" | "selection" | "extraction";
+
+type PipelineStep = (typeof schema.pipelineStepEnum.enumValues)[number];
+
+const STEP_BY_PURPOSE: Readonly<Record<CostPurpose, PipelineStep>> = {
+  discovery: "discover",
+  selection: "classify",
+  extraction: "extract",
+};
 
 export interface CostRecordInput {
   readonly tenantId: string;
+  readonly purpose: CostPurpose;
   readonly model: string;
   readonly inputTokens: number;
   readonly outputTokens: number;
-  readonly purpose: string;
-  readonly pricePerMillionIn?: number;
-  readonly pricePerMillionOut?: number;
-  readonly durationMs?: number;
-  readonly context?: Record<string, unknown>;
-}
-
-export interface CostRecordResult {
-  readonly id: string;
   readonly costUsd: number;
+  readonly durationMs?: number | undefined;
+  readonly context?: Readonly<Record<string, unknown>> | undefined;
 }
 
-/**
- * Record a model usage cost.
- *
- * Computes USD cost from token counts and per-million prices. If prices are
- * not provided, costUsd is 0.
- */
-export async function recordCost(
-  database: Database,
-  input: CostRecordInput,
-  logger?: Logger,
-): Promise<CostRecordResult> {
-  const {
-    tenantId,
-    model,
-    inputTokens,
-    outputTokens,
-    purpose,
-    pricePerMillionIn = 0,
-    pricePerMillionOut = 0,
-    durationMs,
-    context = {},
-  } = input;
-
-  const costUsd = (inputTokens * pricePerMillionIn + outputTokens * pricePerMillionOut) / 1_000_000;
-  const id = uuidv7();
-
-  await database.insert(schema.operationCosts).values({
-    id,
-    tenantId,
-    step: "extract",
-    model,
+export async function recordCost(db: Queryable, input: CostRecordInput): Promise<void> {
+  await db.insert(schema.operationCosts).values({
+    id: uuidv7(),
+    tenantId: input.tenantId,
+    step: STEP_BY_PURPOSE[input.purpose],
+    model: input.model,
     provider: "openai_compatible",
-    inputTokens,
-    outputTokens,
-    costUsd: costUsd.toFixed(6),
-    durationMs,
-    context: { purpose, ...context },
+    inputTokens: input.inputTokens,
+    outputTokens: input.outputTokens,
+    costUsd: input.costUsd.toFixed(6),
+    durationMs: input.durationMs ?? null,
+    context: { ...input.context, purpose: input.purpose },
   });
+}
 
-  if (logger) {
-    logger.info("cost.recorded", {
-      tenantId,
-      model,
-      inputTokens,
-      outputTokens,
-      costUsd,
-      purpose,
-    });
-  }
-
-  return { id, costUsd };
+export function isCostPurpose(value: string): value is CostPurpose {
+  return value in STEP_BY_PURPOSE;
 }

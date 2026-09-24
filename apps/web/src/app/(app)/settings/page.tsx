@@ -1,8 +1,18 @@
 import { getConfig } from "@mifluent/core";
-import { can, findTenant, listInvitations } from "@mifluent/domain";
+import {
+  can,
+  findTenant,
+  findTenantPlan,
+  listInvitations,
+  readCostCap,
+  readDiscoveryAllowance,
+  readTargetAllowance,
+  summariseSpend,
+} from "@mifluent/domain";
 import type { Metadata } from "next";
 import { InstanceSettingsForm } from "@/components/settings/instance-settings-form";
 import { InvitationsPanel } from "@/components/settings/invitations-panel";
+import { SpendSummaryPanel } from "@/components/settings/spend-summary";
 import { Notice } from "@/components/ui/notice";
 import { getDatabase } from "@/lib/db";
 import { requireSession } from "@/lib/session";
@@ -18,6 +28,10 @@ export default async function SettingsPage() {
   const config = getConfig();
   const canManagePeople = can(session.role, "member:manage");
   const invitations = canManagePeople ? await listInvitations(getDatabase(), session.tenantId) : [];
+  const canSeeSpend = can(session.role, "instance:manage");
+  const spendData = canSeeSpend
+    ? await loadSpend(session.tenantId, config.DAILY_COST_CAP_USD)
+    : undefined;
 
   return (
     <>
@@ -54,7 +68,21 @@ export default async function SettingsPage() {
         </p>
       </section>
 
+      {spendData === undefined ? null : <SpendSummaryPanel {...spendData} />}
+
       {canManagePeople ? <InvitationsPanel invitations={invitations} /> : null}
     </>
   );
+}
+
+async function loadSpend(tenantId: string, capUsd: number) {
+  const db = getDatabase();
+  const [plan, spend, cap, targets, discoveries] = await Promise.all([
+    findTenantPlan(db, tenantId),
+    summariseSpend(db, tenantId),
+    readCostCap(db, capUsd),
+    readTargetAllowance(db, tenantId),
+    readDiscoveryAllowance(db, tenantId),
+  ]);
+  return { plan: plan.name, spend, cap, targets, discoveries };
 }

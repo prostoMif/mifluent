@@ -34,7 +34,10 @@
     "poll": "npm run build && npm run poll --workspace @mifluent/worker",
     "worker": "npm run build && npm run start --workspace @mifluent/worker",
     "discover": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/discover.ts",
-    "embed:bench": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/embed-bench.ts"
+    "embed:bench": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/embed-bench.ts",
+    "digest:build": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/digest-build.ts",
+    "pipeline:dry": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/pipeline-dry-run.ts",
+    "telegram:webhook": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/telegram-webhook.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",

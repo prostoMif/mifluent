@@ -2,8 +2,29 @@
  * Tests for page-diff connector.
  */
 
-import { describe, expect, it } from "vitest";
-import { diffText, normalizeText } from "./page-diff.js";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../http/safe-fetch.js", () => ({ safeFetch: vi.fn() }));
+
+import { safeFetch } from "../http/safe-fetch.js";
+import { diffText, normalizeText, pollPageDiff } from "./page-diff.js";
+
+const fixtures = join(dirname(fileURLToPath(import.meta.url)), "__fixtures__");
+
+function servePage(name: string): void {
+  vi.mocked(safeFetch).mockResolvedValue({
+    status: 200,
+    isUnchanged: false,
+    body: readFileSync(join(fixtures, name)),
+    finalUrl: "https://example.com/pricing",
+    contentType: "text/html",
+    etag: undefined,
+    lastModifiedAt: undefined,
+  });
+}
 
 describe("page-diff", () => {
   describe("normalizeText", () => {
@@ -21,6 +42,20 @@ Line 3`;
       expect(normalized).toContain("Line 1");
       expect(normalized).toContain("Line 2");
       expect(normalized).toContain("Line 3");
+    });
+
+    it("keeps a Russian line, which is not noise", () => {
+      const text = "Тариф Про — 990 ₽ в месяц";
+
+      const normalized = normalizeText(text);
+
+      expect(normalized).toBe(text);
+    });
+
+    it("treats a copyright line with a changed year as noise", () => {
+      const normalized = normalizeText("Pricing\nCopyright 2025");
+
+      expect(normalized).toBe("Pricing");
     });
 
     it("removes short lines", () => {
@@ -92,6 +127,61 @@ Paragraph 2`;
       const addedLines = added.split("\n");
       const longLineResult = addedLines.find((line) => line.length > 2000);
       expect(longLineResult).toBeUndefined();
+    });
+  });
+
+  describe("pollPageDiff", () => {
+    beforeEach(() => {
+      vi.mocked(safeFetch).mockReset();
+    });
+
+    it("returns a baseline with nothing added or removed on the first poll", async () => {
+      servePage("baseline.html");
+
+      const result = await pollPageDiff({ url: "https://example.com/pricing", userAgent: "test" });
+
+      expect(result).toMatchObject({ isUnchanged: false, added: "", removed: "" });
+    });
+
+    it("reports the added paragraph and ignores the copyright year", async () => {
+      servePage("baseline.html");
+      const baseline = await pollPageDiff({
+        url: "https://example.com/pricing",
+        userAgent: "test",
+      });
+      if (baseline.isUnchanged) throw new Error("baseline should not be unchanged");
+      servePage("modified.html");
+
+      const result = await pollPageDiff({
+        url: "https://example.com/pricing",
+        userAgent: "test",
+        previousHash: baseline.contentHash,
+        previousText: baseline.extractedText,
+      });
+
+      expect(result).toMatchObject({
+        isUnchanged: false,
+        added: "This is a new paragraph added to the page.",
+        removed: "",
+      });
+    });
+
+    it("reports unchanged when the page is the same", async () => {
+      servePage("baseline.html");
+      const baseline = await pollPageDiff({
+        url: "https://example.com/pricing",
+        userAgent: "test",
+      });
+      if (baseline.isUnchanged) throw new Error("baseline should not be unchanged");
+
+      const result = await pollPageDiff({
+        url: "https://example.com/pricing",
+        userAgent: "test",
+        previousHash: baseline.contentHash,
+        previousText: baseline.extractedText,
+      });
+
+      expect(result.isUnchanged).toBe(true);
     });
   });
 });

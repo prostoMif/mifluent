@@ -21,6 +21,7 @@
     "@mifluent/core": "*",
     "diff": "^8.0.4",
     "fast-xml-parser": "^5.11.0",
-    "ipaddr.js": "^2.5.0"
+    "ipaddr.js": "^2.5.0",
+    "zod": "^4.0.0"
   }
 }

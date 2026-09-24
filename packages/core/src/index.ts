@@ -30,5 +30,5 @@ export {
   type LoggerOptions,
   type LogLevel,
 } from "./logger.js";
-export { httpUrlSchema, isHttpUrl } from "./url.js";
+export { httpUrlSchema, isHttpUrl, toSafeLink } from "./url.js";
 export { parseOrThrow } from "./validation.js";
