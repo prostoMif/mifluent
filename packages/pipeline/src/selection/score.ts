@@ -40,15 +40,27 @@ export function scoreItem(
 }
 
 /**
+ * multilingual-e5 compresses similarity into a narrow band: on 302 real items
+ * for one profile (2026-09-24) every score fell between 0.76 and 0.89, the
+ * obviously unrelated ones ("Helmet Stripe Game" for a Stripe target) at the
+ * bottom and the relevant ones above ~0.80. A raw threshold on that scale is
+ * meaningless to a person, so the profile's 0..1 strictness is mapped onto
+ * the band the model actually uses.
+ */
+const E5_FLOOR = 0.75;
+const E5_SPAN = 0.15;
+
+/**
  * The cut-off for the free step.
  *
- * Deliberately wide — the profile's threshold minus 0.15 — because this step
+ * Deliberately wide — the profile's strictness minus 0.15 — because this step
  * only has to throw away what is obviously unrelated. Deciding between
- * "related" and "relevant" is the cheap model's job, and a strict cosine cut
- * would make that decision with a much blunter tool.
+ * "related" and "relevant" is the cheap model's job. At the default strictness
+ * of 0.5 this cuts at about 0.80; at 0.15 or below it keeps everything.
  */
 export function cosineCutoff(relevanceThreshold: number): number {
-  return relevanceThreshold - 0.15;
+  const strictness = Math.min(1, Math.max(0, relevanceThreshold - 0.15));
+  return E5_FLOOR + strictness * E5_SPAN;
 }
 
 /** The stopword found in a title, if any. Whole words, any case. */

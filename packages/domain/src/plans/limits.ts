@@ -74,13 +74,21 @@ export async function assertProfileWithinPlan(
   if (check.profileId === undefined) {
     const profiles = await countProfiles(db, check.tenantId);
     if (profiles >= limits.maxProfiles) {
-      throw limitReached("profiles", limits.maxProfiles);
+      throw new AppError(
+        "plan_limit_reached",
+        `Your plan allows ${limits.maxProfiles} profile(s), and all are in use.`,
+        { limit: limits.maxProfiles, used: profiles },
+      );
     }
   }
 
   const elsewhere = await countTargetsOutside(db, check.tenantId, check.profileId);
   if (elsewhere + check.targetCount > limits.maxTargets) {
-    throw limitReached("watched targets", limits.maxTargets, elsewhere);
+    throw new AppError(
+      "plan_limit_reached",
+      `Your plan allows ${limits.maxTargets} watched targets in total; this would make ${elsewhere + check.targetCount}. Untick some, or change plan.`,
+      { limit: limits.maxTargets, used: elsewhere, requested: check.targetCount },
+    );
   }
 }
 
@@ -144,15 +152,6 @@ export async function assertCanRunDiscovery(db: Queryable, tenantId: string): Pr
       { tenantId, used: allowance.used },
     );
   }
-}
-
-function limitReached(what: string, limit: number, used?: number): AppError {
-  const left = used === undefined ? 0 : Math.max(0, limit - used);
-  return new AppError(
-    "plan_limit_reached",
-    `Your plan allows ${limit} ${what}; ${left} left. Remove one or change plan.`,
-    { limit, used },
-  );
 }
 
 async function countProfiles(db: Queryable, tenantId: string): Promise<number> {

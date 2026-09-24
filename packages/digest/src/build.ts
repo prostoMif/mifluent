@@ -79,21 +79,19 @@ export async function resolveProfileDelivery(context: BuildContext): Promise<Res
 /** The regular digest due now: weekly or daily, per the profile's settings. */
 export async function buildPeriodDigest(context: BuildContext, now: Date): Promise<BuiltDigest> {
   const delivery = await resolveProfileDelivery(context);
-  const end = windowEndFor(now);
+  // The window ends now, so everything recorded up to this moment is in it.
+  // (Ending it at the top of the hour dropped whatever the first run had
+  // just produced — the whole first digest.)
+  const end = now;
   const previousEnd = await findPreviousRegularEnd(context);
   const isFirstRun = previousEnd === null;
 
-  // Already built this hour — a second tick, or a retried job. The window
-  // would be empty, and an empty window is how urgent digests are recognised.
-  if (previousEnd !== null && previousEnd.getTime() >= end.getTime()) {
+  // Already built this hour — a second tick, or a retried job.
+  if (previousEnd !== null && previousEnd.getTime() >= windowEndFor(now).getTime()) {
     const existingId = await findDigestEndingAt(context, previousEnd);
     if (existingId !== undefined) {
-      return {
-        digestId: existingId,
-        isNew: false,
-        channel: delivery.telegramChatId === null ? "web_only" : "telegram",
-        cardCount: 0,
-      };
+      const channel = delivery.telegramChatId === null ? "web_only" : "telegram";
+      return { digestId: existingId, isNew: false, channel, cardCount: 0 };
     }
   }
 
@@ -427,8 +425,10 @@ async function findQuietTargets(context: BuildContext, window: Window): Promise<
   const rows = await db
     .select({
       name: schema.watchTargets.name,
-      current: sql<number>`count(*) FILTER (WHERE ${schema.rawItems.fetchedAt} >= ${window.start})::int`,
-      baseline: sql<number>`count(*) FILTER (WHERE ${schema.rawItems.fetchedAt} < ${window.start})::int`,
+      // A Date inside a raw fragment is not mapped by the column type, so it
+      // goes as an ISO string with an explicit cast.
+      current: sql<number>`count(*) FILTER (WHERE ${schema.rawItems.fetchedAt} >= ${window.start.toISOString()}::timestamptz)::int`,
+      baseline: sql<number>`count(*) FILTER (WHERE ${schema.rawItems.fetchedAt} < ${window.start.toISOString()}::timestamptz)::int`,
     })
     .from(schema.watchTargets)
     .innerJoin(schema.sources, eq(schema.sources.targetId, schema.watchTargets.id))

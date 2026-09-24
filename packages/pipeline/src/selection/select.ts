@@ -19,7 +19,7 @@ import { type Logger, toAppError, uuidv7 } from "@mifluent/core";
 import { type Queryable, schema, scoped } from "@mifluent/db";
 import type { EmbeddingProvider } from "@mifluent/embeddings";
 import type { LlmClient } from "@mifluent/llm";
-import { and, eq, gte, inArray, isNull, notExists, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, notExists, or, sql } from "drizzle-orm";
 import type { CostGuard } from "../guard.js";
 import { loadProfileVectors, type ProfileContext, type ProfileVector } from "../profile.js";
 import {
@@ -439,6 +439,9 @@ async function findCandidates(
         eq(schema.sources.profileId, context.profileId),
         isNull(schema.sources.deletedAt),
         gte(schema.rawItems.fetchedAt, since),
+        // A search feed's first poll returns months of old articles; fetched
+        // today, they are still not news.
+        or(isNull(schema.rawItems.publishedAt), gte(schema.rawItems.publishedAt, since)),
         sql`EXISTS (SELECT 1 FROM ${schema.chunks} WHERE ${schema.chunks.rawItemId} = ${schema.rawItems.id})`,
         notExists(
           db

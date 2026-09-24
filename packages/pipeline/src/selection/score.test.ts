@@ -37,10 +37,16 @@ describe("scoreItem", () => {
 });
 
 describe("cosineCutoff", () => {
-  it("is the profile threshold minus 0.15", () => {
+  it("cuts near 0.80 at the default strictness, inside e5's band", () => {
     const cutoff = cosineCutoff(0.5);
 
-    expect(cutoff).toBeCloseTo(0.35);
+    expect(cutoff).toBeCloseTo(0.8025);
+  });
+
+  it("keeps everything at the loosest setting", () => {
+    const cutoff = cosineCutoff(0);
+
+    expect(cutoff).toBe(0.75);
   });
 });
 
