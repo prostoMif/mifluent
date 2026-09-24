@@ -20,6 +20,7 @@ export * from "./analysts.js";
 export * from "./auth.js";
 
 export * from "./common.js";
+export * from "./decisions.js";
 export * from "./digests.js";
 export * from "./events.js";
 export * from "./items.js";

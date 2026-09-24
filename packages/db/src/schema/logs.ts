@@ -43,6 +43,8 @@ export const userActionKindEnum = pgEnum("user_action_kind", [
   "card_viewed",
   "not_following_target",
   "not_important",
+  /** "It changed a decision" — the strongest label a reader can give a card. */
+  "influenced",
 ]);
 
 export const pipelineStepEnum = pgEnum("pipeline_step", [
