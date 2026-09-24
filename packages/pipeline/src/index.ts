@@ -12,7 +12,12 @@ export {
 } from "./extraction/extract.js";
 export { findQuote, type QuoteMatch } from "./extraction/quote.js";
 export { type CostGuard, neverCapped } from "./guard.js";
-export { pruneExpiredMaterial, pruneRejections, REJECTION_RETENTION_DAYS } from "./maintenance.js";
+export {
+  type PruneCounts,
+  pruneExpiredMaterial,
+  pruneRejections,
+  REJECTION_RETENTION_DAYS,
+} from "./maintenance.js";
 export {
   listRunnableProfiles,
   listTenantProfiles,
