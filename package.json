@@ -37,7 +37,8 @@
     "embed:bench": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/embed-bench.ts",
     "digest:build": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/digest-build.ts",
     "pipeline:dry": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/pipeline-dry-run.ts",
-    "telegram:webhook": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/telegram-webhook.ts"
+    "telegram:webhook": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/telegram-webhook.ts",
+    "export:decisions": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/export-decisions.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
