@@ -5,9 +5,16 @@
  * is reported as such — how many sources were read, how much material, and
  * what came closest — because silence reads as a broken product.
  *
- * Idempotent. The window end is the top of the hour and the unique index on
- * (profile, window, channel) holds, so a tick that runs twice, or a job that is
- * retried, finds the digest it already built instead of building another.
+ * Idempotent, but not by the unique index on (profile, window, channel): the
+ * window now ends at `now` rather than at the top of the hour, so two runs
+ * never produce the same pair of bounds and the index never matches. What
+ * holds instead is the check below — the last regular digest ended after the
+ * current hour began, so there is nothing to build. A second tick or a retried
+ * job finds the digest it already built. Verified against a database: a build,
+ * an immediate rebuild and one a minute later all return the same id.
+ *
+ * Which means the hour check is load-bearing. Removing it would make this
+ * build a fresh digest on every call.
  */
 
 import { AppError, toSafeLink, uuidv7 } from "@mifluent/core";
