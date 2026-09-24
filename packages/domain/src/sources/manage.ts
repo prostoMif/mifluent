@@ -53,6 +53,8 @@ export interface CreateSourceOptions {
 }
 
 export async function createSource(options: CreateSourceOptions): Promise<string> {
+  await assertProfileBelongsToTenant(options.db, options.tenantId, options.profileId);
+
   const sourceId = uuidv7();
   const pollIntervalMinutes = await applyPlanInterval(options);
 
@@ -77,6 +79,32 @@ export async function createSource(options: CreateSourceOptions): Promise<string
   }
 
   return sourceId;
+}
+
+/**
+ * The profile is named in a request path, and the row being written carries
+ * the caller's own tenant — so without this the two can disagree and a source
+ * lands on somebody else's profile. `saveWatchProfile` gets this for free
+ * because it updates the profile row under the tenant predicate; an insert
+ * that only *references* the profile has to ask.
+ *
+ * Refused as "not found", never "forbidden": saying which it was confirms the
+ * profile exists.
+ */
+async function assertProfileBelongsToTenant(
+  db: Queryable,
+  tenantId: string,
+  profileId: string,
+): Promise<void> {
+  const [profile] = await db
+    .select({ id: schema.watchProfiles.id })
+    .from(schema.watchProfiles)
+    .where(scopedAlive(schema.watchProfiles, tenantId, eq(schema.watchProfiles.id, profileId)))
+    .limit(1);
+
+  if (profile === undefined) {
+    throw new AppError("not_found", "Not found.");
+  }
 }
 
 /**
