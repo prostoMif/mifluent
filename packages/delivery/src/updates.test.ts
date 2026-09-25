@@ -92,6 +92,7 @@ describe("handleTelegramUpdate", () => {
       eventId: "e1",
       profileId: "p1",
       telegramChatId: "42",
+      language: "en",
     });
     const api = fakeApi();
 
@@ -111,6 +112,7 @@ describe("handleTelegramUpdate", () => {
       eventId: "e1",
       profileId: "p1",
       telegramChatId: "42",
+      language: "en",
     });
     const api = fakeApi();
 
@@ -182,6 +184,7 @@ describe("handleTelegramUpdate", () => {
       eventId: "e1",
       profileId: "p1",
       telegramChatId: "42",
+      language: "en",
     });
     const api = fakeApi();
 
@@ -207,6 +210,7 @@ describe("handleTelegramUpdate", () => {
       {
         tenantId: "t1",
         profileId: "p1",
+        language: "en",
         pending: { cardId: "card-1", messageId: 501, askedAt: NOW },
       },
     ]);
@@ -234,6 +238,7 @@ describe("handleTelegramUpdate", () => {
       {
         tenantId: "t1",
         profileId: "p1",
+        language: "en",
         pending: { cardId: "card-1", messageId: 501, askedAt: NOW },
       },
     ]);
@@ -256,6 +261,7 @@ describe("handleTelegramUpdate", () => {
       {
         tenantId: "t1",
         profileId: "p1",
+        language: "en",
         pending: { cardId: "card-1", messageId: 501, askedAt: NOW },
       },
     ]);
@@ -280,6 +286,7 @@ describe("handleTelegramUpdate", () => {
       {
         tenantId: "t1",
         profileId: "p1",
+        language: "en",
         pending: { cardId: "card-1", messageId: 501, askedAt: NOW },
       },
     ]);
@@ -296,11 +303,97 @@ describe("handleTelegramUpdate", () => {
     expect(recordDecision).not.toHaveBeenCalled();
   });
 
+  it("asks in the profile's language, not the sender's", async () => {
+    // A Russian digest followed by an English question reads as two products.
+    vi.mocked(findCardOwner).mockResolvedValue({
+      tenantId: "t1",
+      eventId: "e1",
+      profileId: "p1",
+      telegramChatId: "42",
+      language: "ru",
+    });
+    const api = fakeApi();
+
+    await handleTelegramUpdate({
+      db,
+      api,
+      logger,
+      now: NOW,
+      update: {
+        update_id: 1,
+        callback_query: {
+          id: "q1",
+          data: "influenced:card-1",
+          message: { chat: { id: 42 } },
+          from: { language_code: "en-GB" },
+        },
+      },
+    });
+
+    expect(api.answered[0]).toBe("Принято");
+    expect(api.sent[0]).toContain("Что ты решил?");
+  });
+
+  it("confirms in the profile's language too", async () => {
+    vi.mocked(listChatProfiles).mockResolvedValue([
+      {
+        tenantId: "t1",
+        profileId: "p1",
+        language: "ru",
+        pending: { cardId: "card-1", messageId: 501, askedAt: NOW },
+      },
+    ]);
+    vi.mocked(recordDecision).mockResolvedValue({ id: "d1", targetName: "Stripe" });
+    const api = fakeApi();
+
+    await handleTelegramUpdate({
+      db,
+      api,
+      logger,
+      now: NOW,
+      update: {
+        update_id: 7,
+        message: {
+          chat: { id: 42 },
+          text: "держим цену",
+          reply_to_message: { message_id: 501 },
+          from: { language_code: "en-GB" },
+        },
+      },
+    });
+
+    expect(api.sent[0]).toBe("Записал. Покажу в истории по Stripe.");
+  });
+
+  it("falls back to the sender's language when there is no profile to ask", async () => {
+    // A refused press names no profile, so nothing else is available.
+    vi.mocked(findCardOwner).mockResolvedValue(undefined);
+    const api = fakeApi();
+
+    await handleTelegramUpdate({
+      db,
+      api,
+      logger,
+      update: {
+        update_id: 1,
+        callback_query: {
+          id: "q1",
+          data: "saved:card-1",
+          message: { chat: { id: 42 } },
+          from: { language_code: "ru" },
+        },
+      },
+    });
+
+    expect(api.answered).toEqual(["Эта карточка больше недоступна"]);
+  });
+
   it("keeps the decision text out of the log", async () => {
     vi.mocked(listChatProfiles).mockResolvedValue([
       {
         tenantId: "t1",
         profileId: "p1",
+        language: "en",
         pending: { cardId: "card-1", messageId: 501, askedAt: NOW },
       },
     ]);

@@ -31,6 +31,8 @@ export interface CardOwner {
   readonly eventId: string;
   readonly profileId: string;
   readonly telegramChatId: string | null;
+  /** The language the card itself was written in. */
+  readonly language: "en" | "ru";
 }
 
 /**
@@ -48,6 +50,7 @@ export async function findCardOwner(db: Queryable, cardId: string): Promise<Card
       eventId: schema.digestCards.eventId,
       profileId: schema.digests.profileId,
       delivery: schema.watchProfiles.delivery,
+      facts: schema.watchProfiles.facts,
     })
     .from(schema.digestCards)
     .innerJoin(schema.digests, eq(schema.digests.id, schema.digestCards.digestId))
@@ -61,6 +64,7 @@ export async function findCardOwner(db: Queryable, cardId: string): Promise<Card
     eventId: row.eventId,
     profileId: row.profileId,
     telegramChatId: row.delivery.telegramChatId ?? null,
+    language: row.facts.language === "ru" ? "ru" : "en",
   };
 }
 

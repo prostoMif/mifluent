@@ -27,6 +27,8 @@ export interface PendingDecision {
 export interface ChatProfile {
   readonly tenantId: string;
   readonly profileId: string;
+  /** The language this profile's digests are written in. */
+  readonly language: "en" | "ru";
   readonly pending: PendingDecision | undefined;
 }
 
@@ -53,6 +55,7 @@ export async function listChatProfiles(db: Queryable, chatId: string): Promise<C
       tenantId: schema.watchProfiles.tenantId,
       profileId: schema.watchProfiles.id,
       delivery: schema.watchProfiles.delivery,
+      facts: schema.watchProfiles.facts,
     })
     .from(schema.watchProfiles)
     .where(
@@ -65,6 +68,7 @@ export async function listChatProfiles(db: Queryable, chatId: string): Promise<C
   return rows.map((row) => ({
     tenantId: row.tenantId,
     profileId: row.profileId,
+    language: row.facts.language === "ru" ? "ru" : "en",
     pending: toPending(row.delivery.pendingDecision),
   }));
 }

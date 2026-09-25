@@ -14,6 +14,12 @@
  * rather than a guess, because a decision filed against the wrong card is
  * worse than no decision.
  *
+ * Everything written to the chat is in the profile's language, the one the
+ * card itself was written in — not the language of the sender's Telegram.
+ * A Russian digest followed by an English question reads as two products.
+ * The sender's language is the fallback for the one case where there is no
+ * profile to ask: a press this chat is not entitled to.
+ *
  * The chat id is personal data and never goes to the log. Neither does the
  * decision text, at any level — see `docs/security.md` §8.
  *
@@ -77,6 +83,16 @@ export interface HandleUpdateOptions {
 
 const START_COMMAND = /^\/start(?:@\w+)?(?:\s+([A-Za-z0-9]{4,32}))?\s*$/;
 
+/**
+ * The sender's own language, used only where there is no profile to ask:
+ * the help text before a chat is bound, and a press that was refused.
+ */
+function senderStrings(update: {
+  readonly from?: { readonly language_code?: string | undefined } | undefined;
+}): Strings {
+  return stringsFor(update.from?.language_code?.startsWith("ru") === true ? "ru" : "en");
+}
+
 export async function handleTelegramUpdate(options: HandleUpdateOptions): Promise<void> {
   const parsed = telegramUpdateSchema.safeParse(options.update);
   if (!parsed.success) {
@@ -99,7 +115,7 @@ async function handleMessage(
   message: NonNullable<TelegramUpdate["message"]>,
 ): Promise<void> {
   const chatId = String(message.chat.id);
-  const strings = stringsFor(message.from?.language_code?.startsWith("ru") === true ? "ru" : "en");
+  const strings = senderStrings(message);
   const match = START_COMMAND.exec(message.text?.trim() ?? "");
   const code = match?.[1];
 
@@ -108,7 +124,7 @@ async function handleMessage(
     return;
   }
 
-  if (await handleDecisionAnswer(options, chatId, message, strings)) return;
+  if (await handleDecisionAnswer(options, chatId, message)) return;
 
   await options.api.sendMessage(chatId, { text: strings.binding.help });
 }
@@ -144,7 +160,6 @@ async function handleDecisionAnswer(
   options: HandleUpdateOptions,
   chatId: string,
   message: NonNullable<TelegramUpdate["message"]>,
-  strings: Strings,
 ): Promise<boolean> {
   const waiting = (await listChatProfiles(options.db, chatId)).filter(
     (profile): profile is ChatProfile & { pending: PendingDecision } =>
@@ -168,7 +183,14 @@ async function handleDecisionAnswer(
         await clearPendingDecision(options.db, profile.tenantId, profile.profileId);
       }
     }
-    await options.api.sendMessage(chatId, { text: strings.decision.pressAgain });
+    // Several profiles can deliver to one chat; the oldest outstanding
+    // question is the one being answered badly, so it picks the language.
+    const [oldest] = [...waiting].sort(
+      (left, right) => left.pending.askedAt.getTime() - right.pending.askedAt.getTime(),
+    );
+    await options.api.sendMessage(chatId, {
+      text: stringsFor(oldest?.language ?? "en").decision.pressAgain,
+    });
     return true;
   }
 
@@ -186,7 +208,9 @@ async function handleDecisionAnswer(
     profileId: answered.profileId,
     decisionId: decision.id,
   });
-  await options.api.sendMessage(chatId, { text: strings.decision.recorded(decision.targetName) });
+  await options.api.sendMessage(chatId, {
+    text: stringsFor(answered.language).decision.recorded(decision.targetName),
+  });
   return true;
 }
 
@@ -194,7 +218,6 @@ async function handleButton(
   options: HandleUpdateOptions,
   query: NonNullable<TelegramUpdate["callback_query"]>,
 ): Promise<void> {
-  const strings = stringsFor(query.from?.language_code?.startsWith("ru") === true ? "ru" : "en");
   const chatId = query.message === undefined ? undefined : String(query.message.chat.id);
   const [action = "", cardId = ""] = (query.data ?? "").split(":");
 
@@ -207,9 +230,13 @@ async function handleButton(
   // confirm that the card exists.
   if (owner === undefined || owner.telegramChatId !== chatId || !isTelegramCardAction(action)) {
     options.logger.warn("telegram.button_refused", { action });
-    await options.api.answerCallbackQuery(query.id, strings.callback.notFound);
+    // No profile to take a language from, so the sender's it is. Saying this
+    // in the wrong language is the least of what a refused press means.
+    await options.api.answerCallbackQuery(query.id, senderStrings(query).callback.notFound);
     return;
   }
+
+  const strings = stringsFor(owner.language);
 
   await recordCardAction(options.db, {
     tenantId: owner.tenantId,
