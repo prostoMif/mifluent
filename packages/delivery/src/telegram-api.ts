@@ -23,10 +23,21 @@ export interface OutgoingMessage {
   readonly text: string;
   /** One row of buttons under the message, or none. */
   readonly buttons?: readonly InlineButton[] | undefined;
+  /**
+   * Open the reply box pointed at this message. Telegram carries no payload
+   * of ours on the answer, so the caller has to remember which message it
+   * asked from — see `pending-decision.ts`.
+   */
+  readonly forceReply?: boolean | undefined;
+}
+
+/** What Telegram gives back about a message it accepted. */
+export interface SentMessage {
+  readonly messageId: number;
 }
 
 export interface TelegramApi {
-  sendMessage(chatId: string, message: OutgoingMessage): Promise<void>;
+  sendMessage(chatId: string, message: OutgoingMessage): Promise<SentMessage>;
   answerCallbackQuery(callbackQueryId: string, text: string): Promise<void>;
   getUpdates(offset: number | undefined, timeoutSeconds: number): Promise<unknown[]>;
   setWebhook(url: string, secretToken: string): Promise<void>;
@@ -42,8 +53,16 @@ const API_HOST = "https://api.telegram.org";
 /** Telegram's own limit is 4096; the margin covers entity expansion. */
 export const MAX_MESSAGE_LENGTH = 4_000;
 
+/**
+ * Buttons per row. Four in one row leaves each label a quarter of a phone's
+ * width, which truncates "It changed a decision" to two words.
+ */
+const BUTTONS_PER_ROW = 2;
+
 /** Long polling holds the request open; the client waits a little longer than Telegram does. */
 const REQUEST_TIMEOUT_MARGIN_MS = 10_000;
+
+const sentMessageSchema = z.object({ message_id: z.number() });
 
 const responseSchema = z.object({
   ok: z.boolean(),
@@ -60,26 +79,26 @@ export function createTelegramApi(options: TelegramApiOptions): TelegramApi {
 
   return {
     async sendMessage(chatId, message) {
-      await call("sendMessage", {
+      const result = await call("sendMessage", {
         chat_id: chatId,
         text: message.text,
         parse_mode: "HTML",
         // A digest links to sources; a preview of the first one would make
         // every message look like an advertisement for it.
         link_preview_options: { is_disabled: true },
-        ...(message.buttons === undefined || message.buttons.length === 0
-          ? {}
-          : {
-              reply_markup: {
-                inline_keyboard: [
-                  message.buttons.map((button) => ({
-                    text: button.text,
-                    callback_data: button.callbackData,
-                  })),
-                ],
-              },
-            }),
+        ...replyMarkup(message),
       });
+
+      // A message Telegram accepted always carries an id; treating a missing
+      // one as zero would silently break the reply matching instead of failing.
+      const parsed = sentMessageSchema.safeParse(result);
+      if (!parsed.success) {
+        throw new AppError("delivery_failed", "Telegram refused the request.", {
+          method: "sendMessage",
+          reason: "no message id in the response",
+        });
+      }
+      return { messageId: parsed.data.message_id };
     },
 
     async answerCallbackQuery(callbackQueryId, text) {
@@ -107,6 +126,25 @@ export function createTelegramApi(options: TelegramApiOptions): TelegramApi {
       });
     },
   };
+}
+
+/**
+ * Buttons or a reply box, never both: Telegram takes one `reply_markup`, and
+ * a card with buttons is not the message that asks a question.
+ */
+function replyMarkup(message: OutgoingMessage): Record<string, unknown> {
+  if (message.forceReply === true) {
+    return { reply_markup: { force_reply: true, selective: true } };
+  }
+  if (message.buttons === undefined || message.buttons.length === 0) {
+    return {};
+  }
+  const keyboard: { text: string; callback_data: string }[][] = [];
+  for (const [index, button] of message.buttons.entries()) {
+    if (index % BUTTONS_PER_ROW === 0) keyboard.push([]);
+    keyboard.at(-1)?.push({ text: button.text, callback_data: button.callbackData });
+  }
+  return { reply_markup: { inline_keyboard: keyboard } };
 }
 
 async function post(

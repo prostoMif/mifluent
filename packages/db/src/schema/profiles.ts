@@ -52,6 +52,19 @@ export interface ProfileDelivery {
    * but is personal data — it never appears in a log line.
    */
   readonly telegramChatId?: string;
+  /**
+   * The unanswered "what did you decide?" question, if one is outstanding.
+   * Transient rather than configuration, but it belongs to the same chat as
+   * `telegramChatId` and lives for at most a day — see
+   * `packages/delivery/src/pending-decision.ts`.
+   */
+  readonly pendingDecision?: {
+    readonly cardId: string;
+    /** Telegram's id for the question message. */
+    readonly messageId: number;
+    /** ISO 8601, UTC. */
+    readonly askedAt: string;
+  };
 }
 
 /** What kind of thing is being watched. Drives how it is described and matched. */

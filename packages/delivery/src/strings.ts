@@ -29,10 +29,16 @@ export interface Strings {
     readonly notFollowing: string;
     readonly notImportant: string;
     readonly save: string;
+    readonly influenced: string;
   };
   readonly callback: {
     readonly recorded: string;
     readonly notFound: string;
+  };
+  readonly decision: {
+    readonly question: string;
+    readonly recorded: (target: string | null) => string;
+    readonly pressAgain: string;
   };
   readonly binding: {
     readonly bound: (profile: string) => string;
@@ -67,8 +73,22 @@ const en: Strings = {
       "Processing is paused until tomorrow — this instance reached its daily budget. You can add your own model key in settings.",
     targetQuiet: (target) => `${target} has been quieter than usual.`,
   },
-  buttons: { notFollowing: "Not following this", notImportant: "Not important", save: "Save" },
+  buttons: {
+    notFollowing: "Not following this",
+    notImportant: "Not important",
+    save: "Save",
+    influenced: "It changed a decision",
+  },
   callback: { recorded: "Noted", notFound: "That card is no longer available" },
+  decision: {
+    question: "What did you decide? Answer in one line.",
+    recorded: (target) =>
+      target === null
+        ? "Written down. It will show up in your history."
+        : `Written down. It will show up in the history for ${target}.`,
+    pressAgain:
+      "I am not sure which card that answers. Press “It changed a decision” under the card again.",
+  },
   binding: {
     bound: (profile) => `Done. Digests for “${profile}” will arrive here.`,
     invalidCode: "That code is not valid or has expired. Get a new one in Mifluent.",
@@ -102,8 +122,19 @@ const ru: Strings = {
       "Обработка приостановлена до завтра — лимит бюджета инстанса. Можно вставить свой ключ в настройках.",
     targetQuiet: (target) => `У ${target} тише обычного.`,
   },
-  buttons: { notFollowing: "Не слежу за этим", notImportant: "Не важно", save: "Сохранить" },
+  buttons: {
+    notFollowing: "Не слежу за этим",
+    notImportant: "Не важно",
+    save: "Сохранить",
+    influenced: "Повлияло",
+  },
   callback: { recorded: "Принято", notFound: "Эта карточка больше недоступна" },
+  decision: {
+    question: "Что ты решил? Ответь одной строкой.",
+    recorded: (target) =>
+      target === null ? "Записал. Покажу в истории." : `Записал. Покажу в истории по ${target}.`,
+    pressAgain: "Не понял, к какой карточке это ответ. Нажми «Повлияло» под карточкой ещё раз.",
+  },
   binding: {
     bound: (profile) => `Готово. Сводки по «${profile}» будут приходить сюда.`,
     invalidCode: "Код неверный или истёк. Получите новый в Mifluent.",

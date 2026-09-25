@@ -14,9 +14,11 @@ export async function registerMaintenanceJobs(boss: PgBoss): Promise<void> {
     const now = new Date();
 
     const rejections = await pruneRejections(db, now);
-    const items = await pruneExpiredMaterial(db, now);
+    const material = await pruneExpiredMaterial(db, now);
     await pruneExpiredBindings(db, now);
 
-    logger.info("maintenance.completed", { rejections, items });
+    // Raw material only. Events, digests, the action log and decisions have no
+    // TTL — see `pruneExpiredMaterial`.
+    logger.info("maintenance.completed", { rejections, ...material });
   });
 }

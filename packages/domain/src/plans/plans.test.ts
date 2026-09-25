@@ -26,6 +26,13 @@ describe("resolvePlans", () => {
     expect(resolve).toThrow(/PLAN_FREE_/);
   });
 
+  it("keeps raw material for thirty days on free and forever on team", () => {
+    const plans = resolvePlans();
+
+    expect(plans.free.rawRetentionDays).toBe(30);
+    expect(plans.team.rawRetentionDays).toBe(0);
+  });
+
   it("refuses an override for a plan that does not exist", () => {
     const resolve = (): unknown => resolvePlans({ gold: { maxTargets: "10" } });
 

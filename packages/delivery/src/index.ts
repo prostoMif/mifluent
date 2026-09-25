@@ -10,6 +10,15 @@ export {
 } from "./bind.js";
 export { type DeliverOptions, type DeliveryOutcome, deliverDigest } from "./deliver.js";
 export { escapeHtml } from "./html.js";
+export {
+  type ChatProfile,
+  clearPendingDecision,
+  DECISION_REPLY_WINDOW_MS,
+  isWithinReplyWindow,
+  listChatProfiles,
+  type PendingDecision,
+  setPendingDecision,
+} from "./pending-decision.js";
 export { type RenderOptions, renderDigest } from "./render.js";
 export { formatPeriod, type Language, stringsFor } from "./strings.js";
 export {
@@ -17,6 +26,7 @@ export {
   type InlineButton,
   MAX_MESSAGE_LENGTH,
   type OutgoingMessage,
+  type SentMessage,
   type TelegramApi,
   type TelegramApiOptions,
 } from "./telegram-api.js";

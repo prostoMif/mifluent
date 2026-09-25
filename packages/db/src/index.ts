@@ -9,6 +9,7 @@ export {
   type Queryable,
   type Transaction,
 } from "./client.js";
+export { MAXIMUM_DECISION_LENGTH } from "./schema/decisions.js";
 export * as schema from "./schema/index.js";
 export {
   belongsTo,

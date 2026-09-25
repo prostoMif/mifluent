@@ -2,7 +2,7 @@
  * A digest as Telegram messages.
  *
  * One message for the header — period, notices, and on an empty week the
- * report of what was checked — then one message per card, because the three
+ * report of what was checked — then one message per card, because the four
  * feedback buttons belong to a card and Telegram attaches buttons to a message.
  * That also keeps every message far below Telegram's length limit; a card that
  * somehow exceeds it loses its trailing blocks rather than being split mid-quote.
@@ -95,6 +95,7 @@ function renderCard(
       { text: strings.buttons.notFollowing, callbackData: `not_following_target:${card.id}` },
       { text: strings.buttons.notImportant, callbackData: `not_important:${card.id}` },
       { text: strings.buttons.save, callbackData: `saved:${card.id}` },
+      { text: strings.buttons.influenced, callbackData: `influenced:${card.id}` },
     ],
   };
 }

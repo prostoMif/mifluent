@@ -27,6 +27,15 @@ export {
   recordCost,
 } from "./costs/record.js";
 export {
+  type DecisionRecord,
+  listDecisions,
+} from "./decisions/read.js";
+export {
+  type DecisionInput,
+  type RecordedDecision,
+  recordDecision,
+} from "./decisions/record.js";
+export {
   type Chunk,
   type ChunkInput,
   chunkRawItem,

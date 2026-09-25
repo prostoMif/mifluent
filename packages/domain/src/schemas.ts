@@ -17,7 +17,15 @@
  * before anything is bundled.
  */
 
-export { CARD_ACTIONS, type CardAction, isCardAction } from "./actions/card-action-kinds.js";
+export {
+  CARD_ACTIONS,
+  type CardAction,
+  INFLUENCED_ACTION,
+  isCardAction,
+  isTelegramCardAction,
+  TELEGRAM_CARD_ACTIONS,
+  type TelegramCardAction,
+} from "./actions/card-action-kinds.js";
 export {
   type DiscoveryJob,
   discoveryJobSchema,
