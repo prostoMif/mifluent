@@ -12,6 +12,7 @@
     { "path": "./packages/embeddings" },
     { "path": "./packages/llm" },
     { "path": "./packages/pipeline" },
-    { "path": "./packages/sources" }
+    { "path": "./packages/sources" },
+    { "path": "./tests" }
   ]
 }

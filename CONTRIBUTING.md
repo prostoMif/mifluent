@@ -112,6 +112,7 @@ Useful commands:
 | `npm run check` | Lint, format check, types and tests — what CI runs |
 | `npm run check:fix` | Apply every safe lint and format fix |
 | `npm test` | Tests only |
+| `TEST_DATABASE_URL=… npm test` | Tests, including the ones that need a database |
 | `npm run typecheck` | Types only |
 | `npm run db:up` | Start PostgreSQL in Docker |
 | `npm run db:generate` | Generate a migration from a schema change |
@@ -120,6 +121,26 @@ Useful commands:
 The packages under `packages/` are consumed from their built output, so
 `npm run dev` builds them first. After editing a package, restart the dev
 server — the Next.js watcher does not rebuild them for you.
+
+### Tests that need a database
+
+Most tests are pure and run anywhere. The ones under `tests/` are not: tenant
+isolation and job idempotency are statements about what a *query* does, and a
+scoped query and an unscoped one are the same TypeScript. Those run only when
+`TEST_DATABASE_URL` points at a database they may write to:
+
+```bash
+npm run db:up            # the dev PostgreSQL, on 127.0.0.1:5432
+createdb -h localhost -U mifluent mifluent_test
+TEST_DATABASE_URL=postgres://mifluent:mifluent@localhost:5432/mifluent_test npm test
+```
+
+They apply the migrations themselves, build their own tenants, and delete
+those tenants afterwards — every table cascades from `tenants`, so nothing
+else is touched. Without the variable they are skipped and `npm run check`
+is green, which is what CI sees today. Deliberately not `DATABASE_URL`: a
+suite that picks up whatever connection string happens to be exported is one
+`npm test` away from writing somewhere that matters.
 
 ---
 
@@ -194,12 +215,19 @@ Names and comments are written in English, throughout.
 ```
 apps/
   web/                  Next.js app — UI and API routes
+  worker/               the collector: schedules, jobs, CLI commands
 packages/
-  core/                 config, errors, shared types, utilities
-  db/                   Drizzle schema, migrations, data access layer
-  ingestion/            source connectors, normalisation, deduplication
-  classification/       embeddings, the significance classifier
+  core/                 config, errors, logging, shared utilities
+  db/                   Drizzle schema, migrations, tenant-scoped access
+  domain/               profiles, sources, tenancy, plans, decisions
+  sources/              connectors, feed parsing, safe-fetch
+  embeddings/           local embedding model
+  pipeline/             selection, extraction, clustering, pruning
+  digest/               assembling a digest from events
+  delivery/             Telegram: rendering, buttons, binding
+  discovery/            onboarding: a site to targets and surfaces
   llm/                  model access, prompts, output validation
+tests/                  tests that need a real database
 ```
 
 The rule: a package never imports from `apps/`. Dependencies point inward.
