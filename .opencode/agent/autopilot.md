@@ -11,7 +11,9 @@ permission:
     "git remote*": deny
     "git config*": deny
     "git reset --hard*": deny
-    "git checkout -- *": deny
+    "git checkout*": deny
+    "git restore*": deny
+    "git stash drop*": deny
     "git clean*": deny
     "git rebase*": deny
     "git commit*": deny

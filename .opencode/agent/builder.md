@@ -19,6 +19,13 @@ permission:
     "ls *": allow
     "cat *": allow
     "gh *": deny
+    "git checkout*": deny
+    "git restore*": deny
+    "git reset*": deny
+    "git clean*": deny
+    "git stash drop*": deny
+    "git stash clear*": deny
+    "rm -rf*": deny
     "git push*": deny
     "git remote*": deny
     "git config*": deny
