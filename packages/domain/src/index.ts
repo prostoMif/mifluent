@@ -29,6 +29,8 @@ export {
   isCostPurpose,
   recordCost,
 } from "./costs/record.js";
+export * from "./geo/countries.js";
+export * from "./geo/detect.js";
 export {
   type Chunk,
   type ChunkInput,
