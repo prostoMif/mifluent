@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 #
-# Runs the OpenCode task queue unattended: one task at a time, in the order of
-# docs/tasks/_Автопилот-очередь.txt. After each task: `npm run check`; green →
-# commit locally; red → one repair pass; still red → the changes are stashed,
-# the task is marked failed, and the queue moves on. Two failures in a row stop
-# the run, since the next tasks usually depend on the failed ones.
+# Runs the OpenCode task queue unattended — meant to be left overnight.
+#
+# Each task gets a fresh OpenCode session, so one chat's context limit never
+# stops the queue. After a session: `npm run check`; red → one repair pass;
+# green → local commit. If the agent's report says «частично», the next
+# session continues the same task (up to AUTOPILOT_SESSIONS, default 3). A
+# session that changes nothing is taken as the free model's API being down:
+# wait AUTOPILOT_IDLE_WAIT seconds (default 900) and retry, stop after four.
+# Tasks marked `исполнитель: opus` are skipped; a queue line
+# `TASK-034 requires TASK-033` waits for its prerequisite. Progress lines go to
+# docs/tasks/_Передача.md. Two unfinished tasks in a row stop the run.
 #
 # Never pushes. Never applies migrations. The owner reviews `git log` and
 # pushes by hand.
 #
 #   scripts/autopilot.sh              # whole queue
 #   scripts/autopilot.sh TASK-018     # start from this task
+#
+# Overnight, without the laptop going to sleep:
+#   systemd-inhibit --what=sleep:idle:handle-lid-switch scripts/autopilot.sh
 #
 # Optional: TELEGRAM_BOT_TOKEN and OWNER_TELEGRAM_CHAT_ID in .env — a short
 # message after every task, so progress can be followed from the phone.
@@ -65,69 +74,130 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
+is_done() {
+  case "$(status_of "$1")" in
+    "готова к ревью"|"принята"|"выполнена") return 0 ;;
+  esac
+  return 1
+}
+
+# The agent's own verdict: the last "**Статус:**" line of the report it wrote.
+report_is_partial() {
+  grep -E '^\*\*Статус:\*\*' "$1" | tail -1 | grep -q 'частично'
+}
+
+handoff() {
+  printf -- '- %s — %s\n' "$(date '+%F %H:%M')" "$1" >> "$TASKS_DIR/_Передача.md"
+}
+
+TASK_PROMPT_RULES="Правила: AGENTS.md, docs/code-style.md и разделы 0a, 2 и пункты 1–3 раздела 3 из docs/tasks/_Промпт-OpenCode.md. Очередь и коммиты ведёт скрипт: делай только эту задачу, не коммить, файл _Передача.md не трогай. Если в конце файла задачи уже есть отчёт со статусом «частично» — продолжи с того, что там перечислено как несделанное, готовое не переделывай. В конце — отчёт в файле задачи: статус «готова к ревью» только если выполнены ВСЕ пункты раздела «Требования», иначе «частично» и список несделанного."
+
+MAX_SESSIONS="${AUTOPILOT_SESSIONS:-3}"
+IDLE_WAIT="${AUTOPILOT_IDLE_WAIT:-900}"
+MAX_IDLE=4
+
+printf '\n## Автопилот — запуск %s\n' "$(date '+%F %H:%M')" >> "$TASKS_DIR/_Передача.md"
+
 failures_in_row=0
 started=$([[ -z "$START_FROM" ]] && echo 1 || echo 0)
 
 while IFS= read -r line; do
-  task="${line%%#*}"; task="$(echo "$task" | xargs)"
-  [[ -z "$task" ]] && continue
+  entry="${line%%#*}"; entry="$(echo "$entry" | xargs)"
+  [[ -z "$entry" ]] && continue
+  task="${entry%% *}"
+  requires=""
+  [[ "$entry" == *" requires "* ]] && requires="${entry##* requires }"
   [[ $started -eq 0 && "$task" == "$START_FROM"* ]] && started=1
   [[ $started -eq 0 ]] && continue
 
   file="$(ls "$TASKS_DIR"/"$task"*.md 2>/dev/null | head -1)"
   if [[ -z "$file" ]]; then notify "$task: файл не найден, пропускаю"; continue; fi
+  if is_done "$file"; then continue; fi
 
-  st="$(status_of "$file")"
-  case "$st" in
-    "готова к ревью"|"принята"|"выполнена") notify "$task: уже $st, пропускаю"; continue ;;
-  esac
-
-  # A task marked for Opus is not the free model's to attempt: stop here, so
-  # everything after it (which usually depends on it) waits for the owner to
-  # run it in Claude Code and restart with `scripts/autopilot.sh <next task>`.
+  # Opus tasks are skipped, not attempted; tasks that need one wait for it.
   if grep -qE '^исполнитель:[[:space:]]*opus' "$file"; then
-    notify "$task: задача для Opus — стоп. Выполни её в Claude Code, затем: scripts/autopilot.sh $task"
-    exit 0
+    notify "$task: задача для Opus — пропускаю"
+    handoff "$task — ждёт Opus, пропущена"
+    continue
+  fi
+  if [[ -n "$requires" ]]; then
+    req_file="$(ls "$TASKS_DIR"/"$requires"*.md 2>/dev/null | head -1)"
+    if [[ -z "$req_file" ]] || ! is_done "$req_file"; then
+      notify "$task: ждёт $requires — пропускаю"
+      handoff "$task — ждёт $requires, пропущена"
+      continue
+    fi
   fi
 
   log="$LOG_DIR/$task.log"
   notify "$task: начал"
   set_status "$file" "в работе (автопилот)"
 
-  run_agent "Выполни задачу $file полностью. Сначала прочитай AGENTS.md." "$log"
+  session=1
+  idle=0
+  outcome="failed"
+  while [[ $session -le $MAX_SESSIONS ]]; do
+    run_agent "Задача: $file. $TASK_PROMPT_RULES" "$log"
 
-  if ! npm run check >>"$log" 2>&1 </dev/null; then
-    notify "$task: check красный, одна попытка починить"
-    tail -n 120 "$log" > "$LOG_DIR/$task.check-tail.txt"
-    run_agent "npm run check после задачи $file красный. Последние строки вывода — в файле $LOG_DIR/$task.check-tail.txt. Почини, не ослабляя тесты и правила линтера, и обнови отчёт в файле задачи." "$log"
-  fi
-
-  if npm run check >>"$log" 2>&1 </dev/null; then
-    git add -A
-    title="$(grep -m1 '^# ' "$file" | sed 's/^# //' | cut -c1-72)"
-    if git commit -q -m "feat(autopilot): ${title}" -m "Task file: ${file#docs/tasks/}. Автопилот OpenCode; см. отчёт в файле задачи." >>"$log" 2>&1; then
-      set_status "$file" "готова к ревью"
-      notify "$task: ✅ готово, закоммичено ($(git rev-parse --short HEAD))"
-      failures_in_row=0
-    else
-      notify "$task: check зелёный, но коммит не прошёл (хук?) — см. $log"
-      git stash push -u -q -m "autopilot-failed-$task"
-      set_status "$file" "не прошла (автопилот)"
-      failures_in_row=$((failures_in_row + 1))
+    # No change at all usually means the free model's API was down, not that
+    # the task is impossible: wait and try again without spending a session.
+    if [[ -z "$(git status --porcelain)" ]] && ! report_is_partial "$file"; then
+      idle=$((idle + 1))
+      if [[ $idle -ge $MAX_IDLE ]]; then
+        notify "$task: модель $idle раз подряд ничего не сделала — стоп (API недоступен?)"
+        handoff "$task — стоп: модель не отвечает; продолжить: scripts/autopilot.sh $task"
+        exit 1
+      fi
+      notify "$task: изменений нет — жду $((IDLE_WAIT / 60)) мин и пробую снова"
+      sleep "$IDLE_WAIT"
+      continue
     fi
+
+    if ! npm run check >>"$log" 2>&1 </dev/null; then
+      notify "$task: check красный, попытка починить"
+      tail -n 120 "$log" > "$LOG_DIR/$task.check-tail.txt"
+      run_agent "npm run check после задачи $file красный. Последние строки вывода — в файле $LOG_DIR/$task.check-tail.txt. Почини, не ослабляя тесты и правила линтера, и обнови отчёт в файле задачи. $TASK_PROMPT_RULES" "$log"
+    fi
+
+    if npm run check >>"$log" 2>&1 </dev/null; then
+      title="$(grep -m1 '^# ' "$file" | sed 's/^# //' | cut -c1-72)"
+      if [[ -n "$(git status --porcelain)" ]]; then
+        git add -A
+        if ! git commit -q -m "feat(autopilot): ${title}" -m "Task file: ${file#docs/tasks/}. Автопилот OpenCode, сессия $session; см. отчёт в файле задачи." >>"$log" 2>&1; then
+          notify "$task: check зелёный, но коммит не прошёл (хук?) — см. $log"
+          break
+        fi
+      fi
+      if report_is_partial "$file"; then
+        notify "$task: частично (сессия $session), продолжаю в новой сессии"
+        session=$((session + 1))
+        continue
+      fi
+      outcome="done"
+      break
+    fi
+    session=$((session + 1))
+  done
+
+  if [[ "$outcome" == "done" ]]; then
+    set_status "$file" "готова к ревью"
+    notify "$task: ✅ готово ($(git rev-parse --short HEAD))"
+    handoff "$task — готова к ревью, коммит $(git rev-parse --short HEAD)"
+    failures_in_row=0
   else
-    git stash push -u -q -m "autopilot-failed-$task"
-    set_status "$file" "не прошла (автопилот)"
-    printf '\n## %s — автопилот: %s не прошла\n- check красный после двух попыток; изменения в `git stash list` (autopilot-failed-%s), лог `.autopilot/%s.log`.\n' \
-      "$(date +%F)" "$task" "$task" "$task" >> "$TASKS_DIR/_Вопросы владельцу.md"
-    notify "$task: ❌ не прошла, изменения в stash, иду дальше"
+    [[ -n "$(git status --porcelain)" ]] && git stash push -u -q -m "autopilot-failed-$task"
+    set_status "$file" "частично (автопилот)"
+    notify "$task: ❌ не доделана за $MAX_SESSIONS сессии, иду дальше"
+    handoff "$task — не доделана; остаток в отчёте задачи, незакоммиченное — git stash (autopilot-failed-$task)"
     failures_in_row=$((failures_in_row + 1))
   fi
 
   if [[ $failures_in_row -ge 2 ]]; then
-    notify "две задачи подряд не прошли — стоп. Нужен человек."
+    notify "две задачи подряд не получились — стоп. Нужен человек."
+    handoff "стоп: две задачи подряд не получились"
     exit 1
   fi
 done < "$QUEUE"
 
+handoff "очередь закончилась"
 notify "очередь закончилась"
