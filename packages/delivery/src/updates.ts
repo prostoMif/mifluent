@@ -17,7 +17,7 @@ import { getConfig, uuidv7 } from "@mifluent/core";
 import type { Queryable } from "@mifluent/db";
 import { schema, scoped } from "@mifluent/db";
 import { findCardOwner, isCardAction, recordCardAction } from "@mifluent/domain";
-import { eq, gte, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { consumeBindingCode, deliverFirstDigestOnBind } from "./bind.js";
 import { escapeHtml } from "./html.js";
@@ -36,6 +36,8 @@ export const telegramUpdateSchema = z.object({
       reply_to_message: z
         .object({
           text: z.string().optional(),
+          /** Unix seconds, set by Telegram: when the question was asked. */
+          date: z.number().optional(),
         })
         .optional(),
     })
@@ -62,23 +64,30 @@ export interface HandleUpdateOptions {
 const START_COMMAND = /^\/start(?:@\w+)?(?:\s+([A-Za-z0-9]{4,32}))?\s*$/;
 
 /** First 8 characters of a UUID (after the first hyphen group). */
-const CARD_ID_PREFIX_LENGTH = 8;
+/**
+ * The tail, not the head: card ids are UUIDv7, whose first 48 bits are the
+ * creation time, so every card of one digest shares its leading characters.
+ * The last twelve hex digits are random.
+ */
+const CARD_ID_TAG_LENGTH = 12;
 
-function cardIdPrefix(cardId: string): string {
-  return cardId.slice(0, CARD_ID_PREFIX_LENGTH);
+/** How long after the question a reply still counts as its answer. */
+const DECISION_REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export function cardIdTag(cardId: string): string {
+  return cardId.slice(-CARD_ID_TAG_LENGTH);
 }
 
-function extractCardIdPrefix(text: string): string | null {
-  const match = text.match(/#([a-f0-9]{8})/);
+export function extractCardIdTag(text: string): string | null {
+  const match = text.match(new RegExp(`#([a-f0-9]{${CARD_ID_TAG_LENGTH}})\\b`));
   return match?.[1] ?? null;
 }
 
-async function findCardByPrefix(
+async function findCardByTag(
   db: Queryable,
   tenantId: string,
   profileId: string,
-  prefix: string,
-  since: Date,
+  tag: string,
 ): Promise<{ id: string; eventId: string } | null> {
   const rows = await db
     .select({
@@ -93,8 +102,7 @@ async function findCardByPrefix(
         schema.digestCards,
         tenantId,
         eq(schema.digests.profileId, profileId),
-        gte(schema.digestCards.createdAt, since),
-        sql`${schema.digestCards.id}::text LIKE ${`${prefix}%`}`,
+        sql`${schema.digestCards.id}::text LIKE ${`%${tag}`}`,
       ),
     )
     .limit(2);
@@ -194,10 +202,13 @@ async function handleInfluencedReply(
     return;
   }
 
-  // Extract card ID prefix from the original question message (visible label #xxxxxxxx)
+  // The question ends with a visible tag (# + the card id's random tail). A
+  // reply to a question older than a day is not trusted to still be about it.
   const repliedText = message.reply_to_message?.text ?? "";
-  const prefix = extractCardIdPrefix(repliedText);
-  if (!prefix) {
+  const askedAt = message.reply_to_message?.date;
+  const tag = extractCardIdTag(repliedText);
+  const isFresh = askedAt !== undefined && Date.now() - askedAt * 1000 <= DECISION_REPLY_WINDOW_MS;
+  if (!tag || !isFresh) {
     await options.api.sendMessage(chatId, { text: strings.callback.influencedFailed });
     return;
   }
@@ -215,9 +226,7 @@ async function handleInfluencedReply(
     return;
   }
 
-  // Find card by prefix within last 24 hours
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const card = await findCardByPrefix(options.db, profile.tenantId, profile.id, prefix, since);
+  const card = await findCardByTag(options.db, profile.tenantId, profile.id, tag);
   if (!card) {
     await options.api.sendMessage(chatId, { text: strings.callback.influencedFailed });
     return;
@@ -306,8 +315,9 @@ async function handleButton(
     await options.api.answerCallbackQuery(query.id, strings.callback.influencedPrompt);
     // chatId is guaranteed to be defined here because the check above would have returned early
     if (chatId === undefined) return;
-    const prefix = cardIdPrefix(cardId);
-    const questionText = escapeHtml(`${strings.callback.influencedPrompt}\n\n#${prefix}`);
+    const questionText = escapeHtml(
+      `${strings.callback.influencedPrompt}\n\n#${cardIdTag(cardId)}`,
+    );
     await options.api.sendMessage(chatId, {
       text: questionText,
       parseMode: "HTML",

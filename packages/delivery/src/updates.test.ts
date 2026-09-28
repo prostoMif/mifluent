@@ -4,7 +4,7 @@ import { findCardOwner, recordCardAction } from "@mifluent/domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { consumeBindingCode } from "./bind.js";
 import type { TelegramApi } from "./telegram-api.js";
-import { handleTelegramUpdate } from "./updates.js";
+import { cardIdTag, extractCardIdTag, handleTelegramUpdate } from "./updates.js";
 
 vi.mock("@mifluent/core", () => ({
   getConfig: vi.fn(() => ({
@@ -185,5 +185,43 @@ describe("handleTelegramUpdate", () => {
     await handleTelegramUpdate({ db, api, logger, update: { hello: "world" } });
 
     expect(api.sent).toEqual([]);
+  });
+});
+
+describe("decision question tag", () => {
+  // Two cards of one digest: UUIDv7 ids written in the same millisecond share
+  // their leading timestamp and differ only in the random tail.
+  const first = "0192ab3c-4d5e-7f00-8a1b-2c3d4e5f6a7b";
+  const second = "0192ab3c-4d5e-7f00-9c8d-7e6f5a4b3c2d";
+
+  it("tells apart cards created in the same moment", () => {
+    expect(cardIdTag(first)).not.toBe(cardIdTag(second));
+  });
+
+  it("reads the tag back from the question text", () => {
+    const question = `What did you decide?\n\n#${cardIdTag(first)}`;
+    expect(extractCardIdTag(question)).toBe(cardIdTag(first));
+    expect(first.endsWith(extractCardIdTag(question) ?? "missing")).toBe(true);
+  });
+
+  it("finds no tag in text without one", () => {
+    expect(extractCardIdTag("What did you decide?")).toBeNull();
+  });
+
+  it("asks the question without markup Telegram would reject", async () => {
+    vi.mocked(findCardOwner).mockResolvedValue({
+      tenantId: "t1",
+      eventId: "e1",
+      profileId: "p1",
+      telegramChatId: "42",
+    });
+    const api = fakeApi();
+
+    await handleTelegramUpdate({ db, api, logger, update: press(42, `influenced:${first}`) });
+
+    expect(api.sent).toHaveLength(1);
+    expect(api.sent[0]).not.toContain("<!--");
+    expect(api.sent[0]).toContain(`#${cardIdTag(first)}`);
+    expect(recordCardAction).not.toHaveBeenCalled();
   });
 });
