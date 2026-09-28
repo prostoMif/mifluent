@@ -35,15 +35,27 @@ const WEEKDAYS: Readonly<Record<string, number>> = {
   Sun: 7,
 };
 
+/** Milliseconds in 7 days. */
+const FIRST_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
 export function resolveDelivery(
   stored: ProfileDelivery,
   defaults: DeliveryDefaults,
+  profileCreatedAt?: Date,
 ): ResolvedDelivery {
   const cadence = stored.cadence === "daily" && defaults.isDailyAllowed ? "daily" : "weekly";
   const timezone = isKnownZone(stored.timezone) ? stored.timezone : defaults.timezone;
 
+  // First week (profile < 7 days old): daily regardless of settings, if plan allows.
+  const effectiveCadence =
+    profileCreatedAt !== undefined &&
+    Date.now() - profileCreatedAt.getTime() < FIRST_WEEK_MS &&
+    defaults.isDailyAllowed
+      ? "daily"
+      : cadence;
+
   return {
-    cadence,
+    cadence: effectiveCadence,
     weekday: inRange(stored.weekday, 1, 7) ? stored.weekday : MONDAY,
     hour: inRange(stored.hour, 0, 23) ? stored.hour : defaults.hour,
     timezone,

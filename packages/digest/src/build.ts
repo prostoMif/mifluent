@@ -22,6 +22,7 @@ import {
   resolveDelivery,
   windowEndFor,
 } from "./schedule.js";
+import { loadDigestView } from "./view.js";
 
 export interface BuildContext {
   readonly db: Queryable;
@@ -58,7 +59,7 @@ const NEAR_MISSES_SHOWN = 3;
 
 export async function resolveProfileDelivery(context: BuildContext): Promise<ResolvedDelivery> {
   const [profile] = await context.db
-    .select({ delivery: schema.watchProfiles.delivery })
+    .select({ delivery: schema.watchProfiles.delivery, createdAt: schema.watchProfiles.createdAt })
     .from(schema.watchProfiles)
     .where(
       scopedAlive(
@@ -70,10 +71,14 @@ export async function resolveProfileDelivery(context: BuildContext): Promise<Res
     .limit(1);
 
   const { limits } = await findTenantPlan(context.db, context.tenantId);
-  return resolveDelivery(profile?.delivery ?? {}, {
-    ...context.defaults,
-    isDailyAllowed: limits.dailyDigest,
-  });
+  return resolveDelivery(
+    profile?.delivery ?? {},
+    {
+      ...context.defaults,
+      isDailyAllowed: limits.dailyDigest,
+    },
+    profile?.createdAt,
+  );
 }
 
 /** The regular digest due now: weekly or daily, per the profile's settings. */
@@ -556,4 +561,144 @@ function daysMs(days: number): number {
 
 function maxDate(left: Date, right: Date): Date {
   return left.getTime() >= right.getTime() ? left : right;
+}
+
+/**
+ * Creates a telegram digest for the same window as an existing web_only digest.
+ * Used when a user binds their Telegram chat and we need to send the first digest.
+ */
+export async function createTelegramDigestFromWebOnly(
+  db: Queryable,
+  tenantId: string,
+  webOnlyDigestId: string,
+): Promise<string | undefined> {
+  // Load the web_only digest
+  const webDigest = await loadDigestView(db, tenantId, webOnlyDigestId);
+  if (webDigest === undefined || webDigest.channel !== "web_only") {
+    return undefined;
+  }
+
+  // Check if telegram digest already exists for this window
+  const existingTelegram = await db
+    .select({ id: schema.digests.id })
+    .from(schema.digests)
+    .where(
+      and(
+        eq(schema.digests.tenantId, tenantId),
+        eq(schema.digests.profileId, webDigest.profileId),
+        eq(schema.digests.periodStart, webDigest.periodStart),
+        eq(schema.digests.periodEnd, webDigest.periodEnd),
+        eq(schema.digests.channel, "telegram"),
+      ),
+    )
+    .limit(1);
+
+  if (existingTelegram.length > 0 && existingTelegram[0] !== undefined) {
+    return existingTelegram[0].id;
+  }
+
+  // Get the profile version
+  const [profile] = await db
+    .select({ currentVersionId: schema.watchProfiles.currentVersionId })
+    .from(schema.watchProfiles)
+    .where(eq(schema.watchProfiles.id, webDigest.profileId))
+    .limit(1);
+
+  if (profile?.currentVersionId === null || profile?.currentVersionId === undefined) {
+    return undefined;
+  }
+
+  const versionId = profile.currentVersionId;
+
+  // Load cards from the web_only digest
+  const cards = await db
+    .select({
+      id: schema.digestCards.id,
+      eventId: schema.digestCards.eventId,
+      kind: schema.digestCards.kind,
+      headline: schema.digestCards.headline,
+      sourceUrl: schema.digestCards.sourceUrl,
+      ageDays: schema.digestCards.ageDays,
+      moreCount: schema.digestCards.moreCount,
+    })
+    .from(schema.digestCards)
+    .where(eq(schema.digestCards.digestId, webOnlyDigestId))
+    .orderBy(schema.digestCards.position);
+
+  const cardBlocks = await db
+    .select({
+      cardId: schema.cardBlocks.cardId,
+      kind: schema.cardBlocks.kind,
+      position: schema.cardBlocks.position,
+      content: schema.cardBlocks.content,
+      quote: schema.cardBlocks.quote,
+      sourceUrl: schema.cardBlocks.sourceUrl,
+    })
+    .from(schema.cardBlocks)
+    .where(
+      inArray(
+        schema.cardBlocks.cardId,
+        cards.map((c) => c.id),
+      ),
+    );
+
+  const stats = {
+    sourcesChecked: webDigest.sourcesChecked,
+    itemsConsidered: webDigest.itemsConsidered,
+    nearMisses: webDigest.nearMisses,
+  };
+
+  const digestId = uuidv7();
+
+  await db.transaction(async (transaction) => {
+    await transaction.insert(schema.digests).values({
+      id: digestId,
+      tenantId,
+      profileId: webDigest.profileId,
+      profileVersionId: versionId,
+      periodStart: webDigest.periodStart,
+      periodEnd: webDigest.periodEnd,
+      channel: "telegram",
+      status: "pending",
+      deliveredAt: null,
+      sourcesChecked: stats.sourcesChecked,
+      itemsConsidered: stats.itemsConsidered,
+      nearMisses: stats.nearMisses,
+      notices: webDigest.notices,
+    } as typeof schema.digests.$inferInsert);
+
+    for (const [position, card] of cards.entries()) {
+      const cardId = uuidv7();
+      await transaction.insert(schema.digestCards).values({
+        id: cardId,
+        tenantId,
+        digestId,
+        eventId: card.eventId,
+        position,
+        kind: card.kind,
+        headline: card.headline,
+        sourceUrl: card.sourceUrl,
+        ageDays: card.ageDays,
+        moreCount: card.moreCount,
+      });
+
+      const blocks = cardBlocks.filter((block) => block.cardId === card.id);
+      if (blocks.length > 0) {
+        await transaction.insert(schema.cardBlocks).values(
+          blocks.map((block, blockPosition) => ({
+            id: uuidv7(),
+            tenantId,
+            cardId,
+            kind: block.kind,
+            position: blockPosition,
+            content: block.content,
+            quote: block.quote,
+            sourceUrl: block.sourceUrl,
+          })),
+        );
+      }
+    }
+  });
+
+  return digestId;
 }

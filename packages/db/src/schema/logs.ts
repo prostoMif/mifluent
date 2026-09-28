@@ -31,7 +31,7 @@ import { id } from "./common.js";
 import { digestCards } from "./digests.js";
 import { events } from "./events.js";
 import { rawItems } from "./items.js";
-import { watchProfiles } from "./profiles.js";
+import { watchProfiles, watchTargets } from "./profiles.js";
 import { tenants } from "./tenancy.js";
 
 export const userActionKindEnum = pgEnum("user_action_kind", [
@@ -43,6 +43,7 @@ export const userActionKindEnum = pgEnum("user_action_kind", [
   "card_viewed",
   "not_following_target",
   "not_important",
+  "influenced",
 ]);
 
 export const pipelineStepEnum = pgEnum("pipeline_step", [
@@ -158,3 +159,42 @@ export const rejections = pgTable(
     index("rejections_raw_item_idx").on(table.rawItemId),
   ],
 );
+
+/**
+ * A human's note that a specific card influenced a concrete decision.
+ *
+ * Written once, kept forever: it is the training signal for the classifier
+ * (replacing the cheap model in v2) and the audit trail for "what did I do
+ * based on this digest". The text is intentionally not sent to any model.
+ */
+export const decisions = pgTable(
+  "decisions",
+  {
+    id: id(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => watchProfiles.id, { onDelete: "cascade" }),
+    eventId: uuid("event_id").references(() => events.id, { onDelete: "set null" }),
+    targetId: uuid("target_id").references(() => watchTargets.id, { onDelete: "set null" }),
+    /** What the person decided, in their own words. */
+    text: text("text").notNull(),
+    /** Optional: when to revisit this decision. */
+    revisitAt: timestamp("revisit_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("decisions_tenant_created_idx").on(table.tenantId, table.createdAt),
+    index("decisions_target_created_idx").on(table.targetId, table.createdAt),
+    index("decisions_profile_created_idx").on(table.profileId, table.createdAt),
+    index("decisions_event_idx").on(table.eventId),
+  ],
+);
+
+export const decisionsRelations = relations(decisions, ({ one }) => ({
+  profile: one(watchProfiles, { fields: [decisions.profileId], references: [watchProfiles.id] }),
+  event: one(events, { fields: [decisions.eventId], references: [events.id] }),
+  target: one(watchTargets, { fields: [decisions.targetId], references: [watchTargets.id] }),
+}));

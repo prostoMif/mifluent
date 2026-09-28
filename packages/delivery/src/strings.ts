@@ -17,6 +17,7 @@ export interface Strings {
   readonly groupHeadline: (target: string, count: number) => string;
   readonly more: (count: number) => string;
   readonly emptyDigest: (period: string, sources: number, items: number) => string;
+  readonly emptyDigestFirstWeek: (sources: number, items: number, closestTitle: string) => string;
   readonly closest: string;
   readonly rejectedBecause: string;
   readonly rejectionReason: (code: string) => string;
@@ -29,15 +30,21 @@ export interface Strings {
     readonly notFollowing: string;
     readonly notImportant: string;
     readonly save: string;
+    readonly influenced: string;
   };
   readonly callback: {
     readonly recorded: string;
     readonly notFound: string;
+    readonly influencedPrompt: string;
+    readonly influencedEmpty: string;
+    readonly influencedFailed: string;
+    readonly influencedRecorded: (target: string) => string;
   };
   readonly binding: {
     readonly bound: (profile: string) => string;
     readonly invalidCode: string;
     readonly help: string;
+    readonly firstDigestCollecting: string;
   };
 }
 
@@ -52,6 +59,8 @@ const en: Strings = {
   more: (count) => `and ${count} more`,
   emptyDigest: (period, sources, items) =>
     `Nothing that concerns you for ${period}. Checked ${sources} sources, ${items} items.`,
+  emptyDigestFirstWeek: (sources, items, closestTitle) =>
+    `Checked ${sources} sources, ${items} items — nothing significant. Closest: ${closestTitle}.`,
   closest: "Closest:",
   rejectedBecause: "rejected:",
   rejectionReason: (code) =>
@@ -67,12 +76,25 @@ const en: Strings = {
       "Processing is paused until tomorrow — this instance reached its daily budget. You can add your own model key in settings.",
     targetQuiet: (target) => `${target} has been quieter than usual.`,
   },
-  buttons: { notFollowing: "Not following this", notImportant: "Not important", save: "Save" },
-  callback: { recorded: "Noted", notFound: "That card is no longer available" },
+  buttons: {
+    notFollowing: "Not following this",
+    notImportant: "Not important",
+    save: "Save",
+    influenced: "It changed a decision",
+  },
+  callback: {
+    recorded: "Noted",
+    notFound: "That card is no longer available",
+    influencedPrompt: "What did you decide? Reply with one line.",
+    influencedEmpty: "Empty reply. Press the button again to try.",
+    influencedFailed: "Could not record. Press the button again.",
+    influencedRecorded: (target) => `Recorded. I'll show it in the history for ${target}.`,
+  },
   binding: {
     bound: (profile) => `Done. Digests for “${profile}” will arrive here.`,
     invalidCode: "That code is not valid or has expired. Get a new one in Mifluent.",
     help: "Send /start followed by the code shown in Mifluent to receive digests here.",
+    firstDigestCollecting: "Collecting your first digest. It will arrive in a few minutes.",
   },
 };
 
@@ -87,6 +109,8 @@ const ru: Strings = {
   more: (count) => `и ещё ${count}`,
   emptyDigest: (period, sources, items) =>
     `Ничего, что тебя касается, за ${period}. Проверено ${sources} источников, ${items} материалов.`,
+  emptyDigestFirstWeek: (sources, items, closestTitle) =>
+    `Проверено ${sources} источников, ${items} материалов — существенного нет. Ближе всего: ${closestTitle}.`,
   closest: "Ближе всего:",
   rejectedBecause: "отклонено:",
   rejectionReason: (code) =>
@@ -102,12 +126,25 @@ const ru: Strings = {
       "Обработка приостановлена до завтра — лимит бюджета инстанса. Можно вставить свой ключ в настройках.",
     targetQuiet: (target) => `У ${target} тише обычного.`,
   },
-  buttons: { notFollowing: "Не слежу за этим", notImportant: "Не важно", save: "Сохранить" },
-  callback: { recorded: "Принято", notFound: "Эта карточка больше недоступна" },
+  buttons: {
+    notFollowing: "Не слежу за этим",
+    notImportant: "Не важно",
+    save: "Сохранить",
+    influenced: "Повлияло",
+  },
+  callback: {
+    recorded: "Принято",
+    notFound: "Эта карточка больше недоступна",
+    influencedPrompt: "Что ты решил? Ответь одной строкой.",
+    influencedEmpty: "Пустой ответ. Нажми кнопку ещё раз.",
+    influencedFailed: "Не удалось записать. Нажми кнопку ещё раз.",
+    influencedRecorded: (target) => `Записал. Покажу в истории по ${target}.`,
+  },
   binding: {
     bound: (profile) => `Готово. Сводки по «${profile}» будут приходить сюда.`,
     invalidCode: "Код неверный или истёк. Получите новый в Mifluent.",
     help: "Отправьте /start и код из Mifluent, чтобы получать сводки здесь.",
+    firstDigestCollecting: "Собираю вашу первую сводку. Придёт через несколько минут.",
   },
 };
 

@@ -52,7 +52,7 @@ export async function registerDigestJobs(boss: PgBoss): Promise<void> {
       return;
     }
 
-    await deliverDigest({
+    const outcome = await deliverDigest({
       db: getDatabase(),
       api,
       logger,
@@ -60,5 +60,19 @@ export async function registerDigestJobs(boss: PgBoss): Promise<void> {
       appUrl: getConfig().APP_URL,
       timezone: deliveryDefaults().timezone,
     });
+
+    // Schedule retry if needed
+    if (outcome.retryAfterMinutes !== undefined) {
+      await boss.send(
+        QUEUES.digestDeliver,
+        { tenantId: ref.tenantId, digestId: ref.digestId } satisfies DigestJob,
+        { singletonKey: ref.digestId, startAfter: outcome.retryAfterMinutes * 60 * 1000 },
+      );
+    }
   });
+}
+
+interface DigestJob {
+  readonly tenantId: string;
+  readonly digestId: string;
 }

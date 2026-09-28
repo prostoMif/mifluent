@@ -55,6 +55,7 @@ export const profileFromDiscoverySchema = z.object({
     language: z.enum(["en", "ru"]),
   }),
   targets: z.array(discoveredTargetSchema).max(50),
+  timezone: z.string().trim().min(1).max(50).optional(),
 });
 
 export type DiscoveredSurfaceInput = z.infer<typeof discoveredSurfaceSchema>;

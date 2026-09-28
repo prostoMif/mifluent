@@ -5,9 +5,12 @@
  *
  * 1. **Stopwords** on the title — free, and the person's own explicit "no".
  * 2. **Cosine** of the item's best chunk to the profile — free, local, wide.
+ *    Skipped for diff/job items that have a source target_id (they go straight
+ *    to the model).
  * 3. **The cheap model**, on at most forty items per profile per day, best
- *    cosine first. Everything past the budget waits for tomorrow rather than
- *    being rejected, so a busy day delays material instead of losing it.
+ *    priority first, then best cosine. Everything past the budget waits for
+ *    tomorrow rather than being rejected. Priority 0 (diff/job with target)
+ *    has a separate reserve of 10 calls per day.
  *
  * Every item that stops at a step leaves a rejection with its reason, which is
  * what the digest's "closest misses" line and the dry run's `--explain` read.
@@ -32,6 +35,7 @@ import {
   type RelevanceAnswer,
   relevanceSchema,
 } from "../prompts/selection.js";
+import { DIFF_RESERVE_PER_DAY, type Priority, priorityOf } from "./priority.js";
 import { cosineCutoff, findStopword, scoreItem } from "./score.js";
 
 export interface SelectionOptions {
@@ -55,6 +59,7 @@ export interface SelectionDecision {
   readonly detail: string | null;
   readonly eventId: string | null;
   readonly nearestTargetId: string | null;
+  readonly priority: Priority;
 }
 
 export interface SelectionResult {
@@ -66,7 +71,7 @@ export interface SelectionResult {
   readonly decisions: readonly SelectionDecision[];
 }
 
-interface Candidate {
+export interface Candidate {
   readonly id: string;
   readonly title: string | null;
   readonly content: string;
@@ -79,6 +84,7 @@ interface Candidate {
 interface Scored extends Candidate {
   readonly score: number;
   readonly nearestTargetId: string | null;
+  readonly priority: Priority;
 }
 
 /** From TASK-007: the cheap model sees at most this many items per profile per day. */
@@ -123,7 +129,10 @@ export async function selectForProfile(options: SelectionOptions): Promise<Selec
     else survivors.push(decision);
   }
 
-  survivors.sort((left, right) => right.score - left.score);
+  survivors.sort((left, right) => {
+    if (left.priority !== right.priority) return left.priority - right.priority;
+    return right.score - left.score;
+  });
 
   if (options.llm === undefined) {
     decisions.push(...survivors.map((item) => deferred(item, "stopped before the model step")));
@@ -131,10 +140,12 @@ export async function selectForProfile(options: SelectionOptions): Promise<Selec
   }
 
   const budget = MAX_MODEL_CALLS_PER_DAY - (await countModelDecisionsToday(db, context, now));
+  const diffBudget = await diffReserveRemaining(db, context, now);
   const status = await judgeWithModel(
     { ...options, llm: options.llm, now },
     survivors,
     budget,
+    diffBudget,
     decisions,
   );
   const result = summarise(status, candidates.length, survivors.length, decisions);
@@ -166,7 +177,17 @@ async function applyFreeSteps(
   input: FreeStepInput,
 ): Promise<SelectionDecision | Scored> {
   const { context, candidate } = input;
-  const { score, nearestTargetId } = scoreItem(input.chunkVectors, input.profileVectors);
+  const priority = priorityOf(candidate);
+  const isDiffOrJobWithTarget = priority === 0;
+
+  let score = -1;
+  let nearestTargetId: string | null = null;
+
+  if (!isDiffOrJobWithTarget) {
+    const scored = scoreItem(input.chunkVectors, input.profileVectors);
+    score = scored.score;
+    nearestTargetId = scored.nearestTargetId;
+  }
 
   const stopword = findStopword(candidate.title, context.stopwords);
   if (stopword !== null) {
@@ -177,10 +198,10 @@ async function applyFreeSteps(
       score,
       detail: stopword,
     });
-    return { ...decision(candidate, score, "stopword", stopword), nearestTargetId };
+    return { ...decision(candidate, score, "stopword", stopword), nearestTargetId, priority };
   }
 
-  if (score < input.cutoff) {
+  if (!isDiffOrJobWithTarget && score < input.cutoff) {
     await reject(db, {
       context,
       itemId: candidate.id,
@@ -188,10 +209,10 @@ async function applyFreeSteps(
       score,
       detail: null,
     });
-    return { ...decision(candidate, score, "below_cosine", null), nearestTargetId };
+    return { ...decision(candidate, score, "below_cosine", null), nearestTargetId, priority };
   }
 
-  return { ...candidate, score, nearestTargetId };
+  return { ...candidate, score, nearestTargetId, priority };
 }
 
 interface JudgeOptions extends SelectionOptions {
@@ -199,15 +220,66 @@ interface JudgeOptions extends SelectionOptions {
   readonly now: Date;
 }
 
+function budgetForItem(item: Scored, budget: number, diffBudget: number, used: number): number {
+  const isPriority0 = item.priority === 0;
+  return isPriority0 ? diffBudget : budget - used;
+}
+
+function remainingForItem(item: Scored, budget: number, diffBudget: number, used: number): number {
+  const isPriority0 = item.priority === 0;
+  const itemBudget = budgetForItem(item, budget, diffBudget, used);
+  return isPriority0 ? itemBudget : budget - used;
+}
+
+function deferReason(item: Scored): string {
+  return item.priority === 0
+    ? "diff reserve for this profile is used up"
+    : "daily model budget for this profile is used up";
+}
+
+async function handleModelError(
+  options: JudgeOptions,
+  item: Scored,
+  error: ReturnType<typeof toAppError>,
+  survivors: readonly Scored[],
+  index: number,
+  decisions: SelectionDecision[],
+): Promise<SelectionResult["status"] | null> {
+  if (error.code === "model_response_invalid") {
+    await reject(options.db, {
+      context: options.context,
+      itemId: item.id,
+      reason: "model_rejected",
+      score: item.score,
+      detail: "The model could not give a usable answer about this item.",
+    });
+    decisions.push(
+      decision(item, item.score, "model_rejected", "unusable model answer", item.priority),
+    );
+    return null;
+  }
+  options.logger.warn("pipeline.selection_interrupted", {
+    profileId: options.context.profileId,
+    code: error.code,
+  });
+  decisions.push(...survivors.slice(index).map((rest) => deferred(rest, error.message)));
+  return "model_unavailable";
+}
+
 async function judgeWithModel(
   options: JudgeOptions,
   survivors: readonly Scored[],
   budget: number,
+  diffBudget: number,
   decisions: SelectionDecision[],
 ): Promise<SelectionResult["status"]> {
+  let used = 0;
+
   for (const [index, item] of survivors.entries()) {
-    if (index >= budget) {
-      decisions.push(deferred(item, "daily model budget for this profile is used up"));
+    const remaining = remainingForItem(item, budget, diffBudget, used);
+
+    if (remaining <= 0) {
+      decisions.push(deferred(item, deferReason(item)));
       continue;
     }
 
@@ -218,27 +290,11 @@ async function judgeWithModel(
 
     try {
       decisions.push(await judgeOne(options, item));
+      used += 1;
     } catch (thrown) {
       const error = toAppError(thrown);
-      if (error.code === "model_response_invalid") {
-        await reject(options.db, {
-          context: options.context,
-          itemId: item.id,
-          reason: "model_rejected",
-          score: item.score,
-          detail: "The model could not give a usable answer about this item.",
-        });
-        decisions.push(decision(item, item.score, "model_rejected", "unusable model answer"));
-        continue;
-      }
-      // Rate limits and outages will not clear by the next item. Stop, and
-      // leave the rest for the next run rather than burning through them.
-      options.logger.warn("pipeline.selection_interrupted", {
-        profileId: options.context.profileId,
-        code: error.code,
-      });
-      decisions.push(...survivors.slice(index).map((rest) => deferred(rest, error.message)));
-      return "model_unavailable";
+      const status = await handleModelError(options, item, error, survivors, index, decisions);
+      if (status !== null) return status;
     }
   }
 
@@ -288,20 +344,18 @@ async function recordRelevance(
       score: item.score,
       detail: answer.reason,
     });
-    return decision(item, item.score, "model_rejected", answer.reason);
+    return decision(item, item.score, "model_rejected", answer.reason, item.priority);
   }
 
   const eventId = await createEvent(db, {
     context,
     item,
-    // The model's target must be one the profile actually has; an id it made
-    // up, or one planted by the material, is discarded.
     targetId: pickTarget(context, answer.targetId, item),
     summary: item.title ?? answer.reason,
     kind: item.kind === "release" ? "feature" : "news",
     isUrgent: false,
   });
-  return { ...decision(item, item.score, "event", answer.reason), eventId };
+  return { ...decision(item, item.score, "event", answer.reason, item.priority), eventId };
 }
 
 async function recordMateriality(
@@ -318,8 +372,13 @@ async function recordMateriality(
       score: item.score,
       detail: answer.summary,
     });
-    return decision(item, item.score, "model_rejected", answer.summary);
+    return decision(item, item.score, "model_rejected", answer.summary, item.priority);
   }
+
+  const target = context.targets.find((target) => target.id === item.sourceTargetId);
+  const targetPaused = target === undefined;
+  const urgentKinds = new Set(["price", "plan", "policy"]);
+  const isUrgent = answer.urgent && urgentKinds.has(answer.kind) && !targetPaused;
 
   const eventId = await createEvent(db, {
     context,
@@ -327,9 +386,9 @@ async function recordMateriality(
     targetId: pickTarget(context, item.sourceTargetId, item),
     summary: answer.summary,
     kind: answer.kind,
-    isUrgent: answer.urgent,
+    isUrgent,
   });
-  return { ...decision(item, item.score, "event", answer.summary), eventId };
+  return { ...decision(item, item.score, "event", answer.summary, item.priority), eventId };
 }
 
 /** A claimed target if it is real, else the source's own target, else the nearest by cosine. */
@@ -439,8 +498,6 @@ async function findCandidates(
         eq(schema.sources.profileId, context.profileId),
         isNull(schema.sources.deletedAt),
         gte(schema.rawItems.fetchedAt, since),
-        // A search feed's first poll returns months of old articles; fetched
-        // today, they are still not news.
         or(isNull(schema.rawItems.publishedAt), gte(schema.rawItems.publishedAt, since)),
         sql`EXISTS (SELECT 1 FROM ${schema.chunks} WHERE ${schema.chunks.rawItemId} = ${schema.rawItems.id})`,
         notExists(
@@ -537,11 +594,61 @@ async function countModelDecisionsToday(
   return (events?.total ?? 0) + (rejected?.total ?? 0);
 }
 
+/** Remaining calls in the priority-0 (diff/job with target) reserve for today. */
+async function diffReserveRemaining(
+  db: Queryable,
+  context: ProfileContext,
+  now: Date,
+): Promise<number> {
+  const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+  const [events] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(schema.events)
+    .innerJoin(schema.rawItems, eq(schema.rawItems.id, schema.events.rawItemId))
+    .innerJoin(schema.sources, eq(schema.sources.id, schema.rawItems.sourceId))
+    .where(
+      scoped(
+        schema.events,
+        context.tenantId,
+        eq(schema.events.profileId, context.profileId),
+        gte(schema.events.createdAt, dayStart),
+        inArray(schema.rawItems.kind, ["diff", "job"]),
+        isNotNull(schema.sources.targetId),
+      ),
+    );
+
+  const [rejected] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(schema.rejections)
+    .innerJoin(schema.rawItems, eq(schema.rawItems.id, schema.rejections.rawItemId))
+    .innerJoin(schema.sources, eq(schema.sources.id, schema.rawItems.sourceId))
+    .where(
+      scoped(
+        schema.rejections,
+        context.tenantId,
+        eq(schema.rejections.profileId, context.profileId),
+        eq(schema.rejections.reason, "model_rejected"),
+        gte(schema.rejections.occurredAt, dayStart),
+        inArray(schema.rawItems.kind, ["diff", "job"]),
+        isNotNull(schema.sources.targetId),
+      ),
+    );
+
+  const used = (events?.total ?? 0) + (rejected?.total ?? 0);
+  return Math.max(0, DIFF_RESERVE_PER_DAY - used);
+}
+
+function isNotNull(column: typeof schema.sources.targetId) {
+  return sql`${column} IS NOT NULL`;
+}
+
 function decision(
-  item: Candidate & { readonly nearestTargetId?: string | null },
+  item: Candidate & { readonly nearestTargetId?: string | null; readonly priority?: Priority },
   score: number,
   outcome: SelectionDecision["outcome"],
   detail: string | null,
+  priority: Priority = 2,
 ): SelectionDecision {
   return {
     rawItemId: item.id,
@@ -551,11 +658,12 @@ function decision(
     detail,
     eventId: null,
     nearestTargetId: item.nearestTargetId ?? null,
+    priority: item.priority ?? priority,
   };
 }
 
 function deferred(item: Scored, why: string): SelectionDecision {
-  return decision(item, item.score, "deferred", why);
+  return decision(item, item.score, "deferred", why, item.priority);
 }
 
 function summarise(

@@ -23,6 +23,10 @@ export interface OutgoingMessage {
   readonly text: string;
   /** One row of buttons under the message, or none. */
   readonly buttons?: readonly InlineButton[] | undefined;
+  /** Force the user to reply to this message. */
+  readonly forceReply?: boolean | undefined;
+  /** Parse mode for the message text. */
+  readonly parseMode?: "HTML" | "Markdown" | undefined;
 }
 
 export interface TelegramApi {
@@ -63,22 +67,24 @@ export function createTelegramApi(options: TelegramApiOptions): TelegramApi {
       await call("sendMessage", {
         chat_id: chatId,
         text: message.text,
-        parse_mode: "HTML",
+        parse_mode: message.parseMode ?? "HTML",
         // A digest links to sources; a preview of the first one would make
         // every message look like an advertisement for it.
         link_preview_options: { is_disabled: true },
-        ...(message.buttons === undefined || message.buttons.length === 0
-          ? {}
-          : {
-              reply_markup: {
-                inline_keyboard: [
-                  message.buttons.map((button) => ({
-                    text: button.text,
-                    callback_data: button.callbackData,
-                  })),
-                ],
-              },
-            }),
+        ...(message.forceReply
+          ? { reply_markup: { force_reply: true, selective: true } }
+          : message.buttons === undefined || message.buttons.length === 0
+            ? {}
+            : {
+                reply_markup: {
+                  inline_keyboard: [
+                    message.buttons.map((button) => ({
+                      text: button.text,
+                      callback_data: button.callbackData,
+                    })),
+                  ],
+                },
+              }),
       });
     },
 

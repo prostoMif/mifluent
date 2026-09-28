@@ -77,9 +77,21 @@ export function TelegramBinding({
       ) : code === undefined ? (
         <p>Get this profile's digests in Telegram, with buttons to mark what mattered.</p>
       ) : (
-        <Notice tone="neutral">
-          Send <code>/start {code.code}</code> to {bot} within ten minutes. Then reload this page.
-        </Notice>
+        <>
+          <Notice tone="neutral">
+            Send <code>/start {code.code}</code> to {bot} within ten minutes. Then reload this page.
+          </Notice>
+          {botUsername !== undefined && (
+            <a
+              className={`${formStyles["button"]} ${formStyles["secondary"]}`}
+              href={`https://t.me/${botUsername}?start=${code.code}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open in Telegram
+            </a>
+          )}
+        </>
       )}
 
       <div className={formStyles["actions"]}>

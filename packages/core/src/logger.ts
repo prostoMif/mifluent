@@ -63,6 +63,7 @@ const SECRET_KEY_PATTERNS: readonly string[] = [
   "encryption_key",
   "signature",
   "otp",
+  "text",
 ];
 
 const MAX_REDACT_DEPTH = 6;

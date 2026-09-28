@@ -23,6 +23,8 @@ function digest(overrides: Partial<DigestView> = {}): DigestView {
     nearMisses: [],
     notices: [],
     cards: [],
+    profileCreatedAt: new Date("2026-09-20T08:00:00Z"),
+    failureReason: null,
     ...overrides,
   };
 }
@@ -79,13 +81,14 @@ describe("renderDigest", () => {
     expect(rendered?.text).not.toContain('<a href="https://evil.example">');
   });
 
-  it("puts the three feedback buttons under each card", () => {
+  it("puts the four feedback buttons under each card", () => {
     const [, rendered] = renderDigest(digest({ cards: [card] }), options);
 
     expect(rendered?.buttons?.map((button) => button.callbackData)).toEqual([
       "not_following_target:c1",
       "not_important:c1",
       "saved:c1",
+      "influenced:c1",
     ]);
   });
 

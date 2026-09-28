@@ -9,8 +9,11 @@
 export {
   type CardActionInput,
   type CardOwner,
+  type ClickActionInput,
   findCardOwner,
+  getCardSourceUrl,
   recordCardAction,
+  recordClickAction,
 } from "./actions/card-actions.js";
 export {
   type CostCapState,
@@ -68,6 +71,15 @@ export {
   saveWatchProfile,
   type UpdateProfileOptions,
 } from "./profiles/write.js";
+export {
+  type BetaReportRow,
+  generateBetaReport,
+} from "./reports/beta-report.js";
+export {
+  type DailyOwnerReport,
+  generateDailyOwnerReport,
+} from "./reports/daily-owner-report.js";
+export { isReturner } from "./reports/returner-rule.js";
 export * from "./schemas.js";
 export * from "./sources/index.js";
 export {

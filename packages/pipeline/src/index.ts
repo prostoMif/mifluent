@@ -24,6 +24,7 @@ export {
   type ProfileTarget,
   type ProfileVector,
 } from "./profile.js";
+export { DIFF_RESERVE_PER_DAY, type Priority, priorityOf } from "./selection/priority.js";
 export { cosineCutoff, findStopword, scoreItem } from "./selection/score.js";
 export {
   MAX_MODEL_CALLS_PER_DAY,

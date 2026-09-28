@@ -157,6 +157,19 @@ const configSchema = z.object({
   WORKER_HEARTBEAT_FILE: z.string().optional(),
 
   /**
+   * External healthcheck URL (e.g., healthchecks.io). If set, a GET request is
+   * sent every 5 minutes from the heartbeat loop. The worker is considered
+   * alive as long as the heartbeat loop runs; this is for external monitoring.
+   */
+  HEALTHCHECK_PING_URL: z.string().url().optional(),
+
+  /**
+   * Telegram chat ID of the instance owner. If set, daily reports and instant
+   * alerts are sent here.
+   */
+  OWNER_TELEGRAM_CHAT_ID: z.string().optional(),
+
+  /**
    * Hard ceiling on model spend for the whole instance per UTC day. When it is
    * crossed, every job that would call a model stops until midnight UTC.
    */

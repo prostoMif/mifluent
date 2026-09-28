@@ -46,6 +46,8 @@ export interface DigestView {
   readonly nearMisses: readonly { title: string; url: string | null; reason: string }[];
   readonly notices: readonly DigestNotice[];
   readonly cards: readonly DigestCardView[];
+  readonly profileCreatedAt: Date;
+  readonly failureReason: string | null;
 }
 
 const languageSchema = z.object({ language: z.enum(["en", "ru"]) }).catch({ language: "en" });
@@ -117,6 +119,8 @@ function selectDigests(db: Queryable, tenantId: string, condition: ReturnType<ty
       itemsConsidered: schema.digests.itemsConsidered,
       nearMisses: schema.digests.nearMisses,
       notices: schema.digests.notices,
+      profileCreatedAt: schema.watchProfiles.createdAt,
+      failureReason: schema.digests.failureReason,
     })
     .from(schema.digests)
     .innerJoin(schema.watchProfiles, eq(schema.watchProfiles.id, schema.digests.profileId))
@@ -180,6 +184,8 @@ async function withCards(db: Queryable, row: DigestRow): Promise<DigestView> {
     itemsConsidered: row.itemsConsidered,
     nearMisses: row.nearMisses,
     notices: row.notices,
+    profileCreatedAt: row.profileCreatedAt,
+    failureReason: row.failureReason,
     cards: cards.map((card) => ({
       ...card,
       kind: card.kind === "group" ? "group" : "event",

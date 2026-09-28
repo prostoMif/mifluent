@@ -25,7 +25,7 @@ export interface PlanLimits {
   /** Floor on how often a page diff is fetched. Pages rarely change hourly. */
   readonly diffIntervalMin: number;
   /** How long fetched material is kept before being deleted. */
-  readonly retentionDays: number;
+  readonly rawRetentionDays: number;
   /** Whether the daily cadence may be chosen. Weekly is always allowed. */
   readonly dailyDigest: boolean;
 }
@@ -41,7 +41,7 @@ const DEFAULT_PLANS: Readonly<Record<PlanName, PlanLimits>> = {
     maxProfiles: 1,
     discoveryPerMonth: 1,
     diffIntervalMin: 1440,
-    retentionDays: 30,
+    rawRetentionDays: 30,
     dailyDigest: false,
   },
   pro: {
@@ -49,7 +49,7 @@ const DEFAULT_PLANS: Readonly<Record<PlanName, PlanLimits>> = {
     maxProfiles: 1,
     discoveryPerMonth: 5,
     diffIntervalMin: 360,
-    retentionDays: 365,
+    rawRetentionDays: 365,
     dailyDigest: true,
   },
   team: {
@@ -57,7 +57,7 @@ const DEFAULT_PLANS: Readonly<Record<PlanName, PlanLimits>> = {
     maxProfiles: 5,
     discoveryPerMonth: 20,
     diffIntervalMin: 60,
-    retentionDays: 365,
+    rawRetentionDays: 3650,
     dailyDigest: true,
   },
 };
@@ -76,7 +76,7 @@ const overrideSchema = z
     maxProfiles: count,
     discoveryPerMonth: count,
     diffIntervalMin: z.coerce.number().int().min(10),
-    retentionDays: z.coerce.number().int().min(1),
+    rawRetentionDays: z.coerce.number().int().min(1),
     dailyDigest: booleanish,
   })
   .partial()
@@ -112,7 +112,7 @@ export function resolvePlans(overrides: PlanOverrides = {}): Record<PlanName, Pl
       maxProfiles: override.maxProfiles ?? base.maxProfiles,
       discoveryPerMonth: override.discoveryPerMonth ?? base.discoveryPerMonth,
       diffIntervalMin: override.diffIntervalMin ?? base.diffIntervalMin,
-      retentionDays: override.retentionDays ?? base.retentionDays,
+      rawRetentionDays: override.rawRetentionDays ?? base.rawRetentionDays,
       dailyDigest: override.dailyDigest ?? base.dailyDigest,
     };
   }

@@ -13,7 +13,9 @@
     "digest:build": "node --env-file-if-exists=../../.env --import tsx src/digest-build.ts",
     "pipeline:dry": "node --env-file-if-exists=../../.env --import tsx src/pipeline-dry-run.ts",
     "embed:bench": "node --env-file-if-exists=../../.env --import tsx src/embed-bench.ts",
-    "telegram:webhook": "node --env-file-if-exists=../../.env --import tsx src/telegram-webhook.ts"
+    "telegram:webhook": "node --env-file-if-exists=../../.env --import tsx src/telegram-webhook.ts",
+    "export:decisions": "node --env-file-if-exists=../../.env --import tsx src/export-decisions.ts",
+    "beta:report": "node --env-file-if-exists=../../.env --import tsx src/beta-report.ts"
   },
   "dependencies": {
     "@mifluent/core": "*",

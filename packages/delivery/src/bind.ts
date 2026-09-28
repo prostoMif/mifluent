@@ -12,8 +12,10 @@
 
 import { createHash, randomInt } from "node:crypto";
 import { AppError, uuidv7 } from "@mifluent/core";
-import { type Queryable, schema, scopedAlive } from "@mifluent/db";
-import { and, eq, gt, lt, sql } from "drizzle-orm";
+import { type Queryable, schema, scoped, scopedAlive } from "@mifluent/db";
+import { createTelegramDigestFromWebOnly, type DigestView, loadDigestView } from "@mifluent/digest";
+import { and, desc, eq, gt, lt, ne, sql } from "drizzle-orm";
+import type { TelegramApi } from "./telegram-api.js";
 
 export interface BindingCode {
   readonly code: string;
@@ -31,6 +33,7 @@ export interface BoundProfile {
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const CODE_LENGTH = 8;
 const CODE_LIFETIME_MS = 10 * 60 * 1000;
+const FIRST_DIGEST_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function generateBindingCode(): string {
   let code = "";
@@ -72,6 +75,79 @@ export async function createBindingCode(
   });
 
   return { code, expiresAt };
+}
+
+async function findRecentWebOnlyDigest(
+  db: Queryable,
+  tenantId: string,
+  profileId: string,
+  since: Date,
+): Promise<DigestView | undefined> {
+  const [row] = await db
+    .select({
+      id: schema.digests.id,
+      tenantId: schema.digests.tenantId,
+      profileId: schema.digests.profileId,
+      profileName: schema.watchProfiles.name,
+      facts: schema.watchProfiles.facts,
+      delivery: schema.watchProfiles.delivery,
+      periodStart: schema.digests.periodStart,
+      periodEnd: schema.digests.periodEnd,
+      status: schema.digests.status,
+      channel: schema.digests.channel,
+      sourcesChecked: schema.digests.sourcesChecked,
+      itemsConsidered: schema.digests.itemsConsidered,
+      nearMisses: schema.digests.nearMisses,
+      notices: schema.digests.notices,
+    })
+    .from(schema.digests)
+    .innerJoin(schema.watchProfiles, eq(schema.watchProfiles.id, schema.digests.profileId))
+    .where(
+      scoped(
+        schema.digests,
+        tenantId,
+        and(
+          eq(schema.digests.profileId, profileId),
+          eq(schema.digests.channel, "web_only"),
+          ne(schema.digests.periodStart, schema.digests.periodEnd),
+          sql`${schema.digests.periodEnd} >= ${since.toISOString()}::timestamptz`,
+        ),
+      ),
+    )
+    .orderBy(desc(schema.digests.periodEnd))
+    .limit(1);
+
+  if (row === undefined) return undefined;
+  return loadDigestView(db, tenantId, row.id);
+}
+
+export async function deliverFirstDigestOnBind(
+  db: Queryable,
+  api: TelegramApi,
+  tenantId: string,
+  profileId: string,
+  chatId: string,
+  appUrl: string,
+  timezone: string,
+): Promise<boolean> {
+  const since = new Date(Date.now() - FIRST_DIGEST_MAX_AGE_MS);
+  const existingDigest = await findRecentWebOnlyDigest(db, tenantId, profileId, since);
+
+  if (existingDigest === undefined) {
+    return false;
+  }
+
+  // Send the existing digest to Telegram
+  const { renderDigest } = await import("./render.js");
+  const messages = renderDigest(existingDigest, { appUrl, timezone });
+  for (const message of messages) {
+    await api.sendMessage(chatId, message);
+  }
+
+  // Create a new telegram digest for the same window
+  await createTelegramDigestFromWebOnly(db, tenantId, existingDigest.id);
+
+  return true;
 }
 
 /**

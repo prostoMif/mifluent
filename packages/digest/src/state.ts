@@ -60,6 +60,7 @@ export async function findDueProfiles(
       tenantId: schema.watchProfiles.tenantId,
       profileId: schema.watchProfiles.id,
       delivery: schema.watchProfiles.delivery,
+      createdAt: schema.watchProfiles.createdAt,
     })
     .from(schema.watchProfiles)
     .where(
@@ -75,10 +76,14 @@ export async function findDueProfiles(
       dailyAllowed.set(profile.tenantId, limits.dailyDigest);
     }
 
-    const delivery = resolveDelivery(profile.delivery, {
-      ...defaults,
-      isDailyAllowed: dailyAllowed.get(profile.tenantId) ?? false,
-    });
+    const delivery = resolveDelivery(
+      profile.delivery,
+      {
+        ...defaults,
+        isDailyAllowed: dailyAllowed.get(profile.tenantId) ?? false,
+      },
+      profile.createdAt,
+    );
     if (isDigestDue(delivery, now)) {
       due.push({ tenantId: profile.tenantId, profileId: profile.profileId });
     }

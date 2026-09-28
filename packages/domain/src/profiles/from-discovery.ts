@@ -9,6 +9,7 @@
 
 import { uuidv7 } from "@mifluent/core";
 import { type Database, schema, scopedAlive } from "@mifluent/db";
+import { isKnownZone } from "@mifluent/digest";
 import { eq } from "drizzle-orm";
 import { assertProfileWithinPlan, findTenantPlan } from "../plans/limits.js";
 import type { DiscoveredSurfaceInput, ProfileFromDiscoveryInput } from "./from-discovery-schema.js";
@@ -46,68 +47,86 @@ export async function createProfileFromDiscovery(
       targetCount: input.targets.length,
     });
 
-    await transaction.insert(schema.watchProfiles).values({
-      id: profileId,
-      tenantId,
-      name: input.name,
-      businessDescription: input.businessDescription,
-      websiteUrl: input.websiteUrl,
-      relevanceThreshold: DEFAULT_RELEVANCE_THRESHOLD,
-      facts: withoutEmpty(input.facts),
-    });
-
-    await writeChildren(
-      transaction,
-      { tenantId, profileId },
-      {
-        name: input.name,
-        businessDescription: input.businessDescription,
-        websiteUrl: input.websiteUrl,
-        relevanceThreshold: DEFAULT_RELEVANCE_THRESHOLD,
-        topics: [],
-        stopwords: [],
-        changeReason: "Created from onboarding",
-        targets: input.targets.map((target) => ({
-          kind: target.kind,
-          name: target.name,
-          websiteUrl: target.websiteUrl,
-          aliases: [],
-          reason: target.reason,
-        })),
-      },
-    );
-
-    const targetIds = await findTargetIds(transaction, tenantId, profileId);
-    const { limits } = await findTenantPlan(transaction, tenantId);
-    const seen = new Set<string>();
-
-    for (const target of input.targets) {
-      for (const surface of target.surfaces) {
-        const kind = SOURCE_KIND_BY_SURFACE[surface.type];
-        const key = `${kind} ${surface.url}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-
-        await transaction.insert(schema.sources).values({
-          id: uuidv7(),
-          tenantId,
-          profileId,
-          targetId: targetIds.get(target.name.toLowerCase()) ?? null,
-          kind,
-          label: `${target.name} — ${surface.label}`.slice(0, 120),
-          locator: surface.url,
-          pollIntervalMinutes:
-            kind === "diff"
-              ? Math.max(surface.pollIntervalMinutes, limits.diffIntervalMin)
-              : surface.pollIntervalMinutes,
-        });
-      }
-    }
-
+    await createWatchProfile(transaction, tenantId, profileId, input);
+    await writeChildren(transaction, { tenantId, profileId }, buildChildrenInput(input));
+    await createSources(transaction, tenantId, profileId, input);
     await recordVersionIfChanged(transaction, tenantId, profileId, "Created from onboarding");
   });
 
   return { profileId };
+}
+
+async function createWatchProfile(
+  transaction: Parameters<typeof writeChildren>[0],
+  tenantId: string,
+  profileId: string,
+  input: ProfileFromDiscoveryInput,
+): Promise<void> {
+  const timezone = input.timezone && isKnownZone(input.timezone) ? input.timezone : undefined;
+
+  await transaction.insert(schema.watchProfiles).values({
+    id: profileId,
+    tenantId,
+    name: input.name,
+    businessDescription: input.businessDescription,
+    websiteUrl: input.websiteUrl,
+    relevanceThreshold: DEFAULT_RELEVANCE_THRESHOLD,
+    facts: withoutEmpty(input.facts),
+    delivery: timezone ? { timezone } : {},
+  });
+}
+
+function buildChildrenInput(input: ProfileFromDiscoveryInput) {
+  return {
+    name: input.name,
+    businessDescription: input.businessDescription,
+    websiteUrl: input.websiteUrl,
+    relevanceThreshold: DEFAULT_RELEVANCE_THRESHOLD,
+    topics: [],
+    stopwords: [],
+    changeReason: "Created from onboarding",
+    targets: input.targets.map((target) => ({
+      kind: target.kind,
+      name: target.name,
+      websiteUrl: target.websiteUrl,
+      aliases: [],
+      reason: target.reason,
+    })),
+  };
+}
+
+async function createSources(
+  transaction: Parameters<typeof writeChildren>[0],
+  tenantId: string,
+  profileId: string,
+  input: ProfileFromDiscoveryInput,
+): Promise<void> {
+  const targetIds = await findTargetIds(transaction, tenantId, profileId);
+  const { limits } = await findTenantPlan(transaction, tenantId);
+  const seen = new Set<string>();
+
+  for (const target of input.targets) {
+    for (const surface of target.surfaces) {
+      const kind = SOURCE_KIND_BY_SURFACE[surface.type];
+      const key = `${kind} ${surface.url}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      await transaction.insert(schema.sources).values({
+        id: uuidv7(),
+        tenantId,
+        profileId,
+        targetId: targetIds.get(target.name.toLowerCase()) ?? null,
+        kind,
+        label: `${target.name} — ${surface.label}`.slice(0, 120),
+        locator: surface.url,
+        pollIntervalMinutes:
+          kind === "diff"
+            ? Math.max(surface.pollIntervalMinutes, limits.diffIntervalMin)
+            : surface.pollIntervalMinutes,
+      });
+    }
+  }
 }
 
 async function findTargetIds(

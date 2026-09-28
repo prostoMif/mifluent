@@ -38,7 +38,7 @@ export async function pruneExpiredMaterial(db: Queryable, now: Date = new Date()
   let total = 0;
   for (const tenant of tenants) {
     const { limits } = await findTenantPlan(db, tenant.id);
-    const cutoff = new Date(now.getTime() - limits.retentionDays * DAY_MS);
+    const cutoff = new Date(now.getTime() - limits.rawRetentionDays * DAY_MS);
     const removed = await db
       .delete(schema.rawItems)
       .where(scoped(schema.rawItems, tenant.id, lt(schema.rawItems.fetchedAt, cutoff)))

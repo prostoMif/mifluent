@@ -17,12 +17,14 @@ const LABELS: Readonly<Record<CardAction, string>> = {
   not_following_target: "Not following this",
   not_important: "Not important",
   saved: "Save",
+  influenced: "It changed a decision",
 };
 
 const CONFIRMATIONS: Readonly<Record<CardAction, string>> = {
   not_following_target: "Paused. You will not get cards about this any more.",
   not_important: "Noted.",
   saved: "Saved.",
+  influenced: "Recorded. I'll show it in the history.",
 };
 
 export function CardActions({ cardId }: { readonly cardId: string }) {

@@ -1,22 +1,73 @@
-import { createLogger } from "@mifluent/core";
+import { type Config, getConfig } from "@mifluent/core";
 import type { Queryable } from "@mifluent/db";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@mifluent/domain", () => ({
-  findCardOwner: vi.fn(),
-  recordCardAction: vi.fn(),
-  isCardAction: (value: string) =>
-    ["not_following_target", "not_important", "saved"].includes(value),
-}));
-vi.mock("./bind.js", () => ({ consumeBindingCode: vi.fn() }));
-
 import { findCardOwner, recordCardAction } from "@mifluent/domain";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { consumeBindingCode } from "./bind.js";
 import type { TelegramApi } from "./telegram-api.js";
 import { handleTelegramUpdate } from "./updates.js";
 
-const db = {} as Queryable;
-const logger = createLogger({ level: "error" });
+vi.mock("@mifluent/core", () => ({
+  getConfig: vi.fn(() => ({
+    APP_URL: "https://test.example",
+    TELEGRAM_BOT_USERNAME: "test_bot",
+    features: { llm: true, telegram: true, email: true, googleSignIn: true, reddit: true },
+  })),
+}));
+vi.mock("@mifluent/domain", () => ({
+  findCardOwner: vi.fn(),
+  recordCardAction: vi.fn(),
+  isCardAction: (value: string) =>
+    ["not_following_target", "not_important", "saved", "influenced"].includes(value),
+}));
+vi.mock("./bind.js", async () => {
+  const actual = await vi.importActual("./bind.js");
+  return {
+    ...actual,
+    consumeBindingCode: vi.fn(),
+    deliverFirstDigestOnBind: vi.fn().mockResolvedValue(false),
+  };
+});
+
+function createMockDb(): Queryable {
+  const selectChain = {
+    from: vi.fn(() => selectChain),
+    where: vi.fn(() => selectChain),
+    limit: vi.fn(() => Promise.resolve([])),
+  };
+
+  return {
+    select: vi.fn(() => selectChain),
+  } as unknown as Queryable;
+}
+
+const db = createMockDb();
+const logger = {
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+  child: vi.fn(),
+};
+
+vi.mocked(getConfig).mockReturnValue({
+  APP_URL: "https://test.example",
+  features: { llm: true, telegram: true, email: true, googleSignIn: true, reddit: true },
+  planOverrides: {},
+  isProduction: false,
+  isDevelopment: true,
+  DATABASE_URL: "postgresql://test",
+  BETTER_AUTH_SECRET: "test",
+  BETTER_AUTH_URL: "http://localhost",
+  ENCRYPTION_KEY: "test",
+  TELEGRAM_BOT_TOKEN: "test",
+  TELEGRAM_BOT_USERNAME: "test_bot",
+  REDIS_URL: "redis://localhost",
+  S3_ENDPOINT: "http://localhost",
+  S3_BUCKET: "test",
+  S3_ACCESS_KEY: "test",
+  S3_SECRET_KEY: "test",
+  S3_REGION: "test",
+} as unknown as Config);
 
 function fakeApi(): TelegramApi & { sent: string[]; answered: string[] } {
   const sent: string[] = [];
@@ -24,10 +75,10 @@ function fakeApi(): TelegramApi & { sent: string[]; answered: string[] } {
   return {
     sent,
     answered,
-    sendMessage: async (_chatId, message) => {
+    sendMessage: async (_chatId: string, message: { text: string }) => {
       sent.push(message.text);
     },
-    answerCallbackQuery: async (_id, text) => {
+    answerCallbackQuery: async (_id: string, text: string) => {
       answered.push(text);
     },
     getUpdates: async () => [],

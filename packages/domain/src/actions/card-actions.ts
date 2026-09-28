@@ -15,7 +15,7 @@
 import { AppError, uuidv7 } from "@mifluent/core";
 import { type Queryable, schema, scoped } from "@mifluent/db";
 import { eq } from "drizzle-orm";
-import type { CardAction } from "./card-action-kinds.js";
+import type { CardAction, ClickAction } from "./card-action-kinds.js";
 
 export interface CardActionInput {
   readonly tenantId: string;
@@ -24,6 +24,12 @@ export interface CardActionInput {
   readonly surface: "web" | "telegram";
   /** The signed-in person on the web; unknown for a Telegram press. */
   readonly userId?: string | undefined;
+}
+
+export interface ClickActionInput {
+  readonly cardId: string;
+  readonly action: ClickAction;
+  readonly surface: "web" | "telegram";
 }
 
 export interface CardOwner {
@@ -96,4 +102,51 @@ export async function recordCardAction(db: Queryable, input: CardActionInput): P
         );
     }
   });
+}
+
+/**
+ * Records a click action (opened_source) without requiring a tenant or user.
+ * Used by the /r/<cardId> redirect route which must work from Telegram
+ * where no cookies are present. The card ID is a UUIDv7 which cannot be guessed.
+ */
+export async function recordClickAction(db: Queryable, input: ClickActionInput): Promise<void> {
+  const [card] = await db
+    .select({
+      eventId: schema.digestCards.eventId,
+      tenantId: schema.digestCards.tenantId,
+      sourceUrl: schema.digestCards.sourceUrl,
+    })
+    .from(schema.digestCards)
+    .innerJoin(schema.events, eq(schema.events.id, schema.digestCards.eventId))
+    .where(eq(schema.digestCards.id, input.cardId))
+    .limit(1);
+
+  if (card === undefined) {
+    // Same response for non-existent cards: do nothing, the route will redirect to home.
+    return;
+  }
+
+  await db.insert(schema.userActions).values({
+    id: uuidv7(),
+    tenantId: card.tenantId,
+    userId: null,
+    kind: input.action,
+    cardId: input.cardId,
+    eventId: card.eventId,
+    surface: input.surface,
+  });
+}
+
+/**
+ * Gets the source URL for a card by ID. Returns null if not found.
+ * Unscoped read — the caller must not leak information about cards from other tenants.
+ */
+export async function getCardSourceUrl(db: Queryable, cardId: string): Promise<string | null> {
+  const [card] = await db
+    .select({ sourceUrl: schema.digestCards.sourceUrl })
+    .from(schema.digestCards)
+    .where(eq(schema.digestCards.id, cardId))
+    .limit(1);
+
+  return card?.sourceUrl ?? null;
 }

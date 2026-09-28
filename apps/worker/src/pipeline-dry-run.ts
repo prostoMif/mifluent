@@ -285,6 +285,7 @@ function explain(
 
   say(`  Title:    ${decision.title ?? "(untitled)"}`);
   say(`  Cosine:   ${decision.score.toFixed(3)}`);
+  say(`  Priority: ${decision.priority}`);
   say(`  Verdict:  ${decision.outcome}${decision.detail === null ? "" : ` — ${decision.detail}`}`);
 
   const outcome = extraction?.outcomes.find((candidate) => candidate.rawItemId === itemId);

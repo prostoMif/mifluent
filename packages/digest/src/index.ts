@@ -3,6 +3,7 @@ export {
   type BuiltDigest,
   buildPeriodDigest,
   buildUrgentDigest,
+  createTelegramDigestFromWebOnly,
   planWindow,
   resolveProfileDelivery,
   type WindowPlan,

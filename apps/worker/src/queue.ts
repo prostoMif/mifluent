@@ -46,6 +46,12 @@ export const DIGEST_TICK_CRON = "0 * * * *";
 /** 03:15 UTC: pruning, when nobody is waiting for a digest. */
 export const MAINTENANCE_CRON = "15 3 * * *";
 
+/** 08:00 UTC: daily owner report. */
+export const DAILY_REPORT_CRON = "0 8 * * *";
+
+/** Every 5 minutes: alert checks. */
+export const ALERT_CHECK_CRON = "*/5 * * * *";
+
 const RETRY_LIMIT = 2;
 
 const STATELY: Omit<Queue, "name"> = { policy: "stately" };
@@ -60,6 +66,8 @@ const QUEUE_OPTIONS: Readonly<Record<string, Omit<Queue, "name">>> = {
   // A person is watching a progress screen for these two.
   [QUEUES.discoveryRun]: { expireInSeconds: 300, retryLimit: 0 },
   [QUEUES.profileFirstRun]: { ...STATELY, expireInSeconds: 1_800, retryLimit: 0 },
+  [QUEUES.ownerDailyReport]: { expireInSeconds: 300, retryLimit: 0 },
+  [QUEUES.alertCheck]: { expireInSeconds: 300, retryLimit: 0 },
 };
 
 export interface SourceJob {

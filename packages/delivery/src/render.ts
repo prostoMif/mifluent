@@ -49,22 +49,37 @@ function renderHeader(
   }
 
   if (digest.cards.length === 0) {
-    lines.push(
-      "",
-      escapeHtml(strings.emptyDigest(period, digest.sourcesChecked, digest.itemsConsidered)),
-    );
-    if (digest.nearMisses.length > 0) {
-      lines.push("", escapeHtml(strings.closest));
-      for (const miss of digest.nearMisses) {
-        const title = link(miss.url, miss.title === "" ? "—" : miss.title);
-        lines.push(
-          `• ${title} — ${escapeHtml(strings.rejectedBecause)} ${escapeHtml(strings.rejectionReason(miss.reason))}`,
-        );
-      }
-    }
+    lines.push("", renderEmptyDigest(digest, strings, period));
   }
 
   return { text: fitToLimit(lines) };
+}
+
+function renderEmptyDigest(digest: DigestView, strings: Strings, period: string): string {
+  const isFirstWeek = Date.now() - digest.profileCreatedAt.getTime() < 7 * 24 * 60 * 60 * 1000;
+  if (isFirstWeek && digest.nearMisses.length > 0) {
+    const closest = digest.nearMisses.at(0);
+    if (!closest) {
+      // This should never happen because we checked length > 0
+      return escapeHtml(strings.emptyDigest(period, digest.sourcesChecked, digest.itemsConsidered));
+    }
+    const closestTitle = escapeHtml(closest.title === "" ? "—" : closest.title);
+    return escapeHtml(
+      strings.emptyDigestFirstWeek(digest.sourcesChecked, digest.itemsConsidered, closestTitle),
+    );
+  }
+
+  const lines = [strings.emptyDigest(period, digest.sourcesChecked, digest.itemsConsidered)];
+  if (digest.nearMisses.length > 0) {
+    lines.push("", strings.closest);
+    for (const miss of digest.nearMisses) {
+      const title = link(miss.url, miss.title === "" ? "—" : miss.title);
+      lines.push(
+        `• ${title} — ${escapeHtml(strings.rejectedBecause)} ${escapeHtml(strings.rejectionReason(miss.reason))}`,
+      );
+    }
+  }
+  return escapeHtml(lines.join("\n"));
 }
 
 function renderCard(
@@ -95,6 +110,7 @@ function renderCard(
       { text: strings.buttons.notFollowing, callbackData: `not_following_target:${card.id}` },
       { text: strings.buttons.notImportant, callbackData: `not_important:${card.id}` },
       { text: strings.buttons.save, callbackData: `saved:${card.id}` },
+      { text: strings.buttons.influenced, callbackData: `influenced:${card.id}` },
     ],
   };
 }

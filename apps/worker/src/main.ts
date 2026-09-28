@@ -25,7 +25,9 @@ import { registerPipelineJobs } from "./jobs/pipeline.js";
 import { registerSourceJobs } from "./jobs/sources.js";
 import { pollSource } from "./poll-source.js";
 import {
+  ALERT_CHECK_CRON,
   createQueueClient,
+  DAILY_REPORT_CRON,
   DIGEST_TICK_CRON,
   declareQueues,
   MAINTENANCE_CRON,
@@ -84,6 +86,8 @@ async function runForever(): Promise<void> {
   await boss.schedule(QUEUES.sourcesTick, SOURCES_TICK_CRON);
   await boss.schedule(QUEUES.digestTick, DIGEST_TICK_CRON);
   await boss.schedule(QUEUES.maintenanceDaily, MAINTENANCE_CRON);
+  await boss.schedule(QUEUES.ownerDailyReport, DAILY_REPORT_CRON);
+  await boss.schedule(QUEUES.alertCheck, ALERT_CHECK_CRON);
 
   const stopHeartbeat = startHeartbeat(config.WORKER_HEARTBEAT_FILE);
   const telegram = getTelegramApi();

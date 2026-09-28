@@ -103,13 +103,17 @@ export function DiscoveryReview({
       return;
     }
 
+    // Include browser timezone
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const payload = { ...parsed.data, timezone };
+
     setIsPending(true);
     setError(undefined);
     try {
       const saved = await sendRequest<{ profileId: string; runId: string }>({
         method: "POST",
         path: "/api/watch-profiles/from-discovery",
-        body: parsed.data,
+        body: payload,
       });
       onSaved(saved.profileId, saved.runId);
     } catch (thrown) {
