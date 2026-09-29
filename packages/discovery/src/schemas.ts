@@ -26,6 +26,10 @@ export const businessSchema = z.object({
   monetization: z.enum(["free", "trial", "subscription", "one_time", "unknown"]),
   platforms: z.array(z.string().max(100)).max(20),
   countries: z.array(z.string().max(100)).max(30),
+  country: z.string().max(2).optional(),
+  extraCountries: z.array(z.string().max(2)).max(5).optional(),
+  homeCountry: z.string().max(2).optional(),
+  region: z.string().max(10).optional(),
   customerType: z.string().max(100),
   language: z.enum(["en", "ru"]),
 });

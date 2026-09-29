@@ -31,7 +31,18 @@ export interface SnapshotTarget {
 export interface SnapshotFacts {
   readonly monetization?: "free" | "trial" | "subscription" | "one_time" | "unknown";
   readonly platforms?: readonly string[];
+  /** @deprecated Use country + extraCountries. Kept for migration of old profiles. */
   readonly countries?: readonly string[];
+  /** ISO 3166-1 alpha-2 code of the primary country the business sells in. */
+  readonly country?: string;
+  /** Up to 5 additional countries the business sells in (ISO alpha-2). */
+  readonly extraCountries?: readonly string[];
+  /** ISO 3166-2 region code (e.g., "MOW" for Moscow, "CA" for California). Optional. */
+  readonly region?: string;
+  /** ISO 3166-1 alpha-2 code of the country where the person/business is based (tax, legal). */
+  readonly homeCountry?: string;
+  /** Computed market: "ru" for RU/BY/KZ/UZ/KG/AM, "en" otherwise. */
+  readonly market?: "ru" | "en";
   readonly customerType?: string;
   readonly whatMatters?: string;
   readonly language?: "en" | "ru";
@@ -69,6 +80,11 @@ export function serialiseSnapshot(snapshot: SelectionSnapshot): string {
           monetization: snapshot.facts.monetization ?? "",
           platforms: [...(snapshot.facts.platforms ?? [])].sort(),
           countries: [...(snapshot.facts.countries ?? [])].sort(),
+          country: snapshot.facts.country ?? "",
+          extraCountries: [...(snapshot.facts.extraCountries ?? [])].sort(),
+          region: snapshot.facts.region ?? "",
+          homeCountry: snapshot.facts.homeCountry ?? "",
+          market: snapshot.facts.market ?? "",
           customerType: snapshot.facts.customerType ?? "",
           whatMatters: snapshot.facts.whatMatters ?? "",
           language: snapshot.facts.language ?? "",
@@ -81,6 +97,32 @@ export function serialiseSnapshot(snapshot: SelectionSnapshot): string {
 
 export function areSnapshotsEqual(left: SelectionSnapshot, right: SelectionSnapshot): boolean {
   return serialiseSnapshot(left) === serialiseSnapshot(right);
+}
+
+/**
+ * Returns true if the geography fields that affect source selection have changed.
+ * Used by TASK-033 to trigger source set rebuild.
+ */
+export function geographyChanged(
+  prev: SelectionSnapshot["facts"],
+  next: SelectionSnapshot["facts"],
+): boolean {
+  if (!prev && !next) return false;
+  if (!prev || !next) return true;
+
+  const prevCountry = prev.country ?? prev.countries?.[0] ?? "";
+  const nextCountry = next.country ?? next.countries?.[0] ?? "";
+  const prevHomeCountry = prev.homeCountry ?? prevCountry;
+  const nextHomeCountry = next.homeCountry ?? nextCountry;
+  const prevExtra = [...(prev.extraCountries ?? [])].sort().join(",");
+  const nextExtra = [...(next.extraCountries ?? [])].sort().join(",");
+
+  return (
+    prevCountry !== nextCountry ||
+    prevHomeCountry !== nextHomeCountry ||
+    prevExtra !== nextExtra ||
+    (prev.region ?? "") !== (next.region ?? "")
+  );
 }
 
 /** Lexicographic order over the whole row, so sorting is total and stable. */

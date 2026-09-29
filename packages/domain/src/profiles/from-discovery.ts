@@ -11,6 +11,7 @@ import { uuidv7 } from "@mifluent/core";
 import { type Database, schema, scopedAlive } from "@mifluent/db";
 import { isKnownZone } from "@mifluent/digest";
 import { eq } from "drizzle-orm";
+import { getMarket } from "../geo/countries.js";
 import { assertProfileWithinPlan, findTenantPlan } from "../plans/limits.js";
 import type { DiscoveredSurfaceInput, ProfileFromDiscoveryInput } from "./from-discovery-schema.js";
 import { recordVersionIfChanged, writeChildren } from "./write.js";
@@ -64,6 +65,20 @@ async function createWatchProfile(
 ): Promise<void> {
   const timezone = input.timezone && isKnownZone(input.timezone) ? input.timezone : undefined;
 
+  const facts = input.facts;
+  const country = facts.country;
+  const homeCountry = facts.homeCountry ?? country;
+  const market = country ? getMarket(country) : facts.market;
+
+  const factsToStore = {
+    ...withoutEmpty(facts),
+    country,
+    extraCountries: facts.extraCountries,
+    region: facts.region,
+    homeCountry,
+    market,
+  };
+
   await transaction.insert(schema.watchProfiles).values({
     id: profileId,
     tenantId,
@@ -71,7 +86,7 @@ async function createWatchProfile(
     businessDescription: input.businessDescription,
     websiteUrl: input.websiteUrl,
     relevanceThreshold: DEFAULT_RELEVANCE_THRESHOLD,
-    facts: withoutEmpty(input.facts),
+    facts: Object.fromEntries(Object.entries(factsToStore).filter(([, v]) => v !== undefined)),
     delivery: timezone ? { timezone } : {},
   });
 }

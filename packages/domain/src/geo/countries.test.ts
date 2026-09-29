@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   getCountry,
   getCountryName,
+  getDefaultHomeCountry,
   getFlagEmoji,
   getMarket,
   isValidCountryCode,
@@ -105,6 +106,43 @@ describe("countries", () => {
       expect(getFlagEmoji("R")).toBe("");
       expect(getFlagEmoji("RUS")).toBe("");
       expect(getFlagEmoji("")).toBe("");
+    });
+  });
+
+  describe("getMarket", () => {
+    it("returns 'ru' for RU market countries", () => {
+      expect(getMarket("RU")).toBe("ru");
+      expect(getMarket("BY")).toBe("ru");
+      expect(getMarket("KZ")).toBe("ru");
+      expect(getMarket("UZ")).toBe("ru");
+      expect(getMarket("KG")).toBe("ru");
+      expect(getMarket("TJ")).toBe("ru");
+      expect(getMarket("TM")).toBe("ru");
+      expect(getMarket("AM")).toBe("ru");
+      expect(getMarket("AZ")).toBe("ru");
+      expect(getMarket("MD")).toBe("ru");
+      expect(getMarket("GE")).toBe("ru");
+    });
+
+    it("returns 'en' for EN market countries", () => {
+      expect(getMarket("US")).toBe("en");
+      expect(getMarket("GB")).toBe("en");
+      expect(getMarket("DE")).toBe("en");
+      expect(getMarket("FR")).toBe("en");
+      expect(getMarket("CN")).toBe("en");
+      expect(getMarket("JP")).toBe("en");
+    });
+
+    it("defaults to 'en' for unknown codes", () => {
+      expect(getMarket("XX")).toBe("en");
+    });
+  });
+
+  describe("getDefaultHomeCountry", () => {
+    it("returns the same country as default home country", () => {
+      expect(getDefaultHomeCountry("RU")).toBe("RU");
+      expect(getDefaultHomeCountry("US")).toBe("US");
+      expect(getDefaultHomeCountry("DE")).toBe("DE");
     });
   });
 });

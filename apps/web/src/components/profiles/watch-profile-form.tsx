@@ -1,5 +1,6 @@
 "use client";
 
+import { getCountry, getCountryName, getFlagEmoji } from "@mifluent/domain/geo/countries";
 import {
   WATCH_TARGET_KINDS,
   type WatchProfileDetail,
@@ -41,6 +42,356 @@ const KIND_LABELS: Readonly<Record<WatchTargetKind, string>> = {
   platform: "Platform — something you depend on",
   condition: "Condition — tax, regulation, rates",
 };
+
+const COMMON_COUNTRIES = [
+  "RU",
+  "US",
+  "DE",
+  "GB",
+  "CA",
+  "AU",
+  "FR",
+  "ES",
+  "IT",
+  "NL",
+  "PL",
+  "KZ",
+  "BY",
+  "UZ",
+  "KG",
+  "GE",
+  "AM",
+  "AZ",
+  "MD",
+];
+
+function countryOption(code: string): { value: string; label: string } {
+  const country = getCountry(code);
+  const name = country ? getCountryName(code, "en") : code;
+  const flag = getFlagEmoji(code);
+  return { value: code, label: `${flag} ${name}` };
+}
+
+interface GeographyFieldsProps {
+  profile: WatchProfileDetail | undefined;
+  fieldErrors: FieldErrors;
+  setFieldErrors: React.Dispatch<React.SetStateAction<FieldErrors>>;
+}
+
+interface CountrySelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  error?: string | undefined;
+  required?: boolean;
+}
+
+function CountrySelect({ value, onChange, error, required }: CountrySelectProps) {
+  const countryOptions = COMMON_COUNTRIES.map(countryOption);
+  return (
+    <div className={formStyles["field"]}>
+      <label className={formStyles["label"]} htmlFor="profile-country">
+        Where do you sell? {required && <span className={formStyles["required"]}>*</span>}
+      </label>
+      <select
+        className={`${formStyles["control"]} ${error ? styles["invalid"] : ""}`}
+        id="profile-country"
+        name="country"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? "profile-country-error" : undefined}
+      >
+        <option value="">— select country —</option>
+        {countryOptions.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      {error && (
+        <span className={styles["fieldError"]} id="profile-country-error">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+interface ExtraCountriesProps {
+  extraCountries: string[];
+  onChange: (countries: string[]) => void;
+  onRemove: (code: string) => void;
+  onAdd: () => void;
+  showExtra: boolean;
+  mainCountry: string;
+  error?: string | undefined;
+}
+
+function ExtraCountries({
+  extraCountries,
+  onChange,
+  onRemove,
+  onAdd,
+  showExtra,
+  mainCountry,
+}: ExtraCountriesProps) {
+  const extraOptions = COMMON_COUNTRIES.filter((code) => code !== mainCountry).map(countryOption);
+
+  if (!showExtra && extraCountries.length === 0) {
+    return (
+      <button
+        type="button"
+        className={`${formStyles["button"]} ${formStyles["secondary"]}`}
+        onClick={onAdd}
+      >
+        + add country
+      </button>
+    );
+  }
+
+  return (
+    <>
+      {showExtra && (
+        <div className={formStyles["field"]}>
+          <label className={formStyles["label"]} htmlFor="profile-extra-countries">
+            Additional countries (up to 5)
+          </label>
+          <div className={styles["chips"]}>
+            {extraCountries.map((code) => {
+              const opt = countryOption(code);
+              return (
+                <span key={code} className={styles["chip"]}>
+                  {opt.label}
+                  <button
+                    type="button"
+                    className={styles["chipRemove"]}
+                    onClick={() => onRemove(code)}
+                    aria-label={`Remove ${opt.label}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              );
+            })}
+            {extraCountries.length < 5 && (
+              <select
+                className={formStyles["control"]}
+                id="profile-extra-countries"
+                name="extraCountries"
+                onChange={(e) => {
+                  const code = e.target.value;
+                  if (code && !extraCountries.includes(code)) {
+                    onChange([...extraCountries, code]);
+                  }
+                  e.target.value = "";
+                }}
+              >
+                <option value="">+ add country</option>
+                {extraOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+      )}
+      <input type="hidden" name="extraCountries" value={extraCountries.join(",")} />
+    </>
+  );
+}
+
+interface HomeCountryProps {
+  homeCountry: string;
+  onChange: (value: string) => void;
+  onSameAsMain: () => void;
+  mainCountry: string;
+  region: string;
+  onRegionChange: (value: string) => void;
+  error?: string | undefined;
+  regionError?: string | undefined;
+}
+
+function HomeCountry({
+  homeCountry,
+  onChange,
+  onSameAsMain,
+  mainCountry,
+  region,
+  onRegionChange,
+  error,
+  regionError,
+}: HomeCountryProps) {
+  const homeCountryOptions = COMMON_COUNTRIES.map(countryOption);
+  const countryData = getCountry(homeCountry);
+  const regions = countryData?.regions ? [...countryData.regions] : [];
+
+  return (
+    <>
+      <div className={formStyles["field"]}>
+        <label className={formStyles["label"]} htmlFor="profile-home-country">
+          Where do you live / where is the business registered?
+        </label>
+        <div className={styles["homeCountryRow"]}>
+          <select
+            className={`${formStyles["control"]} ${error ? styles["invalid"] : ""}`}
+            id="profile-home-country"
+            name="homeCountry"
+            value={homeCountry}
+            onChange={(e) => onChange(e.target.value)}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "profile-home-country-error" : undefined}
+          >
+            <option value="">— select country —</option>
+            {homeCountryOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          {error && (
+            <span className={styles["fieldError"]} id="profile-home-country-error">
+              {error}
+            </span>
+          )}
+          {mainCountry && (
+            <button
+              type="button"
+              className={`${formStyles["button"]} ${formStyles["secondary"]} ${styles["sameButton"]}`}
+              onClick={onSameAsMain}
+              disabled={homeCountry === mainCountry}
+            >
+              Same as "Where you sell" ({getFlagEmoji(mainCountry)}{" "}
+              {getCountryName(mainCountry, "en")})
+            </button>
+          )}
+        </div>
+      </div>
+      {regions.length > 0 && (
+        <div className={formStyles["field"]}>
+          <label className={formStyles["label"]} htmlFor="profile-region">
+            Region (optional)
+          </label>
+          <select
+            className={`${formStyles["control"]} ${regionError ? styles["invalid"] : ""}`}
+            id="profile-region"
+            name="region"
+            value={region}
+            onChange={(e) => onRegionChange(e.target.value)}
+            aria-invalid={regionError ? true : undefined}
+            aria-describedby={regionError ? "profile-region-error" : undefined}
+          >
+            <option value="">— region not selected —</option>
+            {regions.map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </select>
+          {regionError && (
+            <span className={styles["fieldError"]} id="profile-region-error">
+              {regionError}
+            </span>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+function GeographyFields({ profile, fieldErrors, setFieldErrors }: GeographyFieldsProps) {
+  const facts = profile?.facts as
+    | {
+        country?: string;
+        extraCountries?: string[];
+        homeCountry?: string;
+        region?: string;
+      }
+    | undefined;
+
+  const [country, setCountry] = useState(facts?.country ?? "");
+  const [extraCountries, setExtraCountries] = useState(facts?.extraCountries ?? []);
+  const [homeCountry, setHomeCountry] = useState(facts?.homeCountry ?? facts?.country ?? "");
+  const [region, setRegion] = useState(facts?.region ?? "");
+  const [showExtra, setShowExtra] = useState<boolean>(
+    Boolean(facts?.extraCountries && facts.extraCountries.length > 0),
+  );
+
+  const handleCountryChange = (value: string) => {
+    setCountry(value);
+    setFieldErrors((prev) => ({ ...prev, country: undefined }));
+  };
+
+  const handleExtraChange = (countries: string[]) => {
+    setExtraCountries(countries.slice(0, 5));
+    setFieldErrors((prev) => ({ ...prev, extraCountries: undefined }));
+  };
+
+  const handleHomeCountryChange = (value: string) => {
+    setHomeCountry(value);
+    setFieldErrors((prev) => ({ ...prev, homeCountry: undefined }));
+  };
+
+  const handleRegionChange = (value: string) => {
+    setRegion(value);
+    setFieldErrors((prev) => ({ ...prev, region: undefined }));
+  };
+
+  const handleSameAsMain = () => {
+    setHomeCountry(country);
+    setRegion("");
+    setFieldErrors((prev) => ({ ...prev, homeCountry: undefined, region: undefined }));
+  };
+
+  const handleAddExtra = () => {
+    setShowExtra(true);
+  };
+
+  const handleRemoveExtra = (code: string) => {
+    setExtraCountries(extraCountries.filter((c) => c !== code));
+  };
+
+  return (
+    <section aria-labelledby="geography-heading" className={styles["section"]}>
+      <h2 className={styles["sectionTitle"]} id="geography-heading">
+        Geography
+      </h2>
+      <p className={styles["sectionHint"]}>
+        Where you sell determines which sources we check. Where you're based determines taxes and
+        laws.
+      </p>
+
+      <CountrySelect
+        value={country}
+        onChange={handleCountryChange}
+        error={fieldErrors["country"]}
+        required
+      />
+
+      <ExtraCountries
+        extraCountries={extraCountries}
+        onChange={handleExtraChange}
+        onRemove={handleRemoveExtra}
+        onAdd={handleAddExtra}
+        showExtra={showExtra}
+        mainCountry={country}
+        error={fieldErrors["extraCountries"]}
+      />
+
+      <HomeCountry
+        homeCountry={homeCountry}
+        onChange={handleHomeCountryChange}
+        onSameAsMain={handleSameAsMain}
+        mainCountry={country}
+        region={region}
+        onRegionChange={handleRegionChange}
+        error={fieldErrors["homeCountry"]}
+        regionError={fieldErrors["region"]}
+      />
+    </section>
+  );
+}
 
 /**
  * Rows need a key that survives editing, and a row that has not been saved yet
@@ -92,6 +443,15 @@ export function WatchProfileForm({ profile }: WatchProfileFormProps) {
       websiteUrl: form.get("websiteUrl"),
       relevanceThreshold: threshold,
       changeReason: form.get("changeReason"),
+      country: form.get("country"),
+      extraCountries: form.get("extraCountries")
+        ? String(form.get("extraCountries"))
+            .split(",")
+            .map((v) => v.trim())
+            .filter((v) => v !== "")
+        : undefined,
+      homeCountry: form.get("homeCountry"),
+      region: form.get("region"),
       // Rows the person started and abandoned are dropped rather than refused.
       // An empty row is not a mistake to correct, it is a row they did not want.
       topics: topics
@@ -166,6 +526,12 @@ export function WatchProfileForm({ profile }: WatchProfileFormProps) {
         defaultValue={profile?.websiteUrl ?? ""}
         hint="Optional. Used to work out what you do and who you compete with."
         error={fieldErrors["websiteUrl"]}
+      />
+
+      <GeographyFields
+        profile={profile}
+        fieldErrors={fieldErrors}
+        setFieldErrors={setFieldErrors}
       />
 
       <section aria-labelledby="topics-heading" className={styles["section"]}>

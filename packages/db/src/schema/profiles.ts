@@ -86,6 +86,11 @@ export const watchProfiles = pgTable(
         monetization?: "free" | "trial" | "subscription" | "one_time" | "unknown";
         platforms?: string[];
         countries?: string[];
+        country?: string;
+        extraCountries?: string[];
+        region?: string;
+        homeCountry?: string;
+        market?: "ru" | "en";
         customerType?: string;
         whatMatters?: string;
         language?: "en" | "ru";

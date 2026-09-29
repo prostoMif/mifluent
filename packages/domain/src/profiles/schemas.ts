@@ -73,6 +73,14 @@ export const watchProfileInputSchema = z.object({
   stopwords: z.array(z.string().trim().min(1).max(80)).max(MAXIMUM_STOPWORDS),
   /** Shown in the profile history next to the version this save creates. */
   changeReason: optionalText(200),
+  /** ISO 3166-1 alpha-2 code of the primary country the business sells in. */
+  country: z.string().length(2).optional(),
+  /** Up to 5 additional countries the business sells in (ISO alpha-2). */
+  extraCountries: z.array(z.string().length(2)).max(5).optional(),
+  /** ISO 3166-2 region code (e.g., "MOW" for Moscow, "CA" for California). Optional. */
+  region: z.string().max(10).optional(),
+  /** ISO 3166-1 alpha-2 code of the country where the person/business is based. */
+  homeCountry: z.string().length(2).optional(),
 });
 
 export type TopicInput = z.infer<typeof topicInputSchema>;

@@ -54,6 +54,7 @@ export async function findWatchProfile(
       relevanceThreshold: schema.watchProfiles.relevanceThreshold,
       currentVersion: schema.watchProfileVersions.version,
       updatedAt: schema.watchProfiles.updatedAt,
+      facts: schema.watchProfiles.facts,
     })
     .from(schema.watchProfiles)
     .leftJoin(

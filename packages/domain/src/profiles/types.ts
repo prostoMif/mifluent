@@ -39,4 +39,17 @@ export interface WatchProfileDetail extends WatchProfileSummary {
   readonly topics: readonly WatchProfileTopic[];
   readonly targets: readonly WatchProfileTarget[];
   readonly stopwords: readonly string[];
+  readonly facts: {
+    readonly monetization?: string;
+    readonly platforms?: readonly string[];
+    readonly countries?: readonly string[];
+    readonly country?: string;
+    readonly extraCountries?: readonly string[];
+    readonly region?: string;
+    readonly homeCountry?: string;
+    readonly market?: "ru" | "en";
+    readonly customerType?: string;
+    readonly whatMatters?: string;
+    readonly language?: "en" | "ru";
+  };
 }

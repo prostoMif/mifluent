@@ -13,6 +13,14 @@
     "./schemas": {
       "types": "./dist/schemas.d.ts",
       "default": "./dist/schemas.js"
+    },
+    "./geo/countries": {
+      "types": "./dist/geo/countries.d.ts",
+      "default": "./dist/geo/countries.js"
+    },
+    "./geo/detect": {
+      "types": "./dist/geo/detect.d.ts",
+      "default": "./dist/geo/detect.js"
     }
   },
   "main": "./dist/index.js",

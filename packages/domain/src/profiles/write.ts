@@ -12,6 +12,7 @@ import { AppError, uuidv7 } from "@mifluent/core";
 import { type Database, type Queryable, schema, scoped, scopedAlive } from "@mifluent/db";
 import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
+import { getCountryCodeByName } from "../geo/countries.js";
 import { assertProfileWithinPlan } from "../plans/limits.js";
 import { findWatchProfile, listStopwords, listTargets, listTopics } from "./read.js";
 import type { ChildScope } from "./reconcile.js";
@@ -25,6 +26,11 @@ function makeFacts(
     monetization?: "free" | "trial" | "subscription" | "one_time" | "unknown" | null;
     platforms?: string[];
     countries?: string[];
+    country?: string | null;
+    extraCountries?: string[];
+    region?: string | null;
+    homeCountry?: string | null;
+    market?: "ru" | "en" | null;
     customerType?: string | null;
     whatMatters?: string | null;
     language?: "en" | "ru" | null;
@@ -37,7 +43,20 @@ function makeFacts(
     | "subscription"
     | "one_time"
     | "unknown";
-  const result: SelectionSnapshot["facts"] = {
+  type MutableFacts = {
+    monetization: "free" | "trial" | "subscription" | "one_time" | "unknown";
+    platforms: string[];
+    countries: string[];
+    country?: string;
+    extraCountries?: string[];
+    region?: string;
+    homeCountry?: string;
+    market?: "ru" | "en";
+    customerType: string;
+    whatMatters: string;
+    language: "en" | "ru";
+  };
+  const result: MutableFacts = {
     monetization,
     platforms: facts.platforms ?? [],
     countries: facts.countries ?? [],
@@ -45,6 +64,13 @@ function makeFacts(
     whatMatters: facts.whatMatters ?? "",
     language: (facts.language ?? "en") as "en" | "ru",
   };
+  if (facts.country) result.country = facts.country;
+  if (facts.extraCountries && facts.extraCountries.length > 0) {
+    result.extraCountries = facts.extraCountries;
+  }
+  if (facts.region) result.region = facts.region;
+  if (facts.homeCountry) result.homeCountry = facts.homeCountry;
+  if (facts.market) result.market = facts.market;
   return result;
 }
 
@@ -69,6 +95,13 @@ export async function createWatchProfile(options: SaveProfileOptions): Promise<W
       targetCount: input.targets.length,
     });
 
+    const facts = {
+      country: input.country,
+      extraCountries: input.extraCountries,
+      homeCountry: input.homeCountry,
+      region: input.region,
+    };
+
     await transaction.insert(schema.watchProfiles).values({
       id: profileId,
       tenantId,
@@ -76,6 +109,7 @@ export async function createWatchProfile(options: SaveProfileOptions): Promise<W
       businessDescription: input.businessDescription,
       websiteUrl: input.websiteUrl,
       relevanceThreshold: input.relevanceThreshold,
+      facts: Object.fromEntries(Object.entries(facts).filter(([, v]) => v !== undefined)),
     });
 
     await writeChildren(transaction, { tenantId, profileId }, input);
@@ -95,6 +129,13 @@ export async function saveWatchProfile(options: UpdateProfileOptions): Promise<W
       targetCount: input.targets.length,
     });
 
+    const facts = {
+      country: input.country,
+      extraCountries: input.extraCountries,
+      homeCountry: input.homeCountry,
+      region: input.region,
+    };
+
     const updated = await transaction
       .update(schema.watchProfiles)
       .set({
@@ -102,6 +143,7 @@ export async function saveWatchProfile(options: UpdateProfileOptions): Promise<W
         businessDescription: input.businessDescription,
         websiteUrl: input.websiteUrl,
         relevanceThreshold: input.relevanceThreshold,
+        facts: Object.fromEntries(Object.entries(facts).filter(([, v]) => v !== undefined)),
         updatedAt: new Date(),
       })
       // The tenant predicate is the ownership check. A profile belonging to
@@ -221,6 +263,11 @@ async function buildSelectionSnapshot(
     monetization?: "free" | "trial" | "subscription" | "one_time" | "unknown" | null;
     platforms?: string[];
     countries?: string[];
+    country?: string | null;
+    extraCountries?: string[];
+    region?: string | null;
+    homeCountry?: string | null;
+    market?: "ru" | "en" | null;
     customerType?: string | null;
     whatMatters?: string | null;
     language?: "en" | "ru" | null;
@@ -278,6 +325,11 @@ const storedSnapshotSchema = z.object({
         .catch(undefined),
       platforms: z.array(z.string()).catch([]),
       countries: z.array(z.string()).catch([]),
+      country: z.string().optional().catch(undefined),
+      extraCountries: z.array(z.string()).catch([]),
+      region: z.string().optional().catch(undefined),
+      homeCountry: z.string().optional().catch(undefined),
+      market: z.enum(["ru", "en"]).optional().catch(undefined),
       customerType: z.string().nullable().catch(null),
       whatMatters: z.string().nullable().catch(null),
       language: z.enum(["en", "ru"]).optional().catch(undefined),
@@ -341,15 +393,37 @@ async function findCurrentSnapshot(
  * with the same schema the rest of the codebase uses means an unreadable old
  * row degrades into "different from the current one", which produces one extra
  * version and nothing worse.
+ *
+ * Also migrates old profiles: if facts has countries array but no country field,
+ * convert the first recognized country name to ISO alpha-2 code.
  */
-function readSnapshot(stored: unknown): SelectionSnapshot {
+export function readSnapshot(stored: unknown): SelectionSnapshot {
   const result = storedSnapshotSchema.safeParse(stored);
 
-  if (result.success) {
-    return result.data as SelectionSnapshot;
+  if (!result.success) {
+    return EMPTY_SNAPSHOT;
   }
 
-  return EMPTY_SNAPSHOT;
+  const snapshot = result.data as SelectionSnapshot;
+
+  // Migrate old profiles: if facts has countries array but no country field,
+  // convert the first recognized country name to ISO alpha-2 code.
+  if (snapshot.facts && !snapshot.facts.country && snapshot.facts.countries) {
+    for (const name of snapshot.facts.countries) {
+      const code = getCountryCodeByName(name);
+      if (code) {
+        return {
+          ...snapshot,
+          facts: {
+            ...snapshot.facts,
+            country: code,
+          },
+        };
+      }
+    }
+  }
+
+  return snapshot;
 }
 
 function requireProfile(profile: WatchProfileDetail | undefined): WatchProfileDetail {

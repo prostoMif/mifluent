@@ -29,6 +29,11 @@ export interface ProfileFacts {
   readonly monetization?: string | undefined;
   readonly platforms?: readonly string[] | undefined;
   readonly countries?: readonly string[] | undefined;
+  readonly country?: string | undefined;
+  readonly extraCountries?: readonly string[] | undefined;
+  readonly region?: string | undefined;
+  readonly homeCountry?: string | undefined;
+  readonly market?: "ru" | "en" | undefined;
   readonly customerType?: string | undefined;
   readonly whatMatters?: string | undefined;
   readonly language?: ProfileLanguage | undefined;
@@ -61,6 +66,11 @@ const factsSchema = z
     monetization: z.string().optional(),
     platforms: z.array(z.string()).optional(),
     countries: z.array(z.string()).optional(),
+    country: z.string().optional(),
+    extraCountries: z.array(z.string()).optional(),
+    region: z.string().optional(),
+    homeCountry: z.string().optional(),
+    market: z.enum(["ru", "en"]).optional(),
     customerType: z.string().optional(),
     whatMatters: z.string().optional(),
     language: z.enum(["en", "ru"]).optional(),
@@ -225,6 +235,12 @@ export function describeBusiness(context: ProfileContext): string {
     facts.countries === undefined || facts.countries.length === 0
       ? ""
       : `Sells in: ${facts.countries.join(", ")}.`,
+    facts.country === undefined ? "" : `Sells in: ${facts.country}.`,
+    facts.extraCountries === undefined || facts.extraCountries.length === 0
+      ? ""
+      : `Also sells in: ${facts.extraCountries.join(", ")}.`,
+    facts.region === undefined ? "" : `Region: ${facts.region}.`,
+    facts.homeCountry === undefined ? "" : `Based in: ${facts.homeCountry}.`,
     facts.monetization === undefined ? "" : `Monetization: ${facts.monetization}.`,
   ];
   return parts.filter((part) => part.trim() !== "").join(" ");

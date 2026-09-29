@@ -426,3 +426,17 @@ export function getFlagEmoji(code: string): string {
       .map((c) => c.charCodeAt(0) + offset),
   );
 }
+
+/**
+ * Looks up a country by name (Russian or English) and returns the ISO alpha-2 code.
+ * Case-insensitive. Returns undefined if not found.
+ */
+export function getCountryCodeByName(name: string): CountryCode | undefined {
+  const lowerName = name.toLowerCase().trim();
+  for (const [code, country] of COUNTRIES) {
+    if (country.nameRu.toLowerCase() === lowerName || country.nameEn.toLowerCase() === lowerName) {
+      return code;
+    }
+  }
+  return undefined;
+}

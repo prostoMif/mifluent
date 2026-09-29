@@ -81,6 +81,12 @@ async function assemble(
   answer: ModelAnswer,
   context: { readonly prober: Prober; readonly language: "en" | "ru" },
 ): Promise<DiscoveryResult> {
+  // Use the homepage HTML for country detection
+  // We need to fetch the homepage again or pass it through - for now, we'll use the material
+  // The material already contains the homepage text, but we need HTML for detection
+  // Since we don't have the HTML here, we'll rely on the model's country and extraCountries
+  // The detection will be done in the onboarding UI with the actual HTML
+
   const targets = await mapLimited(answer.targets, TARGET_CONCURRENCY, async (target) => {
     const websiteUrl = normaliseWebsite(target.websiteUrl);
     return {
@@ -99,7 +105,14 @@ async function assemble(
     })),
   );
 
-  return { business: answer.business, targets, conditions, needsDescription: false };
+  // Merge model's country/extraCountries with detection (detection happens in UI)
+  const business = {
+    ...answer.business,
+    country: answer.business.country ?? undefined,
+    extraCountries: answer.business.extraCountries ?? [],
+  };
+
+  return { business, targets, conditions, needsDescription: false };
 }
 
 /** Homepage plus linked internal pages as one text, or null for a business-card site. */
