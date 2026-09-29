@@ -5,7 +5,11 @@
 
 import { getConfig } from "@mifluent/core";
 import { deliverDigest } from "@mifluent/delivery";
-import { findDueProfiles, listPendingTelegramDigests } from "@mifluent/digest";
+import {
+  findDueProfiles,
+  listPendingEmailDigests,
+  listPendingTelegramDigests,
+} from "@mifluent/digest";
 import type { PgBoss } from "pg-boss";
 import { z } from "zod";
 import { QUEUES, queueDelivery, queueProfileStep } from "../queue.js";
@@ -28,6 +32,9 @@ export async function registerDigestJobs(boss: PgBoss): Promise<void> {
     for (const pending of await listPendingTelegramDigests(db)) {
       await queueDelivery(boss, pending);
     }
+    for (const pending of await listPendingEmailDigests(db)) {
+      await queueDelivery(boss, pending);
+    }
     logger.info("digests.ticked", { due: due.length });
   });
 
@@ -37,7 +44,7 @@ export async function registerDigestJobs(boss: PgBoss): Promise<void> {
 
     const digest = await buildDigestNow(getDatabase(), ref, new Date());
     logger.info("digest.built", { ...ref, ...digest });
-    if (digest.isNew && digest.channel === "telegram") {
+    if (digest.isNew && (digest.channel === "telegram" || digest.channel === "email")) {
       await queueDelivery(boss, { tenantId: ref.tenantId, digestId: digest.digestId });
     }
   });
@@ -47,14 +54,9 @@ export async function registerDigestJobs(boss: PgBoss): Promise<void> {
     const ref = digestJobSchema.parse(job.data);
     const api = getTelegramApi();
 
-    if (api === undefined) {
-      logger.warn("digest.delivery_skipped", { ...ref, reason: "telegram_not_configured" });
-      return;
-    }
-
     const outcome = await deliverDigest({
       db: getDatabase(),
-      api,
+      telegramApi: api,
       logger,
       ref,
       appUrl: getConfig().APP_URL,

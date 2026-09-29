@@ -113,6 +113,12 @@ const configSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
   SMTP_FROM: z.string().optional(),
 
+  /** Secret for signing email action links (HMAC-SHA256). Generate: openssl rand -base64 32 */
+  EMAIL_LINK_SECRET: z.string().min(32).optional(),
+
+  /** Email address for replies to digests. If not set, SMTP_FROM is used. */
+  FEEDBACK_EMAIL: z.string().email().optional(),
+
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
 

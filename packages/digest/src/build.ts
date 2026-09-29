@@ -36,7 +36,7 @@ export interface BuildContext {
 export interface BuiltDigest {
   readonly digestId: string;
   readonly isNew: boolean;
-  readonly channel: "telegram" | "web_only";
+  readonly channel: "telegram" | "email" | "web_only";
   readonly cardCount: number;
 }
 
@@ -59,7 +59,11 @@ const NEAR_MISSES_SHOWN = 3;
 
 export async function resolveProfileDelivery(context: BuildContext): Promise<ResolvedDelivery> {
   const [profile] = await context.db
-    .select({ delivery: schema.watchProfiles.delivery, createdAt: schema.watchProfiles.createdAt })
+    .select({
+      delivery: schema.watchProfiles.delivery,
+      createdAt: schema.watchProfiles.createdAt,
+      facts: schema.watchProfiles.facts,
+    })
     .from(schema.watchProfiles)
     .where(
       scopedAlive(
@@ -78,27 +82,20 @@ export async function resolveProfileDelivery(context: BuildContext): Promise<Res
       isDailyAllowed: limits.dailyDigest,
     },
     profile?.createdAt,
+    profile?.facts?.market,
+    profile?.facts?.language,
   );
 }
 
 /** The regular digest due now: weekly or daily, per the profile's settings. */
 export async function buildPeriodDigest(context: BuildContext, now: Date): Promise<BuiltDigest> {
   const delivery = await resolveProfileDelivery(context);
-  // The window ends now, so everything recorded up to this moment is in it.
-  // (Ending it at the top of the hour dropped whatever the first run had
-  // just produced — the whole first digest.)
   const end = now;
   const previousEnd = await findPreviousRegularEnd(context);
   const isFirstRun = previousEnd === null;
 
-  // Already built this hour — a second tick, or a retried job.
-  if (previousEnd !== null && previousEnd.getTime() >= windowEndFor(now).getTime()) {
-    const existingId = await findDigestEndingAt(context, previousEnd);
-    if (existingId !== undefined) {
-      const channel = delivery.telegramChatId === null ? "web_only" : "telegram";
-      return { digestId: existingId, isNew: false, channel, cardCount: 0 };
-    }
-  }
+  const existing = await findExistingForCurrentHour(context, previousEnd, now, delivery);
+  if (existing !== undefined) return existing;
 
   let window = planWindow({ previousEnd, end, cadence: delivery.cadence, isWidened: false });
   let events = await loadEventsForCards(context, { window });
@@ -114,6 +111,29 @@ export async function buildPeriodDigest(context: BuildContext, now: Date): Promi
     cards: assembleCards(events, end),
     notices,
   });
+}
+
+async function findExistingForCurrentHour(
+  context: BuildContext,
+  previousEnd: Date | null,
+  now: Date,
+  delivery: ResolvedDelivery,
+): Promise<BuiltDigest | undefined> {
+  if (previousEnd === null || previousEnd.getTime() < windowEndFor(now).getTime()) {
+    return undefined;
+  }
+  const existingId = await findDigestEndingAt(context, previousEnd);
+  if (existingId === undefined) return undefined;
+
+  const channel =
+    delivery.channel === "email" && delivery.emailPausedAt !== null
+      ? "web_only"
+      : delivery.channel === "email"
+        ? "email"
+        : delivery.telegramChatId === null
+          ? "web_only"
+          : "telegram";
+  return { digestId: existingId, isNew: false, channel, cardCount: 0 };
 }
 
 /**
@@ -178,7 +198,14 @@ interface DigestDraft {
 
 async function writeDigest(context: BuildContext, draft: DigestDraft): Promise<BuiltDigest> {
   const { db, tenantId, profileId } = context;
-  const channel = draft.delivery.telegramChatId === null ? "web_only" : "telegram";
+  const channel =
+    draft.delivery.channel === "email" && draft.delivery.emailPausedAt !== null
+      ? "web_only"
+      : draft.delivery.channel === "email"
+        ? "email"
+        : draft.delivery.telegramChatId === null
+          ? "web_only"
+          : "telegram";
 
   const existing = await findExistingDigest(context, draft.window, channel);
   if (existing !== undefined) {
@@ -511,7 +538,7 @@ async function findDigestEndingAt(context: BuildContext, end: Date): Promise<str
 async function findExistingDigest(
   context: BuildContext,
   window: Window,
-  channel: "telegram" | "web_only",
+  channel: "telegram" | "email" | "web_only",
 ): Promise<string | undefined> {
   const [row] = await context.db
     .select({ id: schema.digests.id })

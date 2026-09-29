@@ -27,6 +27,9 @@ export type ErrorCode =
   | "delivery_failed"
   | "plan_limit_reached"
   | "cost_cap_reached"
+  // Email tokens
+  | "invalid_token"
+  | "token_expired"
   // Configuration and everything else
   | "configuration_invalid"
   | "internal_error";
@@ -53,6 +56,9 @@ const HTTP_STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {
   delivery_failed: 502,
   plan_limit_reached: 403,
   cost_cap_reached: 503,
+
+  invalid_token: 400,
+  token_expired: 401,
 
   configuration_invalid: 500,
   internal_error: 500,

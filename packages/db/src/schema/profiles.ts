@@ -52,6 +52,10 @@ export interface ProfileDelivery {
    * but is personal data — it never appears in a log line.
    */
   readonly telegramChatId?: string;
+  /** Delivery channel: "telegram" or "email". Defaults by market (ru→telegram, en→email). */
+  readonly channel?: "telegram" | "email";
+  /** When email delivery was paused by the user (unsubscribe). Null means active. */
+  readonly emailPausedAt?: string | null;
 }
 
 /** What kind of thing is being watched. Drives how it is described and matched. */

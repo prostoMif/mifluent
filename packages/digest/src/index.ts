@@ -31,6 +31,7 @@ export {
   type DigestRef,
   type DueProfile,
   findDueProfiles,
+  listPendingEmailDigests,
   listPendingTelegramDigests,
   markDigestDelivered,
   markDigestFailed,

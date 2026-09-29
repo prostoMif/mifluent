@@ -30,6 +30,15 @@ export async function listPendingTelegramDigests(db: Queryable): Promise<DigestR
     .orderBy(asc(schema.digests.createdAt));
 }
 
+/** Email digests built but not yet sent, oldest first. */
+export async function listPendingEmailDigests(db: Queryable): Promise<DigestRef[]> {
+  return db
+    .select({ tenantId: schema.digests.tenantId, digestId: schema.digests.id })
+    .from(schema.digests)
+    .where(and(eq(schema.digests.status, "pending"), eq(schema.digests.channel, "email")))
+    .orderBy(asc(schema.digests.createdAt));
+}
+
 export async function markDigestDelivered(db: Queryable, ref: DigestRef, now: Date): Promise<void> {
   await db
     .update(schema.digests)

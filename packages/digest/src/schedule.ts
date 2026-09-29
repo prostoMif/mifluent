@@ -15,6 +15,8 @@ export interface ResolvedDelivery {
   readonly hour: number;
   readonly timezone: string;
   readonly telegramChatId: string | null;
+  readonly channel: "telegram" | "email";
+  readonly emailPausedAt: Date | null;
 }
 
 export interface DeliveryDefaults {
@@ -42,6 +44,8 @@ export function resolveDelivery(
   stored: ProfileDelivery,
   defaults: DeliveryDefaults,
   profileCreatedAt?: Date,
+  market?: "ru" | "en",
+  language?: "en" | "ru",
 ): ResolvedDelivery {
   const cadence = stored.cadence === "daily" && defaults.isDailyAllowed ? "daily" : "weekly";
   const timezone = isKnownZone(stored.timezone) ? stored.timezone : defaults.timezone;
@@ -54,12 +58,20 @@ export function resolveDelivery(
       ? "daily"
       : cadence;
 
+  // Default channel by market: ru → telegram, en → email
+  // If TASK-032 is not done, fall back to profile language
+  const effectiveMarket = market ?? language;
+  const defaultChannel = effectiveMarket === "ru" ? "telegram" : "email";
+  const channel = (stored.channel ?? defaultChannel) as "telegram" | "email";
+
   return {
     cadence: effectiveCadence,
     weekday: inRange(stored.weekday, 1, 7) ? stored.weekday : MONDAY,
     hour: inRange(stored.hour, 0, 23) ? stored.hour : defaults.hour,
     timezone,
     telegramChatId: stored.telegramChatId ?? null,
+    channel,
+    emailPausedAt: stored.emailPausedAt ? new Date(stored.emailPausedAt) : null,
   };
 }
 
