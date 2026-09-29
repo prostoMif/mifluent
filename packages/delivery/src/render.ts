@@ -11,13 +11,15 @@
 import type { DigestBlockView, DigestCardView, DigestView } from "@mifluent/digest";
 import { escapeHtml, link } from "./html.js";
 import { formatPeriod, type Strings, stringsFor } from "./strings.js";
-import { MAX_MESSAGE_LENGTH, type OutgoingMessage } from "./telegram-api.js";
+import { type InlineButton, MAX_MESSAGE_LENGTH, type OutgoingMessage } from "./telegram-api.js";
 
 export interface RenderOptions {
   /** Where "and N more" points for a folded card. */
   readonly appUrl: string;
   /** The reader's zone, for the dates in the header. */
   readonly timezone: string;
+  /** URL for the Mini App web_app button. */
+  readonly miniAppUrl?: string;
 }
 
 export function renderDigest(digest: DigestView, options: RenderOptions): OutgoingMessage[] {
@@ -52,7 +54,12 @@ function renderHeader(
     lines.push("", renderEmptyDigest(digest, strings, period));
   }
 
-  return { text: fitToLimit(lines) };
+  // Add web_app button to open Mini App for archive and settings
+  const buttons: readonly InlineButton[] | undefined = options.miniAppUrl
+    ? [{ type: "web_app", text: strings.buttons.openMiniApp, webAppUrl: options.miniAppUrl }]
+    : undefined;
+
+  return { text: fitToLimit(lines), buttons };
 }
 
 function renderEmptyDigest(digest: DigestView, strings: Strings, period: string): string {
@@ -107,10 +114,18 @@ function renderCard(
   return {
     text: fitToLimit(lines),
     buttons: [
-      { text: strings.buttons.notFollowing, callbackData: `not_following_target:${card.id}` },
-      { text: strings.buttons.notImportant, callbackData: `not_important:${card.id}` },
-      { text: strings.buttons.save, callbackData: `saved:${card.id}` },
-      { text: strings.buttons.influenced, callbackData: `influenced:${card.id}` },
+      {
+        type: "callback",
+        text: strings.buttons.notFollowing,
+        callbackData: `not_following_target:${card.id}`,
+      },
+      {
+        type: "callback",
+        text: strings.buttons.notImportant,
+        callbackData: `not_important:${card.id}`,
+      },
+      { type: "callback", text: strings.buttons.save, callbackData: `saved:${card.id}` },
+      { type: "callback", text: strings.buttons.influenced, callbackData: `influenced:${card.id}` },
     ],
   };
 }

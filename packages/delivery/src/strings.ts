@@ -31,6 +31,7 @@ export interface Strings {
     readonly notImportant: string;
     readonly save: string;
     readonly influenced: string;
+    readonly openMiniApp: string;
   };
   readonly callback: {
     readonly recorded: string;
@@ -100,6 +101,7 @@ const en: Strings = {
     notImportant: "Not important",
     save: "Save",
     influenced: "It changed a decision",
+    openMiniApp: "Archive & settings",
   },
   callback: {
     recorded: "Noted",
@@ -169,6 +171,7 @@ const ru: Strings = {
     notImportant: "Не важно",
     save: "Сохранить",
     influenced: "Повлияло",
+    openMiniApp: "Архив и настройки",
   },
   callback: {
     recorded: "Принято",

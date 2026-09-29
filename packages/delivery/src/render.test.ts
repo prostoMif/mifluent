@@ -84,12 +84,9 @@ describe("renderDigest", () => {
   it("puts the four feedback buttons under each card", () => {
     const [, rendered] = renderDigest(digest({ cards: [card] }), options);
 
-    expect(rendered?.buttons?.map((button) => button.callbackData)).toEqual([
-      "not_following_target:c1",
-      "not_important:c1",
-      "saved:c1",
-      "influenced:c1",
-    ]);
+    expect(
+      rendered?.buttons?.map((button) => (button.type === "callback" ? button.callbackData : "")),
+    ).toEqual(["not_following_target:c1", "not_important:c1", "saved:c1", "influenced:c1"]);
   });
 
   it("writes the Russian frame for a Russian profile", () => {

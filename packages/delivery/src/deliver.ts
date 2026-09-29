@@ -172,7 +172,8 @@ async function deliverTelegram(
     return { status: "not_bound", retryAfterMinutes: undefined };
   }
 
-  const messages = renderDigest(digest, { appUrl, timezone });
+  const miniAppUrl = `${appUrl.replace(/\/+$/, "")}/tg`;
+  const messages = renderDigest(digest, { appUrl, timezone, miniAppUrl });
 
   try {
     for (const message of messages) {

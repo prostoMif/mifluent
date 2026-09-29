@@ -83,6 +83,7 @@ function fakeApi(): TelegramApi & { sent: string[]; answered: string[] } {
     },
     getUpdates: async () => [],
     setWebhook: async () => undefined,
+    setChatMenuButton: async () => undefined,
   };
 }
 

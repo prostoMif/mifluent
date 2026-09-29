@@ -17,6 +17,7 @@ export {
   createTelegramApi,
   type InlineButton,
   MAX_MESSAGE_LENGTH,
+  type MenuButton,
   type OutgoingMessage,
   type TelegramApi,
   type TelegramApiOptions,

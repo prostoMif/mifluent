@@ -13,11 +13,15 @@
 import { AppError } from "@mifluent/core";
 import { z } from "zod";
 
-export interface InlineButton {
-  readonly text: string;
-  /** At most 64 bytes, per the Bot API. */
-  readonly callbackData: string;
-}
+/**
+ * A button in an inline keyboard.
+ *
+ * Can be either a callback button (sends callback_data to the bot) or a web_app
+ * button (opens a Mini App). The two types are mutually exclusive.
+ */
+export type InlineButton =
+  | { readonly type: "callback"; readonly text: string; readonly callbackData: string }
+  | { readonly type: "web_app"; readonly text: string; readonly webAppUrl: string };
 
 export interface OutgoingMessage {
   readonly text: string;
@@ -34,6 +38,13 @@ export interface TelegramApi {
   answerCallbackQuery(callbackQueryId: string, text: string): Promise<void>;
   getUpdates(offset: number | undefined, timeoutSeconds: number): Promise<unknown[]>;
   setWebhook(url: string, secretToken: string): Promise<void>;
+  setChatMenuButton(menuButton: MenuButton): Promise<void>;
+}
+
+export interface MenuButton {
+  readonly type: "web_app";
+  readonly text: string;
+  readonly web_app: { readonly url: string };
 }
 
 export interface TelegramApiOptions {
@@ -78,10 +89,12 @@ export function createTelegramApi(options: TelegramApiOptions): TelegramApi {
             : {
                 reply_markup: {
                   inline_keyboard: [
-                    message.buttons.map((button) => ({
-                      text: button.text,
-                      callback_data: button.callbackData,
-                    })),
+                    message.buttons.map((button) => {
+                      if (button.type === "callback") {
+                        return { text: button.text, callback_data: button.callbackData };
+                      }
+                      return { text: button.text, web_app: { url: button.webAppUrl } };
+                    }),
                   ],
                 },
               }),
@@ -111,6 +124,10 @@ export function createTelegramApi(options: TelegramApiOptions): TelegramApi {
         secret_token: secretToken,
         allowed_updates: ["message", "callback_query"],
       });
+    },
+
+    async setChatMenuButton(menuButton) {
+      await call("setChatMenuButton", { menu_button: menuButton });
     },
   };
 }
