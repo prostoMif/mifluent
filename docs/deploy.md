@@ -35,6 +35,11 @@ Caddy and backups 128 MB each — leaving the rest to the system.
    Without a domain, `PUBLIC_HOST` is the server's IP with dashes plus
    `.sslip.io`, for example `203-0-113-7.sslip.io`.
 
+   **Optional:** `RSSHUB_URL` — if you want to watch Telegram channels,
+   the self-hosted RSSHub container is included by default at
+   `http://rsshub:1200`. You only need to set this if you run RSSHub
+   elsewhere.
+
    **Copy `.env` somewhere safe that is not this server.** `ENCRYPTION_KEY`
    and `BACKUP_PASSPHRASE` cannot be recovered, and a backup is useless without
    its passphrase.
@@ -154,3 +159,4 @@ docker compose up -d --no-build
 | `worker`  | Polling, the pipeline, digests, Telegram delivery.          |
 | `caddy`   | HTTPS on ports 80 and 443, certificates in `caddy-data`.    |
 | `backup`  | Daily encrypted `pg_dump` into the `backups` volume.         |
+| `rsshub`  | Self-hosted RSSHub for Telegram channels and other feeds.   |

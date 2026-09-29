@@ -78,6 +78,11 @@ export interface SafeFetchOptions {
   readonly idleTimeoutMs?: number | undefined;
   readonly totalTimeoutMs?: number | undefined;
   readonly maxRedirects?: number | undefined;
+  /**
+   * Exactly one internal hostname that is permitted to resolve to a private
+   * address (e.g. the self-hosted RSSHub). No other internal hosts are allowed.
+   */
+  readonly allowedInternalHost?: string | undefined;
 }
 
 export interface SafeFetchResult {
@@ -203,7 +208,7 @@ async function requestOnce(
     });
   }
 
-  const host = await resolvePublicHost(url.hostname);
+  const host = await resolvePublicHost(url.hostname, options.allowedInternalHost);
   const send = url.protocol === "https:" ? httpsRequest : httpRequest;
 
   return new Promise((resolve, reject) => {

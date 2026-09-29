@@ -32,6 +32,8 @@ export interface DiscoverOptions {
   readonly logger?: Logger | undefined;
   /** Replaces the network, for tests. */
   readonly prober?: Prober | undefined;
+  /** Hostname of an internal service allowed to resolve to private addresses (e.g. RSSHub). */
+  readonly allowedInternalHost?: string | undefined;
 }
 
 /** What goes to the model: enough for a homepage and a pricing page. */
@@ -47,7 +49,12 @@ const TARGET_CONCURRENCY = 3;
 
 export async function discover(options: DiscoverOptions): Promise<DiscoveryResult> {
   const prober =
-    options.prober ?? createProber({ userAgent: options.userAgent, logger: options.logger });
+    options.prober ??
+    createProber({
+      userAgent: options.userAgent,
+      logger: options.logger,
+      allowedInternalHost: options.allowedInternalHost,
+    });
   const url = asWebsite(options.input);
 
   const material =
@@ -89,20 +96,35 @@ async function assemble(
 
   const targets = await mapLimited(answer.targets, TARGET_CONCURRENCY, async (target) => {
     const websiteUrl = normaliseWebsite(target.websiteUrl);
+    const targetForSurfaces = {
+      name: target.name,
+      websiteUrl,
+      ...(target.newsQuery !== undefined ? { newsQuery: target.newsQuery } : {}),
+    } as const;
+
     return {
       kind: target.kind,
       name: target.name,
       websiteUrl,
       reason: target.reason,
-      surfaces: await findTargetSurfaces({ name: target.name, websiteUrl }, context),
+      newsQuery: target.newsQuery,
+      surfaces: await findTargetSurfaces(targetForSurfaces, context),
     };
   });
 
   const conditions = await Promise.all(
-    answer.conditions.map(async (condition) => ({
-      ...condition,
-      surfaces: await findConditionSurfaces(condition, context),
-    })),
+    answer.conditions.map(async (condition) => {
+      const conditionForSurfaces = {
+        name: condition.name,
+        ...(condition.newsQuery !== undefined ? { newsQuery: condition.newsQuery } : {}),
+      } as const;
+
+      return {
+        ...condition,
+        newsQuery: condition.newsQuery,
+        surfaces: await findConditionSurfaces(conditionForSurfaces, context),
+      };
+    }),
   );
 
   // Merge model's country/extraCountries with detection (detection happens in UI)

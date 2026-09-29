@@ -131,3 +131,13 @@ export function deliveryDefaults(): { timezone: string; hour: number } {
     hour: Number(config.DIGEST_DEFAULT_TIME.slice(0, 2)),
   };
 }
+
+/** Hostname of the self-hosted RSSHub, for SSRF allowlist. */
+export function getRsshubHostname(): string | undefined {
+  const config = getConfig();
+  try {
+    return new URL(config.RSSHUB_URL).hostname;
+  } catch {
+    return undefined;
+  }
+}

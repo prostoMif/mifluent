@@ -42,6 +42,8 @@ export const targetSchema = z.object({
   websiteUrl: z.string().nullable(),
   reason: z.string(),
   surfaces: z.array(surfaceSchema),
+  /** Precise news query for Google News, written by the model (≤ 120 chars). */
+  newsQuery: z.string().max(120).optional(),
 });
 
 export type DiscoveredTarget = z.infer<typeof targetSchema>;
@@ -50,6 +52,8 @@ export const conditionSchema = z.object({
   name: z.string(),
   reason: z.string(),
   surfaces: z.array(surfaceSchema),
+  /** Precise news query for Google News, written by the model (≤ 120 chars). */
+  newsQuery: z.string().max(120).optional(),
 });
 
 export type DiscoveredCondition = z.infer<typeof conditionSchema>;
@@ -74,11 +78,20 @@ export const modelAnswerSchema = z.object({
         name: z.string().min(1).max(120),
         websiteUrl: z.string().max(300).nullable(),
         reason: z.string().max(400),
+        /** Precise news query for Google News (≤ 120 chars). If the name is a common word, add a disambiguator. */
+        newsQuery: z.string().max(120).optional(),
       }),
     )
     .max(12),
   conditions: z
-    .array(z.object({ name: z.string().min(1).max(120), reason: z.string().max(400) }))
+    .array(
+      z.object({
+        name: z.string().min(1).max(120),
+        reason: z.string().max(400),
+        /** Precise news query for Google News (≤ 120 chars). If the name is a common word, add a disambiguator. */
+        newsQuery: z.string().max(120).optional(),
+      }),
+    )
     .max(4),
 });
 

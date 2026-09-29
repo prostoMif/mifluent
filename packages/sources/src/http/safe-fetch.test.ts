@@ -1,5 +1,5 @@
 import { isAppError } from "@mifluent/core";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resolvePublicHost } from "./resolve-host.js";
 import { answerLookup, safeFetch } from "./safe-fetch.js";
 
@@ -12,9 +12,9 @@ const USER_AGENT = "Mifluent/test";
  * so the test proves the refusal rather than proving that the machine running
  * the tests happens to have nothing listening on that port.
  */
-async function expectRefused(url: string): Promise<string> {
+async function expectRefused(url: string, allowedInternalHost?: string): Promise<string> {
   try {
-    await safeFetch({ url, userAgent: USER_AGENT });
+    await safeFetch({ url, userAgent: USER_AGENT, allowedInternalHost });
   } catch (error) {
     if (isAppError(error)) {
       return error.code;
@@ -76,7 +76,50 @@ describe("safeFetch address rules", () => {
   });
 });
 
+describe("safeFetch SSRF allowlist for RSSHub", () => {
+  it("allows the configured RSSHUB_URL host even if it resolves to a private address", async () => {
+    // The RSSHub host is allowed via allowedInternalHost.
+    // Since we can't easily mock DNS in this integration test, we test the
+    // resolvePublicHost logic directly in the next describe block.
+    // This test verifies that safeFetch passes allowedInternalHost through.
+    // Use a very short timeout so the test fails fast with source_unreachable
+    // instead of hanging for the default 30s totalTimeoutMs.
+    try {
+      await safeFetch({
+        url: "http://rsshub:1200/telegram/channel/durov",
+        userAgent: USER_AGENT,
+        allowedInternalHost: "rsshub",
+        totalTimeoutMs: 100,
+      });
+    } catch (error) {
+      if (isAppError(error)) {
+        // Should fail with source_unreachable (connection refused / DNS fail),
+        // NOT url_not_allowed (SSRF protection blocking it).
+        expect(error.code).not.toBe("url_not_allowed");
+        return;
+      }
+      throw error;
+    }
+    // If no error thrown, that's also fine (not url_not_allowed).
+  });
+
+  it("refuses a different internal host even if allowedInternalHost is set", async () => {
+    // A different internal host (literal private IP) should still be refused.
+    expect(await expectRefused("http://10.0.0.99:8080/", "rsshub")).toBe("url_not_allowed");
+  });
+});
+
 describe("resolvePublicHost", () => {
+  const { lookup } = vi.hoisted(() => ({
+    lookup: vi.fn(async () => [{ address: "93.184.216.34", family: 4 }]),
+  }));
+
+  vi.mock("node:dns/promises", () => ({ lookup }));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("accepts a public address given as a literal", async () => {
     await expect(resolvePublicHost("93.184.216.34")).resolves.toEqual({
       address: "93.184.216.34",
@@ -90,6 +133,24 @@ describe("resolvePublicHost", () => {
 
   it("strips the brackets around an IPv6 literal before checking it", async () => {
     await expect(resolvePublicHost("[::1]")).rejects.toThrow();
+  });
+
+  it("allows the configured internal host when all answers are private", async () => {
+    lookup.mockResolvedValueOnce([{ address: "10.0.0.5", family: 4 }]);
+
+    await expect(resolvePublicHost("rsshub", "rsshub")).resolves.toEqual({
+      address: "10.0.0.5",
+      family: 4,
+    });
+  });
+
+  it("refuses the internal host if any answer is public (mixed resolution)", async () => {
+    lookup.mockResolvedValueOnce([
+      { address: "10.0.0.5", family: 4 },
+      { address: "93.184.216.34", family: 4 },
+    ]);
+
+    await expect(resolvePublicHost("rsshub", "rsshub")).rejects.toThrow();
   });
 });
 

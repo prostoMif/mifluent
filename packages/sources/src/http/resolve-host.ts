@@ -31,8 +31,15 @@ export interface ResolvedHost {
  * Every answer, not merely the one being used. A name that resolves to a public
  * address and a private one is either broken or hostile, and there is no
  * reading of it under which fetching it is the right thing to do.
+ *
+ * An optional `allowedInternalHost` may be provided — exactly one hostname
+ * (e.g. the self-hosted RSSHub) that is permitted to resolve to a private
+ * address. No other internal hosts are allowed.
  */
-export async function resolvePublicHost(hostname: string): Promise<ResolvedHost> {
+export async function resolvePublicHost(
+  hostname: string,
+  allowedInternalHost?: string,
+): Promise<ResolvedHost> {
   const bare = stripBrackets(hostname);
 
   // A literal address in the URL skips resolution but not the check.
@@ -44,6 +51,22 @@ export async function resolvePublicHost(hostname: string): Promise<ResolvedHost>
 
   const refused = answers.find((answer) => !isPublicAddress(answer.address));
   if (refused !== undefined) {
+    // Allow exactly one configured internal host (e.g. RSSHub).
+    if (
+      allowedInternalHost !== undefined &&
+      hostname === allowedInternalHost &&
+      answers.every((a) => !isPublicAddress(a.address))
+    ) {
+      // All answers are private — this is the allowed internal host.
+      const first = answers[0];
+      if (first === undefined) {
+        throw new AppError("url_not_allowed", "That address cannot be reached from here.", {
+          hostname,
+          reason: "resolved to nothing",
+        });
+      }
+      return { address: first.address, family: first.family };
+    }
     throw new AppError("url_not_allowed", "That address cannot be reached from here.", {
       hostname,
       reason: describeAddress(refused.address),

@@ -23,7 +23,13 @@ import { loadProfileContext } from "@mifluent/pipeline";
 import type { PgBoss } from "pg-boss";
 import { pollSource } from "../poll-source.js";
 import { QUEUES, queueDelivery } from "../queue.js";
-import { createPipelineLlm, getDatabase, logger, USER_AGENT } from "../runtime.js";
+import {
+  createPipelineLlm,
+  getDatabase,
+  getRsshubHostname,
+  logger,
+  USER_AGENT,
+} from "../runtime.js";
 import { buildDigestNow, embedTenant, extractProfile, selectProfile } from "../steps.js";
 
 export async function registerOnboardingJobs(boss: PgBoss): Promise<void> {
@@ -47,6 +53,7 @@ export async function registerOnboardingJobs(boss: PgBoss): Promise<void> {
         tenantId: data.tenantId,
         runId: job.id,
         logger,
+        allowedInternalHost: getRsshubHostname(),
       });
       return { status: "completed", result };
     } catch (thrown) {
@@ -117,7 +124,11 @@ async function findSourcesForManualTargets(ref: FirstRunJob): Promise<void> {
   if (targets.length === 0) return;
 
   const context = await loadProfileContext(db, ref.tenantId, ref.profileId);
-  const prober = createProber({ userAgent: USER_AGENT, logger });
+  const prober = createProber({
+    userAgent: USER_AGENT,
+    logger,
+    allowedInternalHost: getRsshubHostname(),
+  });
 
   for (const target of targets) {
     const surfaces = await findTargetSurfaces(target, {

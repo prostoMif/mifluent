@@ -20,6 +20,17 @@ x-app: &app
   restart: unless-stopped
 
 services:
+  rsshub:
+    image: diygod/rsshub:latest
+    restart: unless-stopped
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:1200/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   db:
     image: pgvector/pgvector:pg17
     restart: unless-stopped

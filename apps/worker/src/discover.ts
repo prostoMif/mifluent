@@ -13,7 +13,7 @@
 import { getConfig } from "@mifluent/core";
 import { type DiscoveryResult, discover } from "@mifluent/discovery";
 import { createLlmClient } from "@mifluent/llm";
-import { logger, USER_AGENT } from "./runtime.js";
+import { getRsshubHostname, logger, USER_AGENT } from "./runtime.js";
 
 function printTable(result: DiscoveryResult): void {
   const { business } = result;
@@ -114,7 +114,13 @@ async function main(): Promise<void> {
   });
 
   const startedAt = Date.now();
-  const result = await discover({ ...parsed, llm, userAgent: USER_AGENT, logger });
+  const result = await discover({
+    ...parsed,
+    llm,
+    userAgent: USER_AGENT,
+    logger,
+    allowedInternalHost: getRsshubHostname(),
+  });
 
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   printTable(result);

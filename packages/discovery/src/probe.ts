@@ -38,7 +38,11 @@ const PROBE_TIMEOUT_MS = 10_000;
 
 const FIRST_ERROR_STATUS = 400;
 
-export function createProber(options: { userAgent: string; logger?: Logger | undefined }): Prober {
+export function createProber(options: {
+  userAgent: string;
+  logger?: Logger | undefined;
+  allowedInternalHost?: string | undefined;
+}): Prober {
   const fetchOnce = async (url: string) => {
     try {
       const result = await safeFetch({
@@ -46,6 +50,7 @@ export function createProber(options: { userAgent: string; logger?: Logger | und
         userAgent: options.userAgent,
         maxBytes: MAX_PROBE_BYTES,
         totalTimeoutMs: PROBE_TIMEOUT_MS,
+        allowedInternalHost: options.allowedInternalHost,
       });
       return result.status >= FIRST_ERROR_STATUS ? null : result;
     } catch (thrown) {

@@ -41,8 +41,36 @@ const INTERVAL = {
   query: 60,
 } as const;
 
+/** Telegram channel username pattern: t.me/<username> or telegram.me/<username>, not private invite links. */
+const TELEGRAM_CHANNEL_PATTERN = /(?:t\.me|telegram\.me)\/([A-Za-z0-9_]{5,32})(?![A-Za-z0-9_])/g;
+
+/** YouTube channel patterns. */
+const YOUTUBE_HANDLE_PATTERN = /youtube\.com\/@([A-Za-z0-9_.-]+)/g;
+const YOUTUBE_CHANNEL_ID_PATTERN = /youtube\.com\/channel\/(UC[\w-]{22})/g;
+const YOUTUBE_CUSTOM_PATTERN = /youtube\.com\/c\/([A-Za-z0-9_.-]+)/g;
+
+/** RSSHub base URL from environment. */
+function getRsshubBase(): string {
+  const base = process.env["RSSHUB_URL"] ?? "http://rsshub:1200";
+  return base.replace(/\/+$/, "");
+}
+
+/**
+ * Resolve an rsshub:telegram/<username> locator to the full RSSHub URL.
+ * Exported for source-pack loaders (TASK-033).
+ */
+export function resolveRsshub(locator: string): string | null {
+  const match = /^rsshub:telegram\/([A-Za-z0-9_]{5,32})$/.exec(locator);
+  if (!match) return null;
+  return `${getRsshubBase()}/telegram/channel/${match[1]}`;
+}
+
 export async function findTargetSurfaces(
-  target: { readonly name: string; readonly websiteUrl: string | null },
+  target: {
+    readonly name: string;
+    readonly websiteUrl: string | null;
+    readonly newsQuery?: string;
+  },
   context: { readonly prober: Prober; readonly language: "en" | "ru" },
 ): Promise<Surface[]> {
   const surfaces: Surface[] = [];
@@ -63,18 +91,25 @@ export async function findTargetSurfaces(
     for (const surface of found) {
       if (surface !== null) surfaces.push(surface);
     }
+
+    // These return arrays (multiple surfaces possible).
+    const telegramSurfaces = await findTelegramChannels(prober, home);
+    surfaces.push(...telegramSurfaces);
+    const youtubeSurfaces = await findYouTubeChannels(prober, home);
+    surfaces.push(...youtubeSurfaces);
   }
 
-  surfaces.push(await newsQuery(prober, target.name, context.language));
-  surfaces.push(await redditQuery(prober, target.name));
+  surfaces.push(await newsQuery(prober, target.name, context.language, target.newsQuery));
+  const redditSurface = await redditQuery(prober, target.name, context.language);
+  if (redditSurface !== null) surfaces.push(redditSurface);
   return surfaces;
 }
 
 export async function findConditionSurfaces(
-  condition: { readonly name: string },
+  condition: { readonly name: string; readonly newsQuery?: string },
   context: { readonly prober: Prober; readonly language: "en" | "ru" },
 ): Promise<Surface[]> {
-  return [await newsQuery(context.prober, condition.name, context.language)];
+  return [await newsQuery(context.prober, condition.name, context.language, condition.newsQuery)];
 }
 
 async function findBlogFeed(
@@ -162,19 +197,152 @@ async function findGithubReleases(
   return (await prober.isFeed(feed)) ? feedSurface(feed, "GitHub releases") : null;
 }
 
-async function newsQuery(prober: Prober, name: string, language: "en" | "ru"): Promise<Surface> {
+/**
+ * Find public Telegram channels linked on the homepage.
+ * Only t.me/<username> and telegram.me/<username> — not t.me/+... or joinchat invite links.
+ * Max 2 channels per target.
+ */
+export async function findTelegramChannels(
+  prober: Prober,
+  home: FetchedPage | null,
+): Promise<Surface[]> {
+  if (home === null) return [];
+
+  const channels = new Set<string>();
+  for (const match of home.html.matchAll(TELEGRAM_CHANNEL_PATTERN)) {
+    const username = match[1];
+    if (username && !username.startsWith("+") && username !== "joinchat") {
+      channels.add(username.toLowerCase());
+    }
+  }
+
+  const surfaces: Surface[] = [];
+  for (const username of Array.from(channels).slice(0, 2)) {
+    const url = `${getRsshubBase()}/telegram/channel/${username}`;
+    const verified = await prober.isFeed(url);
+    if (verified) {
+      surfaces.push(feedSurface(url, "Telegram"));
+    }
+  }
+  return surfaces;
+}
+
+/**
+ * Find YouTube channels linked on the homepage.
+ * Resolve channel_id from the channel page (canonical link or JSON-LD).
+ * Max 1 channel per target.
+ */
+async function findYouTubeChannels(prober: Prober, home: FetchedPage | null): Promise<Surface[]> {
+  if (home === null) return [];
+
+  const handles = collectYouTubeHandles(home.html);
+
+  for (const handle of handles) {
+    const channelId = await resolveYouTubeChannelId(prober, handle);
+    if (channelId !== null) {
+      const url = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+      const verified = await prober.isFeed(url);
+      if (verified) {
+        return [feedSurface(url, "YouTube", INTERVAL.feed * 6)]; // 360 min
+      }
+    }
+  }
+  return [];
+}
+
+function collectYouTubeHandles(html: string): Set<string> {
+  const handles = new Set<string>();
+  for (const match of html.matchAll(YOUTUBE_HANDLE_PATTERN)) {
+    const handle = match[1];
+    if (handle !== undefined) handles.add(handle);
+  }
+  for (const match of html.matchAll(YOUTUBE_CHANNEL_ID_PATTERN)) {
+    const handle = match[1];
+    if (handle !== undefined) handles.add(handle);
+  }
+  for (const match of html.matchAll(YOUTUBE_CUSTOM_PATTERN)) {
+    const handle = match[1];
+    if (handle !== undefined) handles.add(handle);
+  }
+  return handles;
+}
+
+async function resolveYouTubeChannelId(prober: Prober, handle: string): Promise<string | null> {
+  // If it's already a channel ID (UC...), use it directly.
+  if (handle.startsWith("UC") && handle.length === 24) {
+    return handle;
+  }
+
+  // Fetch the channel page to resolve the channel ID.
+  const channelUrl = handle.startsWith("UC")
+    ? `https://www.youtube.com/channel/${handle}`
+    : `https://www.youtube.com/@${handle}`;
+  const page = await prober.fetchPage(channelUrl);
+  if (page === null) return null;
+
+  return extractYouTubeChannelId(page.html, page.url);
+}
+
+/** Extract YouTube channel ID from channel page HTML. */
+function extractYouTubeChannelId(html: string, _baseUrl: string): string | null {
+  // Try <link rel="canonical" href="https://www.youtube.com/channel/UC...">
+  const canonicalMatch =
+    /<link\s+rel="canonical"\s+href="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/i.exec(
+      html,
+    );
+  if (canonicalMatch?.[1]) return canonicalMatch[1];
+
+  // Try "channelId":"UC..." in JSON-LD or ytInitialData
+  const channelIdMatch = /"channelId"\s*:\s*"(UC[\w-]{22})"/.exec(html);
+  if (channelIdMatch?.[1]) return channelIdMatch[1];
+
+  // Try meta tag
+  const metaMatch =
+    /<meta\s+property="og:url"\s+content="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/i.exec(
+      html,
+    );
+  if (metaMatch?.[1]) return metaMatch[1];
+
+  return null;
+}
+
+async function newsQuery(
+  prober: Prober,
+  name: string,
+  language: "en" | "ru",
+  newsQuery?: string,
+): Promise<Surface> {
   const region = language === "ru" ? "hl=ru&gl=RU&ceid=RU:ru" : "hl=en-US&gl=US&ceid=US:en";
-  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(`"${name}"`)}&${region}`;
+  const trimmed = newsQuery?.trim();
+  const query = trimmed && trimmed.length > 0 ? trimmed : `"${name}"`;
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&${region}`;
   return { ...querySurface(url, "Google News"), verified: await prober.isFeed(url) };
 }
 
-async function redditQuery(prober: Prober, name: string): Promise<Surface> {
+/**
+ * Reddit search surface — only created if the feed is reachable from the server.
+ * If not reachable, returns null (surface not created at all).
+ */
+async function redditQuery(
+  prober: Prober,
+  name: string,
+  language: "en" | "ru",
+): Promise<Surface | null> {
+  // For Russian language, Reddit is not added by default (very little Russian content).
+  if (language === "ru") return null;
+
   const url = `https://www.reddit.com/search.rss?q=${encodeURIComponent(`"${name}"`)}&sort=new`;
-  return { ...querySurface(url, "Reddit"), verified: await prober.isFeed(url) };
+  const verified = await prober.isFeed(url);
+  if (!verified) return null; // Do not create unverified Reddit surface.
+  return { ...querySurface(url, "Reddit"), verified: true };
 }
 
-function feedSurface(url: string, label: string): Surface {
-  return { type: "feed", url, label, pollIntervalMinutes: INTERVAL.feed, verified: true };
+function feedSurface(
+  url: string,
+  label: string,
+  pollIntervalMinutes: number = INTERVAL.feed,
+): Surface {
+  return { type: "feed", url, label, pollIntervalMinutes, verified: true };
 }
 
 function diffSurface(url: string, label: string, pollIntervalMinutes: number): Surface {

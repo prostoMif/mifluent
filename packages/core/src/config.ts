@@ -120,6 +120,12 @@ const configSchema = z.object({
   REDDIT_CLIENT_SECRET: z.string().optional(),
 
   /**
+   * Self-hosted RSSHub instance for Telegram channels and other feeds.
+   * Default: http://rsshub:1200 (internal Docker network).
+   */
+  RSSHUB_URL: httpUrl.default("http://rsshub:1200"),
+
+  /**
    * Where a person reports a problem. Optional: an instance run by somebody
    * who does not use the public tracker still wants the report button, it just
    * has nowhere to send them.
