@@ -70,8 +70,18 @@ run_agent() {
 }
 
 if [[ -n "$(git status --porcelain)" ]]; then
-  notify "рабочая копия не чистая — закоммить или спрячь изменения и запусти снова. Стоп."
-  exit 1
+  # A run cut short (laptop off, terminal closed) leaves its task marked
+  # «в работе (автопилот)» and its edits uncommitted. Pick that task up where
+  # it stopped instead of refusing to start; any other dirty tree is the
+  # owner's own work and is not touched.
+  interrupted="$(grep -l -E '^status:[[:space:]]*в работе \(автопилот\)' "$TASKS_DIR"/TASK-*.md 2>/dev/null | head -1)"
+  if [[ -z "$interrupted" ]]; then
+    notify "рабочая копия не чистая — закоммить или спрячь изменения и запусти снова. Стоп."
+    exit 1
+  fi
+  interrupted_task="$(basename "$interrupted" | grep -oE '^TASK-[0-9]+')"
+  notify "$interrupted_task: прерванная задача, продолжаю с незакоммиченными изменениями"
+  START_FROM="$interrupted_task"
 fi
 
 is_done() {
@@ -90,7 +100,7 @@ handoff() {
   printf -- '- %s — %s\n' "$(date '+%F %H:%M')" "$1" >> "$TASKS_DIR/_Передача.md"
 }
 
-TASK_PROMPT_RULES="Правила: AGENTS.md, docs/code-style.md и разделы 0a, 2 и пункты 1–3 раздела 3 из docs/tasks/_Промпт-OpenCode.md. Очередь и коммиты ведёт скрипт: делай только эту задачу, не коммить, файл _Передача.md не трогай. Если в конце файла задачи уже есть отчёт со статусом «частично» — продолжи с того, что там перечислено как несделанное, готовое не переделывай. В конце — отчёт в файле задачи: статус «готова к ревью» только если выполнены ВСЕ пункты раздела «Требования», иначе «частично» и список несделанного."
+TASK_PROMPT_RULES="Правила: AGENTS.md, docs/code-style.md и разделы 0a, 2 и пункты 1–3 раздела 3 из docs/tasks/_Промпт-OpenCode.md. Очередь и коммиты ведёт скрипт: делай только эту задачу, не коммить, файл _Передача.md не трогай. Если в конце файла задачи уже есть отчёт со статусом «частично» — продолжи с того, что там перечислено как несделанное, готовое не переделывай. Если в рабочей копии уже есть незакоммиченные изменения — это прерванная прошлая сессия по этой же задаче: посмотри git diff и продолжи их, не начинай заново. В конце — отчёт в файле задачи: статус «готова к ревью» только если выполнены ВСЕ пункты раздела «Требования», иначе «частично» и список несделанного."
 
 MAX_SESSIONS="${AUTOPILOT_SESSIONS:-3}"
 IDLE_WAIT="${AUTOPILOT_IDLE_WAIT:-900}"
