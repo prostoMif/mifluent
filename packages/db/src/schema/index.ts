@@ -25,6 +25,7 @@ export * from "./events.js";
 export * from "./items.js";
 export * from "./keys.js";
 export * from "./logs.js";
+export * from "./onboarding.js";
 export * from "./profiles.js";
 export * from "./sources.js";
 export * from "./tenancy.js";

@@ -46,6 +46,25 @@ export interface Strings {
     readonly help: string;
     readonly firstDigestCollecting: string;
   };
+  readonly onboarding: {
+    readonly closedRegistration: string;
+    readonly awaitingInput: string;
+    readonly discoveryProgress: (progressText: string) => string;
+    readonly businessFacts: string;
+    readonly noDescription: string;
+    readonly targets: string;
+    readonly targetLimit: (max: number) => string;
+    readonly listingActions: string;
+    readonly go: string;
+    readonly addCompetitor: string;
+    readonly chooseTimezone: string;
+    readonly otherTimezone: string;
+    readonly progressReadingSite: string;
+    readonly progressFindingCompetitors: string;
+    readonly progressCheckingBlogs: string;
+    readonly progressCheckingPrices: string;
+    readonly progressAlmostDone: string;
+  };
 }
 
 const en: Strings = {
@@ -96,6 +115,25 @@ const en: Strings = {
     help: "Send /start followed by the code shown in Mifluent to receive digests here.",
     firstDigestCollecting: "Collecting your first digest. It will arrive in a few minutes.",
   },
+  onboarding: {
+    closedRegistration: "The bot is invite-only for now. Do you have an invitation code?",
+    awaitingInput: "Send your website address or a one-sentence description of your business.",
+    discoveryProgress: (progressText) => `Reading your site… ${progressText}`,
+    businessFacts: "Business facts",
+    noDescription: "No description provided",
+    targets: "Targets to track",
+    targetLimit: (max) => `You can select up to ${max} targets.`,
+    listingActions: "Tap a target to toggle. Then press “Go” to continue.",
+    go: "Go",
+    addCompetitor: "Add competitor",
+    chooseTimezone: "Choose your timezone:",
+    otherTimezone: "Other (I'll type it)",
+    progressReadingSite: "Reading the website…",
+    progressFindingCompetitors: "Finding competitors…",
+    progressCheckingBlogs: "Checking for blogs and pricing pages…",
+    progressCheckingPrices: "Checking pricing pages…",
+    progressAlmostDone: "Almost done…",
+  },
 };
 
 const ru: Strings = {
@@ -145,6 +183,25 @@ const ru: Strings = {
     invalidCode: "Код неверный или истёк. Получите новый в Mifluent.",
     help: "Отправьте /start и код из Mifluent, чтобы получать сводки здесь.",
     firstDigestCollecting: "Собираю вашу первую сводку. Придёт через несколько минут.",
+  },
+  onboarding: {
+    closedRegistration: "Бот пока по приглашениям. Есть код приглашения?",
+    awaitingInput: "Пришли адрес своего сайта или одно предложение о бизнесе.",
+    discoveryProgress: (progressText) => `Читаю сайт… ${progressText}`,
+    businessFacts: "Факты о бизнесе",
+    noDescription: "Описание не указано",
+    targets: "Цели для отслеживания",
+    targetLimit: (max) => `Можно выбрать до ${max} целей.`,
+    listingActions: "Нажми на цель, чтобы включить/выключить. Потом «Поехали».",
+    go: "Поехали",
+    addCompetitor: "Добавить конкурента",
+    chooseTimezone: "Выбери часовой пояс:",
+    otherTimezone: "Другой (напишу сам)",
+    progressReadingSite: "Читаю сайт…",
+    progressFindingCompetitors: "Ищу конкурентов…",
+    progressCheckingBlogs: "Проверяю, где блог и цены…",
+    progressCheckingPrices: "Проверяю страницы цен…",
+    progressAlmostDone: "Почти готово…",
   },
 };
 
