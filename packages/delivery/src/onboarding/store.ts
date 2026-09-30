@@ -9,7 +9,7 @@
 import { uuidv7 } from "@mifluent/core";
 import type { Queryable } from "@mifluent/db";
 import { schema } from "@mifluent/db";
-import type { OnboardingStep, PendingOnboarding } from "@mifluent/db/schema";
+import type { PendingTelegramOnboarding, TelegramOnboardingStep } from "@mifluent/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 
 /** Create a new pending onboarding row. */
@@ -22,10 +22,10 @@ export async function createPendingOnboarding(
     readonly language: string;
     readonly invitationToken: string | undefined;
   },
-): Promise<PendingOnboarding> {
+): Promise<PendingTelegramOnboarding> {
   const now = new Date();
   const [row] = await db
-    .insert(schema.pendingOnboardings)
+    .insert(schema.pendingTelegramOnboardings)
     .values({
       id: uuidv7(),
       chatId: options.chatId,
@@ -41,20 +41,20 @@ export async function createPendingOnboarding(
   if (!row) {
     throw new Error("Failed to create pending onboarding");
   }
-  return row as PendingOnboarding;
+  return row as PendingTelegramOnboarding;
 }
 
 /** Get the pending onboarding for a chat, if any. */
 export async function getPendingOnboarding(
   db: Queryable,
   chatId: string,
-): Promise<PendingOnboarding | undefined> {
+): Promise<PendingTelegramOnboarding | undefined> {
   const [row] = await db
     .select()
-    .from(schema.pendingOnboardings)
-    .where(eq(schema.pendingOnboardings.chatId, chatId))
+    .from(schema.pendingTelegramOnboardings)
+    .where(eq(schema.pendingTelegramOnboardings.chatId, chatId))
     .limit(1);
-  return row as PendingOnboarding | undefined;
+  return row as PendingTelegramOnboarding | undefined;
 }
 
 /** Update the step and any other fields. */
@@ -62,7 +62,7 @@ export async function updatePendingOnboarding(
   db: Queryable,
   chatId: string,
   updates: Partial<{
-    readonly step: OnboardingStep;
+    readonly step: TelegramOnboardingStep;
     readonly tenantId: string | null;
     readonly discoveryJobId: string | null;
     readonly discoveryResult: string | null;
@@ -75,34 +75,36 @@ export async function updatePendingOnboarding(
     readonly progressUpdateCount: number;
     readonly lastProgressUpdateAt: Date | null;
   }>,
-): Promise<PendingOnboarding | undefined> {
+): Promise<PendingTelegramOnboarding | undefined> {
   const [row] = await db
-    .update(schema.pendingOnboardings)
+    .update(schema.pendingTelegramOnboardings)
     .set({ ...updates, updatedAt: new Date() })
-    .where(eq(schema.pendingOnboardings.chatId, chatId))
+    .where(eq(schema.pendingTelegramOnboardings.chatId, chatId))
     .returning();
-  return row as PendingOnboarding | undefined;
+  return row as PendingTelegramOnboarding | undefined;
 }
 
 /** Delete the pending onboarding (on completion or abandonment). */
 export async function deletePendingOnboarding(db: Queryable, chatId: string): Promise<void> {
-  await db.delete(schema.pendingOnboardings).where(eq(schema.pendingOnboardings.chatId, chatId));
+  await db
+    .delete(schema.pendingTelegramOnboardings)
+    .where(eq(schema.pendingTelegramOnboardings.chatId, chatId));
 }
 
 /** Find a pending onboarding by Telegram user ID (for "two chats one person" case). */
 export async function findPendingOnboardingByTelegramUser(
   db: Queryable,
   telegramUserId: string,
-): Promise<PendingOnboarding | undefined> {
+): Promise<PendingTelegramOnboarding | undefined> {
   const [row] = await db
     .select()
-    .from(schema.pendingOnboardings)
+    .from(schema.pendingTelegramOnboardings)
     .where(
       and(
-        eq(schema.pendingOnboardings.telegramUserId, telegramUserId),
-        isNull(schema.pendingOnboardings.deletedAt),
+        eq(schema.pendingTelegramOnboardings.telegramUserId, telegramUserId),
+        isNull(schema.pendingTelegramOnboardings.deletedAt),
       ),
     )
     .limit(1);
-  return row as PendingOnboarding | undefined;
+  return row as PendingTelegramOnboarding | undefined;
 }

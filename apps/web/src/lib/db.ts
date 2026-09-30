@@ -1,6 +1,8 @@
 import { getConfig } from "@mifluent/core";
 import { type Connection, createConnection, createDatabase, type Database } from "@mifluent/db";
 
+export type { Database };
+
 /**
  * One connection pool for this process.
  *

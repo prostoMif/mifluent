@@ -6,6 +6,7 @@
  * point client components use, and which explains why the split exists.
  */
 
+export type { OnboardingChannel, PendingOnboarding } from "@mifluent/db/schema";
 export {
   type CardActionInput,
   type CardOwner,
@@ -37,6 +38,22 @@ export {
   chunkRawItem,
   chunkText,
 } from "./items/chunk.js";
+export {
+  clearPendingCookie,
+  consumePendingOnboarding,
+  createPendingOnboarding,
+  deleteExpiredPendingOnboardings,
+  deleteOldConsumedPendingOnboardings,
+  generatePendingToken,
+  getPendingOnboarding,
+  hashEmail,
+  hashIp,
+  readPendingToken,
+  serializePendingCookie,
+  startAnonDiscovery,
+  updatePendingChannel,
+  updatePendingDiscoveryResult,
+} from "./onboarding/pending.js";
 export {
   assertCanRunDiscovery,
   assertProfileWithinPlan,

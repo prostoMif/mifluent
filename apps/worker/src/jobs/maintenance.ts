@@ -1,9 +1,13 @@
 /**
- * Maintenance jobs: daily owner report, instant alerts, healthchecks.
+ * Maintenance jobs: daily owner report, instant alerts, healthchecks, cleanup.
  */
 
 import { getConfig } from "@mifluent/core";
 import { generateDailyOwnerReport } from "@mifluent/domain";
+import {
+  deleteExpiredPendingOnboardings,
+  deleteOldConsumedPendingOnboardings,
+} from "@mifluent/domain/onboarding/pending";
 import type { PgBoss } from "pg-boss";
 import { QUEUES } from "../queue.js";
 import { getDatabase, getTelegramApi, logger } from "../runtime.js";
@@ -17,6 +21,11 @@ export async function registerMaintenanceJobs(boss: PgBoss): Promise<void> {
   // Alert checks every 5 minutes
   await boss.work(QUEUES.alertCheck, async () => {
     await checkAlerts();
+  });
+
+  // Daily cleanup of pending onboardings at 03:00 UTC
+  await boss.work(QUEUES.maintenanceDaily, async () => {
+    await cleanupPendingOnboardings();
   });
 }
 
@@ -51,6 +60,22 @@ async function checkAlerts(): Promise<void> {
   // 3. Discovery failures during onboarding
   // For now, just log that checks ran
   logger.debug("alerts.checked", {});
+}
+
+async function cleanupPendingOnboardings(): Promise<void> {
+  const db = getDatabase();
+
+  // Delete expired pending onboardings (older than 24h)
+  const expiredCount = await deleteExpiredPendingOnboardings(db);
+  if (expiredCount > 0) {
+    logger.info("maintenance.expired_pending_onboardings_deleted", { count: expiredCount });
+  }
+
+  // Delete consumed pending onboardings older than 24h
+  const consumedCount = await deleteOldConsumedPendingOnboardings(db);
+  if (consumedCount > 0) {
+    logger.info("maintenance.consumed_pending_onboardings_deleted", { count: consumedCount });
+  }
 }
 
 // Track alert cooldowns to avoid spam (once per hour per alert type)

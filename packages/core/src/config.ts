@@ -186,6 +186,12 @@ const configSchema = z.object({
    * crossed, every job that would call a model stops until midnight UTC.
    */
   DAILY_COST_CAP_USD: z.coerce.number().min(0).default(1),
+
+  /**
+   * Maximum anonymous discovery runs per day across the whole instance.
+   * Protects against abuse when REGISTRATION_OPEN=true.
+   */
+  ANON_DISCOVERY_PER_DAY: z.coerce.number().int().min(1).default(30),
 });
 
 export type RawConfig = z.infer<typeof configSchema>;

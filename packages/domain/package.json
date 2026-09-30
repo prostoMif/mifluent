@@ -21,6 +21,14 @@
     "./geo/detect": {
       "types": "./dist/geo/detect.d.ts",
       "default": "./dist/geo/detect.js"
+    },
+    "./onboarding/pending": {
+      "types": "./dist/onboarding/pending.d.ts",
+      "default": "./dist/onboarding/pending.js"
+    },
+    "./jobs/queues": {
+      "types": "./dist/jobs/queues.d.ts",
+      "default": "./dist/jobs/queues.js"
     }
   },
   "main": "./dist/index.js",

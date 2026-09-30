@@ -32,7 +32,8 @@ import {
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
-import { getDatabase } from "./db";
+import { magicLink } from "better-auth/plugins";
+import { type Database, getDatabase } from "./db";
 import { INVITE_COOKIE_NAME } from "./invitation-cookie";
 import { logger } from "./logger";
 import { isEmailConfigured, sendEmail } from "./mailer";
@@ -94,6 +95,9 @@ export const authOptions = {
 /** The one Better Auth endpoint that creates an account. */
 const SIGN_UP_PATH = "/sign-up/email";
 
+/** Magic link verification endpoint. */
+const MAGIC_LINK_VERIFY_PATH = "/sign-in/magic-link/verify";
+
 function createAuth() {
   const config = getConfig();
 
@@ -103,6 +107,31 @@ function createAuth() {
     secret: config.BETTER_AUTH_SECRET,
     database: drizzleAdapter(getDatabase(), { provider: "pg" }),
     trustedOrigins: [config.APP_URL],
+
+    plugins: [
+      magicLink({
+        sendMagicLink: async ({ email, url }) => {
+          if (!isEmailConfigured()) {
+            logger.warn("auth.magic_link_email_skipped", { reason: "email is not configured" });
+            return;
+          }
+
+          await sendEmail({
+            to: email,
+            subject: "Sign in to Mifluent",
+            text: [
+              "Open this link to sign in to Mifluent:",
+              "",
+              url,
+              "",
+              "The link stops working in 30 minutes. If this was not you, you can",
+              "ignore this message.",
+            ].join("\n"),
+          });
+        },
+        expiresIn: 30 * 60, // 30 minutes
+      }),
+    ],
 
     emailAndPassword: {
       ...authOptions.emailAndPassword,
@@ -175,6 +204,24 @@ function createAuth() {
           throw new APIError("FORBIDDEN", {
             message: "Sign-up is closed on this instance. Ask whoever runs it for an invitation.",
           });
+        }
+      }),
+
+      after: createAuthMiddleware(async (ctx) => {
+        // Handle magic link verification - complete onboarding if there's a pending onboarding
+        if (ctx.path !== MAGIC_LINK_VERIFY_PATH) {
+          return;
+        }
+
+        // The verification succeeded, ctx.body contains the verified email
+        const email = readEmail(ctx.body);
+        if (!email) return;
+
+        try {
+          await completeOnboardingFromMagicLink(email);
+        } catch (error) {
+          logger.error("auth.magic_link_onboarding_failed", { email, cause: error });
+          // Don't throw - the user is already signed in, onboarding can be completed later
         }
       }),
     },
@@ -286,6 +333,211 @@ function readEmail(body: unknown): string | undefined {
 
   const { email } = body;
   return typeof email === "string" ? email : undefined;
+}
+
+/**
+ * Complete onboarding after magic link verification.
+ *
+ * Finds the pending onboarding by email hash, creates tenant + profile,
+ * starts first run, and marks pending as consumed.
+ */
+async function completeOnboardingFromMagicLink(email: string): Promise<void> {
+  const { hashEmail } = await import("@mifluent/domain/onboarding/pending");
+  const { getDatabase } = await import("./db");
+  const { createProfileFromDiscovery } = await import("@mifluent/domain");
+  const { sendInteractiveJob } = await import("./queue");
+  const { QUEUES } = await import("@mifluent/domain/jobs/queues");
+  const { schema } = await import("@mifluent/db");
+  const { eq, and, isNull } = await import("drizzle-orm");
+
+  const db = getDatabase();
+  const emailHash = hashEmail(email);
+
+  // Find pending onboarding by email hash
+  const [pending] = await db
+    .select()
+    .from(schema.pendingOnboardings)
+    .where(
+      and(
+        eq(schema.pendingOnboardings.emailHash, emailHash),
+        isNull(schema.pendingOnboardings.consumedAt),
+        // Not expired
+        // Note: expiresAt check is done in getPendingOnboarding, but we do it here too
+      ),
+    )
+    .limit(1);
+
+  if (!pending) {
+    // No pending onboarding for this email - normal sign in
+    return;
+  }
+
+  const pendingOnboarding = pending as {
+    id: string;
+    result: unknown;
+    input: string;
+    language: string;
+    timezone: string | null;
+    channel: string;
+  };
+
+  if (!pendingOnboarding.result) {
+    logger.warn("auth.magic_link_no_discovery_result", { pendingId: pendingOnboarding.id });
+    return;
+  }
+
+  // Get or create user
+  const { getAuth } = await import("./auth");
+  const auth = getAuth();
+  const session = await auth.api.getSession();
+
+  if (!session?.user) {
+    logger.warn("auth.magic_link_no_user_after_verification", { email });
+    return;
+  }
+
+  const user = session.user;
+
+  // Create tenant and profile in a transaction
+  const result = pendingOnboarding.result as {
+    business: {
+      name: string;
+      description: string;
+      niche: string;
+      monetization: string;
+      platforms: string[];
+      countries: string[];
+      country: string | undefined;
+      extraCountries: string[];
+      homeCountry: string | undefined;
+      region: string | undefined;
+      customerType: string;
+      language: "en" | "ru";
+    };
+    targets: Array<{
+      kind: "competitor" | "platform" | "condition";
+      name: string;
+      websiteUrl: string | null;
+      reason: string;
+      surfaces: Array<{
+        type: "feed" | "diff" | "json" | "query";
+        url: string;
+        label: string;
+        pollIntervalMinutes: number;
+        verified: boolean;
+      }>;
+      newsQuery: string | undefined;
+    }>;
+    conditions: Array<{
+      name: string;
+      reason: string;
+      surfaces: Array<{
+        type: "feed" | "diff" | "json" | "query";
+        url: string;
+        label: string;
+        pollIntervalMinutes: number;
+        verified: boolean;
+      }>;
+      newsQuery: string | undefined;
+    }>;
+    needsDescription: boolean;
+  };
+
+  // Build profile input from discovery result
+  const profileInput = {
+    name: result.business.name,
+    businessDescription: result.business.description,
+    websiteUrl: isWebAddress(pendingOnboarding.input) ? pendingOnboarding.input : null,
+    facts: {
+      monetization: result.business.monetization as
+        | "free"
+        | "trial"
+        | "subscription"
+        | "one_time"
+        | "unknown",
+      platforms: result.business.platforms,
+      countries: result.business.countries,
+      country: result.business.country,
+      extraCountries: result.business.extraCountries,
+      homeCountry: result.business.homeCountry,
+      region: result.business.region,
+      market: result.business.country ? getMarket(result.business.country) : undefined,
+      customerType: result.business.customerType,
+      whatMatters: undefined,
+      language: result.business.language,
+    },
+    targets: result.targets.map((target) => ({
+      kind: target.kind,
+      name: target.name,
+      websiteUrl: target.websiteUrl,
+      reason: target.reason,
+      surfaces: target.surfaces
+        .filter((s) => s.verified)
+        .map((s) => ({
+          type: s.type,
+          url: s.url,
+          label: s.label,
+          pollIntervalMinutes: s.pollIntervalMinutes,
+        })),
+    })),
+    timezone: pendingOnboarding.timezone ?? undefined,
+  };
+
+  const { attachUserToInstance } = await import("@mifluent/domain");
+  const { getConfig } = await import("@mifluent/core");
+
+  const config = getConfig();
+
+  await db.transaction(async (tx) => {
+    const database = tx as unknown as Database;
+    // Attach user to instance (creates tenant + membership)
+    const membership = await attachUserToInstance({
+      db: database,
+      userId: user.id,
+      tenantName: user.name,
+      timezone: pendingOnboarding.timezone ?? config.DEFAULT_TIMEZONE,
+    });
+
+    // Create profile from discovery
+    const { profileId } = await createProfileFromDiscovery({
+      db: database,
+      tenantId: membership.tenantId,
+      input: profileInput,
+    });
+
+    // Mark pending as consumed
+    await tx
+      .update(schema.pendingOnboardings)
+      .set({ consumedAt: new Date(), updatedAt: new Date() })
+      .where(eq(schema.pendingOnboardings.id, pendingOnboarding.id));
+
+    // Start first run
+    await sendInteractiveJob(QUEUES.profileFirstRun, {
+      tenantId: membership.tenantId,
+      profileId,
+    });
+
+    logger.info("auth.onboarding_completed_via_magic_link", {
+      userId: user.id,
+      tenantId: membership.tenantId,
+      profileId,
+      pendingId: pendingOnboarding.id,
+    });
+  });
+}
+
+function isWebAddress(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (url.protocol === "http:" || url.protocol === "https:") && url.hostname.includes(".");
+  } catch {
+    return false;
+  }
+}
+
+function getMarket(countryCode: string): "ru" | "en" {
+  const ruCountries = new Set(["RU", "BY", "KZ", "KG", "UZ", "TJ", "TM", "AZ", "AM", "GE", "MD"]);
+  return ruCountries.has(countryCode.toUpperCase()) ? "ru" : "en";
 }
 
 let instance: ReturnType<typeof createAuth> | undefined;
