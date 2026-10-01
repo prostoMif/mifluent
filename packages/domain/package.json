@@ -29,6 +29,10 @@
     "./jobs/queues": {
       "types": "./dist/jobs/queues.d.ts",
       "default": "./dist/jobs/queues.js"
+    },
+    "./billing/pricing": {
+      "types": "./dist/billing/pricing.d.ts",
+      "default": "./dist/billing/pricing.js"
     }
   },
   "main": "./dist/index.js",

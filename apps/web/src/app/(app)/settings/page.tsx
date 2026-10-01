@@ -3,6 +3,7 @@ import {
   can,
   findTenant,
   findTenantPlan,
+  getBillingStatus,
   listInvitations,
   readCostCap,
   readDiscoveryAllowance,
@@ -10,6 +11,7 @@ import {
   summariseSpend,
 } from "@mifluent/domain";
 import type { Metadata } from "next";
+import { BillingPanel } from "@/components/billing/billing-panel";
 import { InstanceSettingsForm } from "@/components/settings/instance-settings-form";
 import { InvitationsPanel } from "@/components/settings/invitations-panel";
 import { SpendSummaryPanel } from "@/components/settings/spend-summary";
@@ -68,10 +70,29 @@ export default async function SettingsPage() {
         </p>
       </section>
 
+      {canSeeSpend ? await renderBilling(session.tenantId, config.EARLY_SEATS) : null}
+
       {spendData === undefined ? null : <SpendSummaryPanel {...spendData} />}
 
       {canManagePeople ? <InvitationsPanel invitations={invitations} /> : null}
     </>
+  );
+}
+
+async function renderBilling(tenantId: string, earlySeats: number) {
+  const db = getDatabase();
+  const [status, plan] = await Promise.all([
+    getBillingStatus(db, tenantId, earlySeats),
+    findTenantPlan(db, tenantId),
+  ]);
+  return (
+    <BillingPanel
+      effectivePlan={plan.name}
+      paidPlan={status.paidPlan}
+      trialEndsAt={status.trialEndsAt?.toISOString() ?? null}
+      paidUntil={status.paidUntil?.toISOString() ?? null}
+      isRefundPossible={status.isRefundPossible}
+    />
   );
 }
 

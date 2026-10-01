@@ -39,7 +39,9 @@
     "pipeline:dry": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/pipeline-dry-run.ts",
     "telegram:webhook": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/telegram-webhook.ts",
     "packs:sync": "npm run build && npm run packs:sync --workspace @mifluent/worker",
-    "packs:verify": "npm run build && npm run packs:verify --workspace @mifluent/worker"
+    "packs:verify": "npm run build && npm run packs:verify --workspace @mifluent/worker",
+    "billing:refund": "npm run build && npm run billing:refund --workspace @mifluent/worker --",
+    "build:web": "npm run build && scripts/build-web.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",

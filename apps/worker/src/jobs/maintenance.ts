@@ -3,14 +3,22 @@
  */
 
 import { getConfig } from "@mifluent/core";
-import { generateDailyOwnerReport } from "@mifluent/domain";
+import { pruneExpiredBindings } from "@mifluent/delivery";
+import {
+  closeEndedTrials,
+  expirePaidPlans,
+  generateDailyOwnerReport,
+  listTrialReminders,
+} from "@mifluent/domain";
 import {
   deleteExpiredPendingOnboardings,
   deleteOldConsumedPendingOnboardings,
 } from "@mifluent/domain/onboarding/pending";
+import { pruneExpiredMaterial, pruneRejections } from "@mifluent/pipeline";
 import type { PgBoss } from "pg-boss";
 import { QUEUES } from "../queue.js";
 import { getDatabase, getTelegramApi, logger } from "../runtime.js";
+import { sendTrialReminders } from "./trial-reminders.js";
 
 export async function registerMaintenanceJobs(boss: PgBoss): Promise<void> {
   // Daily owner report at 08:00 UTC
@@ -23,9 +31,45 @@ export async function registerMaintenanceJobs(boss: PgBoss): Promise<void> {
     await checkAlerts();
   });
 
-  // Daily cleanup of pending onboardings at 03:00 UTC
+  // Daily at 03:00 UTC: retention, onboarding leftovers, billing.
   await boss.work(QUEUES.maintenanceDaily, async () => {
+    await pruneRetainedData();
     await cleanupPendingOnboardings();
+    await settleBilling();
+  });
+}
+
+/**
+ * What the pipeline leaves behind: rejections after two weeks, raw material
+ * after the plan's retention period, expired Telegram binding codes. History
+ * — events, cards, decisions — is never touched here (TASK-017).
+ */
+async function pruneRetainedData(): Promise<void> {
+  const db = getDatabase();
+  const now = new Date();
+
+  const rejections = await pruneRejections(db, now);
+  const items = await pruneExpiredMaterial(db, now);
+  await pruneExpiredBindings(db, now);
+  logger.info("maintenance.completed", { rejections, items });
+}
+
+/** Paid time that ran out, trials that ended, and reminders before a trial ends. */
+async function settleBilling(): Promise<void> {
+  const db = getDatabase();
+  const now = new Date();
+
+  const downgraded = await expirePaidPlans(db, now);
+  const trialsClosed = await closeEndedTrials(db, now);
+  const reminders = await listTrialReminders(db, now);
+  const telegram = getTelegramApi();
+  const sent = telegram === undefined ? 0 : await sendTrialReminders(db, telegram, reminders);
+
+  logger.info("billing.settled", {
+    downgraded: downgraded.length,
+    trialsClosed: trialsClosed.length,
+    reminders: reminders.length,
+    remindersSent: sent,
   });
 }
 

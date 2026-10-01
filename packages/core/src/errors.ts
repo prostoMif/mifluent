@@ -30,6 +30,8 @@ export type ErrorCode =
   // Email tokens
   | "invalid_token"
   | "token_expired"
+  | "refund_window_closed"
+  | "payment_not_configured"
   // Configuration and everything else
   | "configuration_invalid"
   | "internal_error";
@@ -59,6 +61,8 @@ const HTTP_STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {
 
   invalid_token: 400,
   token_expired: 401,
+  refund_window_closed: 409,
+  payment_not_configured: 503,
 
   configuration_invalid: 500,
   internal_error: 500,

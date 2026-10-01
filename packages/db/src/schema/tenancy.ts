@@ -47,12 +47,19 @@ export const tenants = pgTable(
      * migration nobody enjoys. The limits themselves live in code.
      */
     plan: text("plan").notNull().default("free"),
+    /**
+     * Until when a new account gets Pro without paying. Set by the database on
+     * insert, so every way a tenant is created gets the same trial.
+     */
+    trialEndsAt: timestamp("trial_ends_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now() + interval '14 days'`),
     ...timestamps,
     ...softDelete,
   },
   (table) => [
     index("tenants_deleted_at_idx").on(table.deletedAt),
-    check("tenants_plan_check", sql`${table.plan} IN ('free', 'pro', 'team')`),
+    check("tenants_plan_check", sql`${table.plan} IN ('free', 'starter', 'pro', 'team')`),
   ],
 );
 

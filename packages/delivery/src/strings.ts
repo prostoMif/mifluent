@@ -18,6 +18,8 @@ export interface Strings {
   readonly selfGroupHeadline: (count: number) => string;
   /** Heading of the section for pack material: laws, platform rules, market news. */
   readonly marketSection: string;
+  /** Sent three days before and on the last day of the free trial. */
+  readonly trialEnding: (daysLeft: number, pricingUrl: string) => string;
   readonly more: (count: number) => string;
   readonly emptyDigest: (period: string, sources: number, items: number) => string;
   readonly emptyDigestFirstWeek: (sources: number, items: number, closestTitle: string) => string;
@@ -114,6 +116,10 @@ const en: Strings = {
   groupHeadline: (target, count) => `${target}: ${count} changes`,
   selfGroupHeadline: (count) => `About you: ${count} mention${count === 1 ? "" : "s"}`,
   marketSection: "Your market & rules",
+  trialEnding: (daysLeft, pricingUrl) =>
+    daysLeft <= 1
+      ? `Your free Pro trial ends today. After that you keep 3 targets and a weekly digest — nothing is deleted. Plans: ${pricingUrl}`
+      : `Your free Pro trial ends in ${daysLeft} days. After that you keep 3 targets and a weekly digest — nothing is deleted. Plans: ${pricingUrl}`,
   more: (count) => `and ${count} more`,
   emptyDigest: (period, sources, items) =>
     `Nothing that concerns you for ${period}. Checked ${sources} sources, ${items} items.`,
@@ -216,6 +222,10 @@ const ru: Strings = {
   source: "источник",
   groupHeadline: (target, count) => `${target}: ${count} изменений`,
   marketSection: "В твоей стране и нише",
+  trialEnding: (daysLeft, pricingUrl) =>
+    daysLeft <= 1
+      ? `Бесплатный Pro заканчивается сегодня. Дальше — 3 цели и сводка раз в неделю, ничего не удаляется. Тарифы: ${pricingUrl}`
+      : `Бесплатный Pro закончится через ${daysLeft} дня. Дальше — 3 цели и сводка раз в неделю, ничего не удаляется. Тарифы: ${pricingUrl}`,
   selfGroupHeadline: (count) =>
     `О тебе: ${count} упоминани${count === 1 ? "е" : count < 5 ? "я" : "й"}`,
   more: (count) => `и ещё ${count}`,

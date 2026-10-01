@@ -12,7 +12,7 @@
 
 import { z } from "zod";
 
-export const PLAN_NAMES = ["free", "pro", "team"] as const;
+export const PLAN_NAMES = ["free", "starter", "pro", "team"] as const;
 
 export type PlanName = (typeof PLAN_NAMES)[number];
 
@@ -30,7 +30,15 @@ export interface PlanLimits {
   readonly dailyDigest: boolean;
   /** Maximum number of watched pages (diff sources for arbitrary URLs). */
   readonly maxWatchedPages: number;
+  /**
+   * How far back the archive is shown: the competitor page, the history. The
+   * data itself is kept on every plan; this limits what the plan displays.
+   */
+  readonly historyDays: number;
 }
+
+/** "All of it": a hundred years, so date arithmetic stays ordinary. */
+const ALL_HISTORY_DAYS = 36_500;
 
 /**
  * Starting values. `free` and `pro` are from the pricing sketch; `team` is a
@@ -46,6 +54,17 @@ const DEFAULT_PLANS: Readonly<Record<PlanName, PlanLimits>> = {
     rawRetentionDays: 30,
     dailyDigest: false,
     maxWatchedPages: 1,
+    historyDays: 30,
+  },
+  starter: {
+    maxTargets: 7,
+    maxProfiles: 1,
+    discoveryPerMonth: 3,
+    diffIntervalMin: 720,
+    rawRetentionDays: 365,
+    dailyDigest: true,
+    maxWatchedPages: 5,
+    historyDays: 365,
   },
   pro: {
     maxTargets: 15,
@@ -55,6 +74,7 @@ const DEFAULT_PLANS: Readonly<Record<PlanName, PlanLimits>> = {
     rawRetentionDays: 365,
     dailyDigest: true,
     maxWatchedPages: 20,
+    historyDays: ALL_HISTORY_DAYS,
   },
   team: {
     maxTargets: 50,
@@ -64,6 +84,7 @@ const DEFAULT_PLANS: Readonly<Record<PlanName, PlanLimits>> = {
     rawRetentionDays: 3650,
     dailyDigest: true,
     maxWatchedPages: 100,
+    historyDays: ALL_HISTORY_DAYS,
   },
 };
 
@@ -84,6 +105,7 @@ const overrideSchema = z
     rawRetentionDays: z.coerce.number().int().min(1),
     dailyDigest: booleanish,
     maxWatchedPages: count,
+    historyDays: z.coerce.number().int().min(1),
   })
   .partial()
   .strict();
@@ -121,6 +143,7 @@ export function resolvePlans(overrides: PlanOverrides = {}): Record<PlanName, Pl
       rawRetentionDays: override.rawRetentionDays ?? base.rawRetentionDays,
       dailyDigest: override.dailyDigest ?? base.dailyDigest,
       maxWatchedPages: override.maxWatchedPages ?? base.maxWatchedPages,
+      historyDays: override.historyDays ?? base.historyDays,
     };
   }
 

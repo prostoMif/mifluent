@@ -107,6 +107,18 @@ const configSchema = z.object({
     .min(32, "must be at least 32 characters — generate one with: openssl rand -hex 32")
     .optional(),
 
+  /**
+   * The shop's Prodamus payment page, e.g. https://myshop.payform.ru. Absent
+   * means payments are off: the pricing page shows plans without a pay button.
+   */
+  PRODAMUS_URL: httpUrl.optional(),
+  /** The shop's secret key from the Prodamus dashboard; signs notifications. */
+  PRODAMUS_SECRET: z.string().min(16).optional(),
+  /** Whether the shop accepts foreign cards, so dollar prices can be charged. */
+  PRODAMUS_FOREIGN_CARDS: booleanish.default(false),
+  /** How many Pro accounts get the early price, across both markets. */
+  EARLY_SEATS: z.coerce.number().int().min(0).default(100),
+
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().default(587),
   SMTP_USER: z.string().optional(),

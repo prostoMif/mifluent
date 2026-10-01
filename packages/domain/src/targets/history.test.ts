@@ -381,7 +381,7 @@ describe("getHistoryDaysLimit", () => {
     vi.clearAllMocks();
   });
 
-  it("returns rawRetentionDays from plan limits", async () => {
+  it("returns how far back the plan shows the archive", async () => {
     // Reset modules to clear cache
     vi.resetModules();
 
@@ -401,9 +401,10 @@ describe("getHistoryDaysLimit", () => {
           maxProfiles: 1,
           discoveryPerMonth: 1,
           diffIntervalMin: 1440,
-          rawRetentionDays: 30,
+          rawRetentionDays: 365,
           dailyDigest: false,
           maxWatchedPages: 1,
+          historyDays: 30,
         },
       }),
     }));

@@ -21,18 +21,35 @@ export interface TenantPlan {
   readonly limits: PlanLimits;
 }
 
-export async function findTenantPlan(db: Queryable, tenantId: string): Promise<TenantPlan> {
+export async function findTenantPlan(
+  db: Queryable,
+  tenantId: string,
+  now: Date = new Date(),
+): Promise<TenantPlan> {
   const [row] = await db
-    .select({ plan: schema.tenants.plan })
+    .select({ plan: schema.tenants.plan, trialEndsAt: schema.tenants.trialEndsAt })
     .from(schema.tenants)
     .where(and(eq(schema.tenants.id, tenantId), isNull(schema.tenants.deletedAt)))
     .limit(1);
 
-  // The column has a check constraint, so anything else is a row written by
-  // hand; the safe reading of it is the smallest plan.
-  const name: PlanName = row !== undefined && isPlanName(row.plan) ? row.plan : "free";
+  const name = effectivePlan(row, now);
   const plans = resolvePlans(getConfig().planOverrides);
   return { name, limits: plans[name] };
+}
+
+/**
+ * The paid plan, or Pro during the free trial, or Free. The column has a
+ * check constraint, so an unknown value is a row written by hand; the safe
+ * reading of it is the smallest plan.
+ */
+export function effectivePlan(
+  row: { readonly plan: string; readonly trialEndsAt?: Date | null } | undefined,
+  now: Date,
+): PlanName {
+  if (row === undefined || !isPlanName(row.plan)) return "free";
+  if (row.plan !== "free") return row.plan;
+  const isInTrial = row.trialEndsAt != null && row.trialEndsAt.getTime() > now.getTime();
+  return isInTrial ? "pro" : "free";
 }
 
 export async function setTenantPlan(

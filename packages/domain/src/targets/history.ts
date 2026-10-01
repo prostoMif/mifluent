@@ -8,6 +8,7 @@
 
 import { type Queryable, schema, scoped, scopedAlive } from "@mifluent/db";
 import { and, desc, eq, gte, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
+import { findTenantPlan } from "../plans/limits.js";
 
 export const PAGE_SIZE = 30;
 
@@ -652,22 +653,8 @@ export async function fetchCheckCount(
   return row?.count ?? 0;
 }
 
-/**
- * Get the historyDays limit for the tenant's plan.
- */
-import { findTenantPlan } from "../plans/limits.js";
-
+/** How far back the tenant's plan shows the archive. */
 export async function getHistoryDaysLimit(db: Queryable, tenantId: string): Promise<number> {
   const { limits } = await findTenantPlan(db, tenantId);
-
-  // Free: 30 days, Starter/Pro/Team: full history (represented as a large number)
-  // The task says: Free — 30 days, Starter — 1 year, Pro and Team — all history
-  // If starter doesn't exist yet, use historyDays from plan (TASK-026 will set 365)
-  // For now, we'll use rawRetentionDays as a proxy, but the task mentions a specific
-  // historyDays field. Let's check the plan limits.
-  // Actually, the task says: "Если тарифа `starter` ещё нет (TASK-026 позже) — брать поле `historyDays` из тарифа, 026 проставит 365."
-  // Since PlanLimits doesn't have historyDays yet, we'll use rawRetentionDays for now.
-  // Free has rawRetentionDays: 30, Pro: 365, Team: 3650
-  // This aligns with: Free 30 days, Pro/Team all history (365+ days)
-  return limits.rawRetentionDays;
+  return limits.historyDays;
 }
