@@ -13,7 +13,7 @@ import { z } from "zod";
 import { describeBusiness, type ProfileContext } from "../profile.js";
 import { oneLine } from "./selection.js";
 
-export const EXTRACTION_PROMPT_VERSION = "extraction-2026-09-24";
+export const EXTRACTION_PROMPT_VERSION = "extraction-2026-09-30";
 
 export const extractionSchema = z.object({
   summary: z.string().min(1).max(300),

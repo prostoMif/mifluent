@@ -94,9 +94,12 @@ function renderCard(
   strings: Strings,
   options: RenderOptions,
 ): OutgoingMessage {
+  const isSelfTarget = card.targetKind === "self";
   const headline =
     card.kind === "group"
-      ? strings.groupHeadline(card.headline, card.blocks.length + card.moreCount)
+      ? isSelfTarget
+        ? strings.selfGroupHeadline(card.blocks.length + card.moreCount)
+        : strings.groupHeadline(card.headline, card.blocks.length + card.moreCount)
       : card.headline;
   const age = card.ageDays === null ? "" : ` <i>(${escapeHtml(strings.age(card.ageDays))})</i>`;
 

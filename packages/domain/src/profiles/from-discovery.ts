@@ -42,10 +42,12 @@ export async function createProfileFromDiscovery(
   const profileId = uuidv7();
 
   await db.transaction(async (transaction) => {
+    // Count targets excluding 'self' kind for plan limit
+    const targetCount = input.targets.filter((t) => t.kind !== "self").length;
     await assertProfileWithinPlan(transaction, {
       tenantId,
       profileId: undefined,
-      targetCount: input.targets.length,
+      targetCount,
     });
 
     await createWatchProfile(transaction, tenantId, profileId, input);
@@ -118,9 +120,15 @@ async function createSources(
 ): Promise<void> {
   const targetIds = await findTargetIds(transaction, tenantId, profileId);
   const { limits } = await findTenantPlan(transaction, tenantId);
+  const isFreePlan =
+    limits.maxTargets === 3 && limits.maxProfiles === 1 && limits.discoveryPerMonth === 1;
   const seen = new Set<string>();
 
   for (const target of input.targets) {
+    const isSelfTarget = target.kind === "self";
+    // On Free plan, self target sources are paused
+    const status = isSelfTarget && isFreePlan ? "paused" : "active";
+
     for (const surface of target.surfaces) {
       const kind = SOURCE_KIND_BY_SURFACE[surface.type];
       const key = `${kind} ${surface.url}`;
@@ -133,6 +141,7 @@ async function createSources(
         profileId,
         targetId: targetIds.get(target.name.toLowerCase()) ?? null,
         kind,
+        status,
         label: `${target.name} — ${surface.label}`.slice(0, 120),
         locator: surface.url,
         pollIntervalMinutes:

@@ -23,6 +23,7 @@ export interface EventForCard {
   readonly createdAt: Date;
   readonly targetId: string | null;
   readonly targetName: string | null;
+  readonly targetKind: "competitor" | "platform" | "condition" | "self" | null;
   readonly sourceUrl: string | null;
   readonly facts: readonly { readonly statement: string; readonly quote: string }[];
 }
@@ -45,6 +46,7 @@ export interface CardDraft {
   readonly moreCount: number;
   readonly isUrgent: boolean;
   readonly blocks: readonly BlockDraft[];
+  readonly targetKind: "competitor" | "platform" | "condition" | "self" | null;
 }
 
 /** Past this many events a weekly digest stops being read; related ones are folded. */
@@ -148,6 +150,7 @@ function eventCard(event: EventForCard, periodEnd: Date): CardDraft {
     moreCount: 0,
     isUrgent: event.isUrgent,
     blocks,
+    targetKind: event.targetKind,
   };
 }
 
@@ -173,6 +176,7 @@ function groupCard(members: readonly EventForCard[], periodEnd: Date): CardDraft
     moreCount: Math.max(0, members.length - GROUP_FACTS_SHOWN),
     isUrgent: false,
     blocks: facts.slice(0, GROUP_FACTS_SHOWN),
+    targetKind: first.targetKind,
   };
 }
 

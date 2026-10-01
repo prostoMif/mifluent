@@ -12,6 +12,10 @@ vi.mock("@mifluent/core", () => ({
     TELEGRAM_BOT_USERNAME: "test_bot",
     features: { llm: true, telegram: true, email: true, googleSignIn: true, reddit: true },
   })),
+  httpUrlSchema: vi.fn(() => ({
+    parse: (value: string) => value,
+    safeParse: (value: string) => ({ success: true, data: value }),
+  })),
 }));
 vi.mock("@mifluent/domain", () => ({
   findCardOwner: vi.fn(),

@@ -66,6 +66,8 @@ export const watchTargetKindEnum = pgEnum("watch_target_kind", [
   "platform",
   /** External conditions: taxes, tariffs, regulation, rates. */
   "condition",
+  /** The business itself — for brand mention monitoring. */
+  "self",
 ]);
 
 export const watchProfiles = pgTable(

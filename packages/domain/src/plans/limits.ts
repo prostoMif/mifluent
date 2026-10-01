@@ -181,3 +181,46 @@ async function countTargetsOutside(
     );
   return row?.total ?? 0;
 }
+
+export interface WatchedPagesAllowance {
+  readonly used: number;
+  readonly limit: number;
+  readonly remaining: number;
+}
+
+/** Count diff sources that are not linked to a watch target (arbitrary page watches). */
+export async function readWatchedPagesAllowance(
+  db: Queryable,
+  tenantId: string,
+): Promise<WatchedPagesAllowance> {
+  const { limits } = await findTenantPlan(db, tenantId);
+  const [row] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(schema.sources)
+    .where(
+      scoped(
+        schema.sources,
+        tenantId,
+        eq(schema.sources.kind, "diff"),
+        isNull(schema.sources.targetId),
+        isNull(schema.sources.deletedAt),
+      ),
+    );
+  const used = row?.total ?? 0;
+  return {
+    used,
+    limit: limits.maxWatchedPages,
+    remaining: Math.max(0, limits.maxWatchedPages - used),
+  };
+}
+
+export async function assertCanWatchPage(db: Queryable, tenantId: string): Promise<void> {
+  const allowance = await readWatchedPagesAllowance(db, tenantId);
+  if (allowance.remaining === 0) {
+    throw new AppError(
+      "plan_limit_reached",
+      `Your plan allows ${allowance.limit} watched page(s), and all are in use. Remove one or change plan.`,
+      { limit: allowance.limit, used: allowance.used },
+    );
+  }
+}

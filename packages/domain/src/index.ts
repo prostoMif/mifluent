@@ -56,14 +56,17 @@ export {
 } from "./onboarding/pending.js";
 export {
   assertCanRunDiscovery,
+  assertCanWatchPage,
   assertProfileWithinPlan,
   type DiscoveryAllowance,
   findTenantPlan,
   readDiscoveryAllowance,
   readTargetAllowance,
+  readWatchedPagesAllowance,
   setTenantPlan,
   type TargetAllowance,
   type TenantPlan,
+  type WatchedPagesAllowance,
 } from "./plans/limits.js";
 export {
   type CreateFromDiscoveryOptions,

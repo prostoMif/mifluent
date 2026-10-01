@@ -15,6 +15,7 @@ export interface Strings {
   readonly modelInterpretation: string;
   readonly source: string;
   readonly groupHeadline: (target: string, count: number) => string;
+  readonly selfGroupHeadline: (count: number) => string;
   readonly more: (count: number) => string;
   readonly emptyDigest: (period: string, sources: number, items: number) => string;
   readonly emptyDigestFirstWeek: (sources: number, items: number, closestTitle: string) => string;
@@ -66,6 +67,12 @@ export interface Strings {
     readonly progressCheckingPrices: string;
     readonly progressAlmostDone: string;
   };
+  readonly watch: {
+    readonly help: string;
+    readonly baselineRecorded: string;
+    readonly cannotRead: string;
+    readonly limitReached: (limit: number) => string;
+  };
 }
 
 const en: Strings = {
@@ -76,6 +83,7 @@ const en: Strings = {
   modelInterpretation: "Model's interpretation ⚠",
   source: "source",
   groupHeadline: (target, count) => `${target}: ${count} changes`,
+  selfGroupHeadline: (count) => `About you: ${count} mention${count === 1 ? "" : "s"}`,
   more: (count) => `and ${count} more`,
   emptyDigest: (period, sources, items) =>
     `Nothing that concerns you for ${period}. Checked ${sources} sources, ${items} items.`,
@@ -136,6 +144,14 @@ const en: Strings = {
     progressCheckingPrices: "Checking pricing pages…",
     progressAlmostDone: "Almost done…",
   },
+  watch: {
+    help: "Send /watch followed by a URL to start watching a page for changes. Example: /watch https://competitor.com/pricing",
+    baselineRecorded: "Got it. I've saved the page and will let you know when it changes.",
+    cannotRead:
+      "I can't read that page — it may require a login or use JavaScript to render. Try a public page instead.",
+    limitReached: (limit) =>
+      `You've reached the limit of ${limit} watched pages for your plan. Remove one or upgrade to watch more.`,
+  },
 };
 
 const ru: Strings = {
@@ -146,6 +162,8 @@ const ru: Strings = {
   modelInterpretation: "Интерпретация модели ⚠",
   source: "источник",
   groupHeadline: (target, count) => `${target}: ${count} изменений`,
+  selfGroupHeadline: (count) =>
+    `О тебе: ${count} упоминани${count === 1 ? "е" : count < 5 ? "я" : "й"}`,
   more: (count) => `и ещё ${count}`,
   emptyDigest: (period, sources, items) =>
     `Ничего, что тебя касается, за ${period}. Проверено ${sources} источников, ${items} материалов.`,
@@ -205,6 +223,14 @@ const ru: Strings = {
     progressCheckingBlogs: "Проверяю, где блог и цены…",
     progressCheckingPrices: "Проверяю страницы цен…",
     progressAlmostDone: "Почти готово…",
+  },
+  watch: {
+    help: "Пришли /watch и ссылку, чтобы начать следить за страницей. Пример: /watch https://competitor.com/pricing",
+    baselineRecorded: "Понял. Запомнил страницу, пришлю, когда изменится.",
+    cannotRead:
+      "Не могу прочитать эту страницу — возможно, она за логином или рендерится через JavaScript. Попробуй публичную страницу.",
+    limitReached: (limit) =>
+      `Лимит отслеживаемых страниц для твоего тарифа — ${limit}. Удали одну или смени тариф, чтобы добавить больше.`,
   },
 };
 

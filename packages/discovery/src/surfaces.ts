@@ -105,6 +105,53 @@ export async function findTargetSurfaces(
   return surfaces;
 }
 
+/**
+ * Surfaces for the 'self' target (brand mentions).
+ * Google News for both languages, Reddit and HN only for English.
+ */
+export async function findSelfSurfaces(
+  business: { readonly name: string; readonly websiteUrl: string | null },
+  context: { readonly prober: Prober; readonly language: "en" | "ru" },
+): Promise<Surface[]> {
+  const surfaces: Surface[] = [];
+  const { prober, language } = context;
+
+  // Google News: search for business name OR domain
+  const queryParts = [`"${business.name}"`];
+  if (business.websiteUrl !== null) {
+    try {
+      const domain = new URL(business.websiteUrl).hostname.replace(/^www\./, "");
+      queryParts.push(`"${domain}"`);
+    } catch {
+      // Invalid URL, skip domain
+    }
+  }
+  const query = queryParts.join(" OR ");
+  const region = language === "ru" ? "hl=ru&gl=RU&ceid=RU:ru" : "hl=en-US&gl=US&ceid=US:en";
+  const newsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&${region}`;
+  surfaces.push({
+    ...querySurface(newsUrl, "Google News"),
+    verified: await prober.isFeed(newsUrl),
+  });
+
+  // Reddit and HN only for English
+  if (language === "en") {
+    const redditUrl = `https://www.reddit.com/search.rss?q=${encodeURIComponent(`"${business.name}"`)}&sort=new`;
+    const redditVerified = await prober.isFeed(redditUrl);
+    if (redditVerified) {
+      surfaces.push({ ...querySurface(redditUrl, "Reddit"), verified: true });
+    }
+
+    const hnUrl = `https://hnrss.org/newest?q=${encodeURIComponent(business.name)}`;
+    const hnVerified = await prober.isFeed(hnUrl);
+    if (hnVerified) {
+      surfaces.push({ ...querySurface(hnUrl, "Hacker News"), verified: true });
+    }
+  }
+
+  return surfaces;
+}
+
 export async function findConditionSurfaces(
   condition: { readonly name: string; readonly newsQuery?: string },
   context: { readonly prober: Prober; readonly language: "en" | "ru" },

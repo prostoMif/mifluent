@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AVAILABLE_SOURCE_KINDS,
   DEFAULT_POLL_INTERVAL_MINUTES,
   type SourceSummary,
   sourceInputSchema,
@@ -10,6 +11,7 @@ import { type FormEvent, useState } from "react";
 import styles from "@/components/profiles/profiles.module.css";
 import formStyles from "@/components/ui/form.module.css";
 import { Notice } from "@/components/ui/notice";
+import { SelectField } from "@/components/ui/select-field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { TextField } from "@/components/ui/text-field";
 import { sendRequest } from "@/lib/api-client";
@@ -27,6 +29,7 @@ export function SourcesPanel({ profileId, sources, canEdit }: SourcesPanelProps)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | undefined>(undefined);
   const [isPending, setIsPending] = useState(false);
+  const [kind, setKind] = useState<"rss" | "diff">("rss");
 
   async function handleAdd(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -34,7 +37,7 @@ export function SourcesPanel({ profileId, sources, canEdit }: SourcesPanelProps)
     const form = event.currentTarget;
     const values = new FormData(form);
     const parsed = sourceInputSchema.safeParse({
-      kind: "rss",
+      kind,
       label: values.get("label"),
       locator: values.get("locator"),
       pollIntervalMinutes: values.get("pollIntervalMinutes"),
@@ -80,6 +83,15 @@ export function SourcesPanel({ profileId, sources, canEdit }: SourcesPanelProps)
     }
   }
 
+  const isDiff = kind === "diff";
+  const labelPlaceholder = isDiff
+    ? "What to call it (e.g., Competitor pricing)"
+    : "What to call it";
+  const locatorLabel = isDiff ? "Page address" : "Feed address";
+  const locatorHint = isDiff
+    ? "Any public page URL — e.g., https://competitor.com/pricing"
+    : "For example https://example.com/feed.xml";
+
   return (
     <section aria-labelledby="sources-heading" className={styles["section"]}>
       <h2 className={styles["sectionTitle"]} id="sources-heading">
@@ -123,10 +135,23 @@ export function SourcesPanel({ profileId, sources, canEdit }: SourcesPanelProps)
 
       {canEdit ? (
         <form className={formStyles["form"]} onSubmit={handleAdd} noValidate>
+          <SelectField
+            id="source-kind"
+            name="kind"
+            label="Source type"
+            value={kind}
+            onChange={(value) => setKind(value as "rss" | "diff")}
+            options={AVAILABLE_SOURCE_KINDS.map((k) => ({
+              value: k,
+              label: k === "rss" ? "Feed (RSS/Atom)" : "Watch a page (diff)",
+            }))}
+            error={fieldErrors["kind"] ?? ""}
+          />
+
           <TextField
             id="source-label"
             name="label"
-            label="What to call it"
+            label={labelPlaceholder}
             required
             error={fieldErrors["label"]}
           />
@@ -136,8 +161,8 @@ export function SourcesPanel({ profileId, sources, canEdit }: SourcesPanelProps)
             name="locator"
             type="url"
             inputMode="url"
-            label="Feed address"
-            hint="For example https://example.com/feed.xml"
+            label={locatorLabel}
+            hint={locatorHint}
             required
             error={fieldErrors["locator"]}
           />
@@ -154,7 +179,11 @@ export function SourcesPanel({ profileId, sources, canEdit }: SourcesPanelProps)
           />
 
           <div className={formStyles["actions"]}>
-            <SubmitButton isPending={isPending} label="Add source" pendingLabel="Adding…" />
+            <SubmitButton
+              isPending={isPending}
+              label={isDiff ? "Watch page" : "Add source"}
+              pendingLabel={isDiff ? "Saving…" : "Adding…"}
+            />
           </div>
         </form>
       ) : null}

@@ -19,7 +19,7 @@ export type ProfileLanguage = "en" | "ru";
 
 export interface ProfileTarget {
   readonly id: string;
-  readonly kind: "competitor" | "platform" | "condition";
+  readonly kind: "competitor" | "platform" | "condition" | "self";
   readonly name: string;
   readonly reason: string | null;
   readonly aliases: readonly string[];

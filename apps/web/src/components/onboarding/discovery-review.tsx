@@ -39,7 +39,7 @@ interface SurfaceRow extends Surface {
 
 interface TargetRow {
   readonly key: string;
-  readonly kind: "competitor" | "platform" | "condition";
+  readonly kind: "competitor" | "platform" | "condition" | "self";
   readonly name: string;
   readonly websiteUrl: string | null;
   readonly reason: string | null;
@@ -60,6 +60,7 @@ const KIND_LABELS: Readonly<Record<TargetRow["kind"], string>> = {
   competitor: "Competitor",
   platform: "Platform you depend on",
   condition: "Market condition",
+  self: "Your brand",
 };
 
 const MONETIZATION = ["free", "trial", "subscription", "one_time", "unknown"] as const;

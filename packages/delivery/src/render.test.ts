@@ -38,6 +38,7 @@ const card = {
   ageDays: 3,
   moreCount: 0,
   isUrgent: false,
+  targetKind: null,
   blocks: [
     {
       kind: "fact" as const,

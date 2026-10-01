@@ -11,7 +11,7 @@
 import { httpUrlSchema } from "@mifluent/core";
 import { z } from "zod";
 
-export const WATCH_TARGET_KINDS = ["competitor", "platform", "condition"] as const;
+export const WATCH_TARGET_KINDS = ["competitor", "platform", "condition", "self"] as const;
 
 export type WatchTargetKind = (typeof WATCH_TARGET_KINDS)[number];
 

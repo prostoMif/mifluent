@@ -298,6 +298,7 @@ async function loadEventsForCards(
       createdAt: schema.events.createdAt,
       targetId: schema.events.targetId,
       targetName: schema.watchTargets.name,
+      targetKind: schema.watchTargets.kind,
       sourceUrl: schema.rawItems.url,
     })
     .from(schema.events)

@@ -17,7 +17,7 @@ export const surfaceSchema = z.object({
 
 export type Surface = z.infer<typeof surfaceSchema>;
 
-export const TARGET_KINDS = ["competitor", "platform", "condition"] as const;
+export const TARGET_KINDS = ["competitor", "platform", "condition", "self"] as const;
 
 export const businessSchema = z.object({
   name: z.string().max(200),
@@ -32,6 +32,7 @@ export const businessSchema = z.object({
   region: z.string().max(10).optional(),
   customerType: z.string().max(100),
   language: z.enum(["en", "ru"]),
+  websiteUrl: z.string().nullable().optional(),
 });
 
 export type Business = z.infer<typeof businessSchema>;
@@ -70,7 +71,9 @@ export type DiscoveryResult = z.infer<typeof discoveryResultSchema>;
 
 /** What the model is asked for. Surfaces are found by code, not by the model. */
 export const modelAnswerSchema = z.object({
-  business: businessSchema,
+  business: businessSchema.extend({
+    websiteUrl: z.string().max(300).nullable().optional(),
+  }),
   targets: z
     .array(
       z.object({

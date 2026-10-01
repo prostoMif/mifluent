@@ -28,6 +28,8 @@ export interface PlanLimits {
   readonly rawRetentionDays: number;
   /** Whether the daily cadence may be chosen. Weekly is always allowed. */
   readonly dailyDigest: boolean;
+  /** Maximum number of watched pages (diff sources for arbitrary URLs). */
+  readonly maxWatchedPages: number;
 }
 
 /**
@@ -43,6 +45,7 @@ const DEFAULT_PLANS: Readonly<Record<PlanName, PlanLimits>> = {
     diffIntervalMin: 1440,
     rawRetentionDays: 30,
     dailyDigest: false,
+    maxWatchedPages: 1,
   },
   pro: {
     maxTargets: 15,
@@ -51,6 +54,7 @@ const DEFAULT_PLANS: Readonly<Record<PlanName, PlanLimits>> = {
     diffIntervalMin: 360,
     rawRetentionDays: 365,
     dailyDigest: true,
+    maxWatchedPages: 20,
   },
   team: {
     maxTargets: 50,
@@ -59,6 +63,7 @@ const DEFAULT_PLANS: Readonly<Record<PlanName, PlanLimits>> = {
     diffIntervalMin: 60,
     rawRetentionDays: 3650,
     dailyDigest: true,
+    maxWatchedPages: 100,
   },
 };
 
@@ -78,6 +83,7 @@ const overrideSchema = z
     diffIntervalMin: z.coerce.number().int().min(10),
     rawRetentionDays: z.coerce.number().int().min(1),
     dailyDigest: booleanish,
+    maxWatchedPages: count,
   })
   .partial()
   .strict();
@@ -114,6 +120,7 @@ export function resolvePlans(overrides: PlanOverrides = {}): Record<PlanName, Pl
       diffIntervalMin: override.diffIntervalMin ?? base.diffIntervalMin,
       rawRetentionDays: override.rawRetentionDays ?? base.rawRetentionDays,
       dailyDigest: override.dailyDigest ?? base.dailyDigest,
+      maxWatchedPages: override.maxWatchedPages ?? base.maxWatchedPages,
     };
   }
 

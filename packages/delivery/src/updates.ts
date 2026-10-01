@@ -16,7 +16,16 @@ import type { Logger } from "@mifluent/core";
 import { getConfig, uuidv7 } from "@mifluent/core";
 import type { Queryable } from "@mifluent/db";
 import { schema, scoped } from "@mifluent/db";
-import { findCardOwner, isCardAction, recordCardAction } from "@mifluent/domain";
+import {
+  assertCanWatchPage,
+  createSource,
+  findCardOwner,
+  isCardAction,
+  readWatchedPagesAllowance,
+  recordCardAction,
+  recordPageBaseline,
+} from "@mifluent/domain";
+import { htmlToText, safeFetch } from "@mifluent/sources";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { consumeBindingCode, deliverFirstDigestOnBind } from "./bind.js";
@@ -62,6 +71,7 @@ export interface HandleUpdateOptions {
 }
 
 const START_COMMAND = /^\/start(?:@\w+)?(?:\s+([A-Za-z0-9]{4,32}))?\s*$/;
+const WATCH_COMMAND = /^\/watch(?:@\w+)?(?:\s+(\S+))?\s*$/;
 
 /** First 8 characters of a UUID (after the first hyphen group). */
 /**
@@ -135,14 +145,23 @@ async function handleMessage(
 ): Promise<void> {
   const chatId = String(message.chat.id);
   const strings = stringsFor(message.from?.language_code?.startsWith("ru") === true ? "ru" : "en");
-  const match = START_COMMAND.exec(message.text?.trim() ?? "");
-  const code = match?.[1];
+  const text = message.text?.trim() ?? "";
 
   // Check if this is a reply to our "What did you decide?" question
   if (message.reply_to_message?.text?.includes(strings.callback.influencedPrompt) ?? false) {
     await handleInfluencedReply(options, message, strings);
     return;
   }
+
+  // Check for /watch command
+  const watchMatch = WATCH_COMMAND.exec(text);
+  if (watchMatch !== null) {
+    await handleWatchCommand(options, chatId, strings, watchMatch[1]);
+    return;
+  }
+
+  const match = START_COMMAND.exec(text);
+  const code = match?.[1];
 
   if (code === undefined) {
     await options.api.sendMessage(chatId, { text: strings.binding.help });
@@ -334,4 +353,106 @@ async function handleButton(
   });
   options.logger.info("telegram.button_recorded", { tenantId: owner.tenantId, action });
   await options.api.answerCallbackQuery(query.id, strings.callback.recorded);
+}
+
+async function handleWatchCommand(
+  options: HandleUpdateOptions,
+  chatId: string,
+  strings: ReturnType<typeof stringsFor>,
+  url: string | undefined,
+): Promise<void> {
+  if (!url) {
+    await options.api.sendMessage(chatId, { text: strings.watch.help });
+    return;
+  }
+
+  // Validate URL
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      await options.api.sendMessage(chatId, { text: strings.watch.help });
+      return;
+    }
+  } catch {
+    await options.api.sendMessage(chatId, { text: strings.watch.help });
+    return;
+  }
+
+  // Find the profile bound to this chat
+  const [profile] = await options.db
+    .select({ id: schema.watchProfiles.id, tenantId: schema.watchProfiles.tenantId })
+    .from(schema.watchProfiles)
+    .where(sql`(${schema.watchProfiles.delivery}->>'telegramChatId') = ${chatId}`)
+    .limit(1);
+
+  if (!profile) {
+    await options.api.sendMessage(chatId, { text: strings.binding.invalidCode });
+    return;
+  }
+
+  // Check watched pages limit
+  try {
+    await assertCanWatchPage(options.db, profile.tenantId);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "plan_limit_reached") {
+      const allowance = await readWatchedPagesAllowance(options.db, profile.tenantId);
+      await options.api.sendMessage(chatId, { text: strings.watch.limitReached(allowance.limit) });
+      return;
+    }
+    throw error;
+  }
+
+  // Fetch the page to verify it's readable
+  const USER_AGENT = "Mifluent/1.0";
+  try {
+    const result = await safeFetch({
+      url,
+      userAgent: USER_AGENT,
+      maxBytes: 5 * 1024 * 1024, // 5 MB
+    });
+
+    if (result.isUnchanged) {
+      // 304 - shouldn't happen on first fetch
+      await options.api.sendMessage(chatId, { text: strings.watch.cannotRead });
+      return;
+    }
+
+    const html = result.body.toString("utf-8");
+    const extractedText = htmlToText(html).trim();
+
+    if (extractedText.length < 200) {
+      // Page is too short (likely login page, error, or JS-rendered)
+      await options.api.sendMessage(chatId, { text: strings.watch.cannotRead });
+      return;
+    }
+
+    // Create the diff source
+    const sourceId = await createSource({
+      db: options.db,
+      tenantId: profile.tenantId,
+      profileId: profile.id,
+      input: {
+        kind: "diff",
+        label: `Page watch: ${parsedUrl.hostname}`,
+        locator: url,
+        pollIntervalMinutes: 1440, // Daily default, will be adjusted by plan
+      },
+      targetId: null, // No target for arbitrary page watches
+    });
+
+    // Record baseline
+    await recordPageBaseline(options.db, {
+      tenantId: profile.tenantId,
+      sourceId,
+      contentHash: "",
+      extractedText,
+      fetchedAt: new Date(),
+    });
+
+    await options.api.sendMessage(chatId, { text: strings.watch.baselineRecorded });
+  } catch (error) {
+    options.logger.error("telegram.watch_failed", { url, error: String(error) });
+    await options.api.sendMessage(chatId, { text: strings.watch.cannotRead });
+  }
 }

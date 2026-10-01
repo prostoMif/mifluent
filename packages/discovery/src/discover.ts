@@ -18,7 +18,7 @@ import { findInternalLinks } from "./page-links.js";
 import { createProber, type Prober } from "./probe.js";
 import { buildDiscoverPrompt, DISCOVER_PROMPT_VERSION } from "./prompts/discover.js";
 import { type DiscoveryResult, type ModelAnswer, modelAnswerSchema } from "./schemas.js";
-import { findConditionSurfaces, findTargetSurfaces } from "./surfaces.js";
+import { findConditionSurfaces, findSelfSurfaces, findTargetSurfaces } from "./surfaces.js";
 
 export interface DiscoverOptions {
   /** A website address, or a sentence describing the business. */
@@ -112,6 +112,19 @@ async function assemble(
     };
   });
 
+  // Add self target for brand mentions
+  const selfTarget = {
+    kind: "self" as const,
+    name: answer.business.name,
+    websiteUrl: answer.business.websiteUrl ?? null,
+    reason: "Monitor mentions of your own brand and product.",
+    newsQuery: undefined,
+    surfaces: await findSelfSurfaces(
+      { name: answer.business.name, websiteUrl: answer.business.websiteUrl ?? null },
+      context,
+    ),
+  };
+
   const conditions = await Promise.all(
     answer.conditions.map(async (condition) => {
       const conditionForSurfaces = {
@@ -134,7 +147,7 @@ async function assemble(
     extraCountries: answer.business.extraCountries ?? [],
   };
 
-  return { business, targets, conditions, needsDescription: false };
+  return { business, targets: [...targets, selfTarget], conditions, needsDescription: false };
 }
 
 /** Homepage plus linked internal pages as one text, or null for a business-card site. */

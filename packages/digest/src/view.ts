@@ -27,6 +27,7 @@ export interface DigestCardView {
   readonly moreCount: number;
   readonly isUrgent: boolean;
   readonly blocks: readonly DigestBlockView[];
+  readonly targetKind: "competitor" | "platform" | "condition" | "self" | null;
 }
 
 export interface DigestView {
@@ -138,9 +139,11 @@ async function withCards(db: Queryable, row: DigestRow): Promise<DigestView> {
       ageDays: schema.digestCards.ageDays,
       moreCount: schema.digestCards.moreCount,
       isUrgent: schema.events.isUrgent,
+      targetKind: schema.watchTargets.kind,
     })
     .from(schema.digestCards)
     .innerJoin(schema.events, eq(schema.events.id, schema.digestCards.eventId))
+    .leftJoin(schema.watchTargets, eq(schema.events.targetId, schema.watchTargets.id))
     .where(scoped(schema.digestCards, row.tenantId, eq(schema.digestCards.digestId, row.id)))
     .orderBy(asc(schema.digestCards.position));
 
@@ -189,6 +192,7 @@ async function withCards(db: Queryable, row: DigestRow): Promise<DigestView> {
     cards: cards.map((card) => ({
       ...card,
       kind: card.kind === "group" ? "group" : "event",
+      targetKind: card.targetKind ?? null,
       blocks: blocks
         .filter((block) => block.cardId === card.id)
         .map(({ kind, content, quote, sourceUrl }) => ({ kind, content, quote, sourceUrl })),

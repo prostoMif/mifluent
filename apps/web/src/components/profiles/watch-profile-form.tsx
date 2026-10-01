@@ -41,6 +41,7 @@ const KIND_LABELS: Readonly<Record<WatchTargetKind, string>> = {
   competitor: "Competitor — sells to the same people",
   platform: "Platform — something you depend on",
   condition: "Condition — tax, regulation, rates",
+  self: "Your brand — mentions of your product",
 };
 
 const COMMON_COUNTRIES = [

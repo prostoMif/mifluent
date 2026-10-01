@@ -15,6 +15,7 @@ function event(overrides: Partial<EventForCard> = {}): EventForCard {
     createdAt: new Date("2026-09-25T09:00:00Z"),
     targetId: null,
     targetName: null,
+    targetKind: null,
     sourceUrl: "https://usefathom.com/pricing",
     facts: [{ statement: "Business is now $99", quote: "Business plan: $99 per month" }],
     ...overrides,

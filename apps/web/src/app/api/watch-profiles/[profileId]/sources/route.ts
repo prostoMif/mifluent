@@ -5,7 +5,7 @@
  */
 
 import { AppError, isUuid, parseOrThrow } from "@mifluent/core";
-import { createSource, sourceInputSchema } from "@mifluent/domain";
+import { assertCanWatchPage, createSource, sourceInputSchema } from "@mifluent/domain";
 import { readJsonBody, route } from "@/lib/api";
 import { assertSameOrigin } from "@/lib/csrf";
 import { getDatabase } from "@/lib/db";
@@ -27,6 +27,11 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     }
 
     const input = parseOrThrow(sourceInputSchema, await readJsonBody(request));
+
+    // For diff sources without a target (arbitrary page watches), check the limit
+    if (input.kind === "diff") {
+      await assertCanWatchPage(getDatabase(), session.tenantId);
+    }
 
     /*
      * The address is only checked for shape here. Whether it is safe to fetch
