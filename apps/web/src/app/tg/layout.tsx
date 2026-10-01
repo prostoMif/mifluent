@@ -9,7 +9,7 @@
  */
 
 import type { ReactNode } from "react";
-import "./tg.module.css";
+import "./tg-theme.css";
 
 export default function TgLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (

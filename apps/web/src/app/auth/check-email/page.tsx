@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Notice } from "@/components/ui/notice";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { sendRequest } from "@/lib/api-client";
 import { toDisplayMessage } from "@/lib/error-message";
 import { useTranslations } from "@/lib/i18n";
 
-export default function CheckEmailPage() {
+function CheckEmailContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") ?? "";
   const t = useTranslations("en"); // TODO: get from pending onboarding
@@ -71,5 +71,17 @@ export default function CheckEmailPage() {
         </p>
       </main>
     </div>
+  );
+}
+
+/**
+ * The page reads its query string on the client; Next.js renders it inside a
+ * Suspense boundary so the rest of the page can be built ahead of time.
+ */
+export default function CheckEmailPage() {
+  return (
+    <Suspense fallback={null}>
+      <CheckEmailContent />
+    </Suspense>
   );
 }

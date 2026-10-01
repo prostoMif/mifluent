@@ -156,8 +156,8 @@ export async function verifyInitData(initData: string): Promise<TelegramWebAppIn
 export async function createSessionFromTelegramUser(
   telegramUserId: number,
 ): Promise<{ sessionToken: string; userId: string }> {
-  const { getDatabase } = await import("./db.js");
-  const { getAuth } = await import("./auth.js");
+  const { getDatabase } = await import("@/lib/db");
+  const { getAuth } = await import("@/lib/auth");
   const { schema } = await import("@mifluent/db");
 
   const db = getDatabase();

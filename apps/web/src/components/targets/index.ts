@@ -1,5 +1,5 @@
-export { PriceHistory } from "./price-history.js";
-export { TargetHeader } from "./target-header.js";
-export { TargetPage } from "./target-page.js";
-export { Timeline } from "./timeline.js";
-export { Vacancies } from "./vacancies.js";
+export { PriceHistory } from "./price-history";
+export { TargetHeader } from "./target-header";
+export { TargetPage } from "./target-page";
+export { Timeline } from "./timeline";
+export { Vacancies } from "./vacancies";

@@ -3,9 +3,10 @@
 import { getConfig } from "@mifluent/core";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useTranslations } from "@/lib/i18n";
 
-export default function TelegramLinkPage() {
+function TelegramLinkContent() {
   const searchParams = useSearchParams();
   const pending = searchParams.get("pending") ?? "";
   const config = getConfig();
@@ -46,5 +47,17 @@ export default function TelegramLinkPage() {
         </Link>
       </main>
     </div>
+  );
+}
+
+/**
+ * The page reads its query string on the client; Next.js renders it inside a
+ * Suspense boundary so the rest of the page can be built ahead of time.
+ */
+export default function TelegramLinkPage() {
+  return (
+    <Suspense fallback={null}>
+      <TelegramLinkContent />
+    </Suspense>
   );
 }

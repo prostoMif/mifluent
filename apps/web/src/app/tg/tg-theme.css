@@ -1,0 +1,30 @@
+/*
+ * Telegram theme variables for the Mini App. Global, not a CSS module: the
+ * variables sit on :root, which a module may not target, and the client sets
+ * them from Telegram's themeParams at runtime.
+ */
+
+/* Telegram theme CSS variables (set by telegram-webapp.ts) */
+:root {
+  /* Light theme defaults */
+  --tg-bg-color: #ffffff;
+  --tg-text-color: #000000;
+  --tg-hint-color: #999999;
+  --tg-link-color: #2481cc;
+  --tg-button-color: #2481cc;
+  --tg-button-text-color: #ffffff;
+  --tg-secondary-bg-color: #f1f1f1;
+}
+
+/* Dark theme (applied via class on html element) */
+.dark {
+  --tg-bg-color: #1c1c1d;
+  --tg-text-color: #ffffff;
+  --tg-hint-color: #8e8e93;
+  --tg-link-color: #6ea8fe;
+  --tg-button-color: #0a84ff;
+  --tg-button-text-color: #ffffff;
+  --tg-secondary-bg-color: #2c2c2e;
+}
+
+/* Utility classes for Telegram-styled components */

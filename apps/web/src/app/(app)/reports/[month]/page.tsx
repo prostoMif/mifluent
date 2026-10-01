@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { MonthlyReportPage } from "@/components/reports/monthly-report-page";
 import { getDatabase } from "@/lib/db";
 import { requireSessionWith } from "@/lib/session";
-import appStyles from "../app.module.css";
+import appStyles from "../../app.module.css";
 
 export const metadata: Metadata = { title: "Monthly Report" };
 

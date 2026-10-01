@@ -163,13 +163,13 @@ while IFS= read -r line; do
       continue
     fi
 
-    if ! npm run check >>"$log" 2>&1 </dev/null; then
-      notify "$task: check красный, попытка починить"
+    if ! { npm run check >>"$log" 2>&1 </dev/null && scripts/build-web.sh >>"$log" 2>&1 </dev/null; }; then
+      notify "$task: check или сборка сайта красные, попытка починить"
       tail -n 120 "$log" > "$LOG_DIR/$task.check-tail.txt"
       run_agent "npm run check после задачи $file красный. Последние строки вывода — в файле $LOG_DIR/$task.check-tail.txt. Почини, не ослабляя тесты и правила линтера, и обнови отчёт в файле задачи. $TASK_PROMPT_RULES" "$log"
     fi
 
-    if npm run check >>"$log" 2>&1 </dev/null; then
+    if npm run check >>"$log" 2>&1 </dev/null && scripts/build-web.sh >>"$log" 2>&1 </dev/null; then
       title="$(grep -m1 '^# ' "$file" | sed 's/^# //' | cut -c1-72)"
       if [[ -n "$(git status --porcelain)" ]]; then
         git add -A

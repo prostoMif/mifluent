@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { FirstRunProgress } from "@/components/onboarding/first-run-progress";
 
-export default function OnboardingProgressPage() {
+function OnboardingProgressContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pending = searchParams.get("pending") ?? "";
@@ -46,5 +46,17 @@ export default function OnboardingProgressPage() {
 
   return (
     <FirstRunProgress profileId={profileId} runId={runId} onReady={() => router.push("/today")} />
+  );
+}
+
+/**
+ * The page reads its query string on the client; Next.js renders it inside a
+ * Suspense boundary so the rest of the page can be built ahead of time.
+ */
+export default function OnboardingProgressPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingProgressContent />
+    </Suspense>
   );
 }
