@@ -6,7 +6,7 @@
  * For Telegram: stores email, returns deeplink info.
  */
 
-import { getConfig, parseOrThrow } from "@mifluent/core";
+import { AppError, getConfig, parseOrThrow } from "@mifluent/core";
 import { schema } from "@mifluent/db";
 import { hashEmail, updatePendingChannel } from "@mifluent/domain/onboarding/pending";
 import { eq } from "drizzle-orm";
@@ -15,6 +15,7 @@ import { readJsonBody, route } from "@/lib/api";
 import { getAuth } from "@/lib/auth";
 import { assertSameOrigin } from "@/lib/csrf";
 import { getDatabase } from "@/lib/db";
+import { assertOwnsPending } from "@/lib/pending-cookie";
 
 const channelSchema = z.object({
   pendingId: z.string().uuid(),
@@ -27,6 +28,7 @@ export async function POST(request: Request): Promise<Response> {
     assertSameOrigin(request);
 
     const body = parseOrThrow(channelSchema, await readJsonBody(request));
+    await assertOwnsPending(body.pendingId);
     const db = getDatabase();
 
     // Verify pending onboarding exists and is valid
@@ -37,19 +39,19 @@ export async function POST(request: Request): Promise<Response> {
       .limit(1);
 
     if (!pending) {
-      throw new Error("Pending onboarding not found or expired");
+      throw new AppError("not_found", "This sign-up has expired. Start again.");
     }
 
     if (pending.consumedAt) {
-      throw new Error("This onboarding has already been completed");
+      throw new AppError("not_found", "This sign-up has expired. Start again.");
     }
 
     if (pending.expiresAt < new Date()) {
-      throw new Error("This onboarding has expired");
+      throw new AppError("not_found", "This sign-up has expired. Start again.");
     }
 
     if (!pending.result) {
-      throw new Error("Discovery not yet completed");
+      throw new AppError("validation_failed", "Your site is still being read. Wait a moment.");
     }
 
     const emailHash = hashEmail(body.email);

@@ -125,6 +125,14 @@ export const pendingOnboardings = pgTable(
     discoveryRunId: text("discovery_run_id"),
     /** Discovery result (JSON) once completed. */
     result: jsonb("result"),
+    /**
+     * What the person confirmed on the review screen: the profile exactly as
+     * it will be created, edits included. Null until they confirm; the raw
+     * discovery result is used then.
+     */
+    reviewed: jsonb("reviewed"),
+    /** Why discovery failed, in words for the person; null while it runs or once it succeeded. */
+    discoveryError: text("discovery_error"),
     /** Original input: URL or business description. */
     input: text("input").notNull(),
     /** Language of the digest (en/ru). */
@@ -157,6 +165,8 @@ export interface PendingOnboarding {
   readonly id: string;
   readonly discoveryRunId: string | null;
   readonly result: DiscoveryResult | null;
+  readonly reviewed: unknown;
+  readonly discoveryError: string | null;
   readonly input: string;
   readonly language: string;
   readonly timezone: string | null;

@@ -5,7 +5,8 @@
  */
 
 import { type Queryable, schema } from "@mifluent/db";
-import { and, isNull, ne, sql } from "drizzle-orm";
+import { and, isNull, notInArray, sql } from "drizzle-orm";
+import { ANON_TENANT_ID } from "../onboarding/anon-tenant.js";
 import { PACKS_TENANT_ID } from "../packs/tenant.js";
 
 export interface AcquisitionRow {
@@ -25,7 +26,12 @@ export async function acquisitionSummary(db: Queryable): Promise<AcquisitionRow[
       paying: sql<number>`count(*) filter (where ${paid})`.mapWith(Number),
     })
     .from(schema.tenants)
-    .where(and(isNull(schema.tenants.deletedAt), ne(schema.tenants.id, PACKS_TENANT_ID)))
+    .where(
+      and(
+        isNull(schema.tenants.deletedAt),
+        notInArray(schema.tenants.id, [PACKS_TENANT_ID, ANON_TENANT_ID]),
+      ),
+    )
     .groupBy(schema.tenants.acquiredVia, schema.tenants.acquiredCode)
     .orderBy(sql`count(*) desc`);
 }

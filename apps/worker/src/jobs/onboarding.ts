@@ -14,10 +14,13 @@ import {
   assertCanRunDiscovery,
   createSource,
   discoveryJobSchema,
+  ensureAnonTenant,
   type FirstRunJob,
   firstRunJobSchema,
   listProfilePollableSources,
   listTargetsWithoutSources,
+  recordPendingDiscoveryFailure,
+  updatePendingDiscoveryResult,
 } from "@mifluent/domain";
 import { loadProfileContext } from "@mifluent/pipeline";
 import type { PgBoss } from "pg-boss";
@@ -39,10 +42,20 @@ export async function registerOnboardingJobs(boss: PgBoss): Promise<void> {
     const db = getDatabase();
 
     try {
-      await assertCanRunDiscovery(db, data.tenantId);
+      // A visitor without an account: limited by address when it started,
+      // booked to the anonymous service tenant.
+      if (data.pendingId === undefined) {
+        await assertCanRunDiscovery(db, data.tenantId);
+      } else {
+        await ensureAnonTenant(db);
+      }
       const llm = createPipelineLlm(db);
       if (llm === undefined) {
-        return failure("model_unavailable", "No language model is configured on this instance.");
+        const message = "No language model is configured on this instance.";
+        if (data.pendingId !== undefined) {
+          await recordPendingDiscoveryFailure(db, data.pendingId, message);
+        }
+        return failure("model_unavailable", message);
       }
 
       const result = await discover({
@@ -55,6 +68,9 @@ export async function registerOnboardingJobs(boss: PgBoss): Promise<void> {
         logger,
         allowedInternalHost: getRsshubHostname(),
       });
+      if (data.pendingId !== undefined) {
+        await updatePendingDiscoveryResult(db, data.pendingId, result);
+      }
       return { status: "completed", result };
     } catch (thrown) {
       const error = toAppError(thrown);
@@ -63,6 +79,9 @@ export async function registerOnboardingJobs(boss: PgBoss): Promise<void> {
         code: error.code,
         details: error.details,
       });
+      if (data.pendingId !== undefined) {
+        await recordPendingDiscoveryFailure(db, data.pendingId, error.message);
+      }
       return failure(error.code, error.message);
     }
   });

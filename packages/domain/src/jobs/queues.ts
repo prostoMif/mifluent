@@ -44,6 +44,12 @@ export const discoveryJobSchema = z.object({
   userId: z.string(),
   input: z.string().min(2).max(2_000),
   language: z.enum(["en", "ru"]),
+  /**
+   * Set for a visitor who has no account yet: the result is written to this
+   * pending onboarding, and the cost is booked to the anonymous service
+   * tenant named in `tenantId`.
+   */
+  pendingId: z.string().uuid().optional(),
 });
 
 export type DiscoveryJob = z.infer<typeof discoveryJobSchema>;

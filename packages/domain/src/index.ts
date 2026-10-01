@@ -46,6 +46,13 @@ export {
   chunkRawItem,
   chunkText,
 } from "./items/chunk.js";
+export { ANON_TENANT_ID, ensureAnonTenant } from "./onboarding/anon-tenant.js";
+export {
+  type CompletedOnboarding,
+  completePendingOnboarding,
+  findPendingForEmail,
+  profileInputFromPending,
+} from "./onboarding/complete.js";
 export {
   clearPendingCookie,
   consumePendingOnboarding,
@@ -57,6 +64,8 @@ export {
   hashEmail,
   hashIp,
   readPendingToken,
+  recordPendingDiscoveryFailure,
+  savePendingReview,
   serializePendingCookie,
   startAnonDiscovery,
   updatePendingChannel,

@@ -18,6 +18,7 @@ import type { DiscoveryResult, OnboardingChannel, PendingOnboarding } from "@mif
 import { and, eq, gte, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { QUEUES } from "../jobs/queues.js";
 import { assertCanRunDiscovery } from "../plans/limits.js";
+import { ANON_TENANT_ID } from "./anon-tenant.js";
 
 const PENDING_COOKIE_NAME = "mifluent.pending";
 const PENDING_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24; // 24 hours
@@ -224,11 +225,12 @@ export async function getPendingOnboarding(
 export async function updatePendingDiscoveryResult(
   db: Queryable,
   id: string,
-  result: DiscoveryResult,
+  /** The discovery package's result; stored as JSON and re-validated when read. */
+  result: DiscoveryResult | Readonly<Record<string, unknown>>,
 ): Promise<PendingOnboarding | undefined> {
   const [row] = await db
     .update(schema.pendingOnboardings)
-    .set({ result: result as unknown as Queryable, updatedAt: new Date() })
+    .set({ result, discoveryError: null, updatedAt: new Date() })
     .where(eq(schema.pendingOnboardings.id, id))
     .returning();
   return row as PendingOnboarding | undefined;
@@ -287,6 +289,7 @@ export async function startAnonDiscovery(
       readonly userId: string;
       readonly input: string;
       readonly language: "en" | "ru";
+      readonly pendingId: string;
     };
   };
 }> {
@@ -315,10 +318,11 @@ export async function startAnonDiscovery(
   const jobData = {
     queue: QUEUES.discoveryRun,
     data: {
-      tenantId: "anon",
+      tenantId: ANON_TENANT_ID,
       userId: "anon",
       input: options.input,
       language: options.language,
+      pendingId: pending.id,
     },
   };
 
@@ -364,4 +368,28 @@ export async function deleteOldConsumedPendingOnboardings(db: Queryable): Promis
       );
   }
   return count;
+}
+
+/** Discovery could not read the site: the progress page shows this and offers to try again. */
+export async function recordPendingDiscoveryFailure(
+  db: Queryable,
+  id: string,
+  message: string,
+): Promise<void> {
+  await db
+    .update(schema.pendingOnboardings)
+    .set({ discoveryError: message, updatedAt: new Date() })
+    .where(eq(schema.pendingOnboardings.id, id));
+}
+
+/** The profile as the person confirmed it on the review screen. */
+export async function savePendingReview(
+  db: Queryable,
+  id: string,
+  reviewed: unknown,
+): Promise<void> {
+  await db
+    .update(schema.pendingOnboardings)
+    .set({ reviewed, updatedAt: new Date() })
+    .where(eq(schema.pendingOnboardings.id, id));
 }

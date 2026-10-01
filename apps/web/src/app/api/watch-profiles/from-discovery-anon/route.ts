@@ -1,82 +1,39 @@
 /**
- * Creating a profile from anonymous discovery review.
+ * The visitor confirmed (and perhaps edited) what discovery proposed. Nothing
+ * is created yet — there is no account. The confirmed profile is kept on the
+ * pending onboarding and created as it stands when the visitor follows the
+ * magic link or opens the bot.
  *
- * This is called after the anonymous user reviews and confirms the discovery result.
- * It creates a pending onboarding with the reviewed data, then the user chooses
- * a channel and gets a magic link.
+ * // TODO: security review — anonymous onboarding
  */
 
-import { parseOrThrow } from "@mifluent/core";
-import { schema } from "@mifluent/db";
+import { AppError, parseOrThrow } from "@mifluent/core";
 import {
-  createProfileFromDiscovery,
-  type ProfileFromDiscoveryInput,
+  getPendingOnboarding,
   profileFromDiscoverySchema,
-  QUEUES,
+  savePendingReview,
 } from "@mifluent/domain";
-import { eq } from "drizzle-orm";
+import { z } from "zod";
 import { readJsonBody, route } from "@/lib/api";
 import { assertSameOrigin } from "@/lib/csrf";
 import { getDatabase } from "@/lib/db";
-import { sendInteractiveJob } from "@/lib/queue";
+import { assertOwnsPending } from "@/lib/pending-cookie";
+
+const reviewSchema = profileFromDiscoverySchema.extend({ pendingId: z.string().uuid() });
 
 export async function POST(request: Request): Promise<Response> {
-  return route({ event: "watch_profiles.created_from_discovery_anon", status: 201 }, async () => {
+  return route({ event: "onboarding.reviewed", status: 200 }, async () => {
     assertSameOrigin(request);
-
-    const input = parseOrThrow(profileFromDiscoverySchema, await readJsonBody(request));
-    const { pendingId, ...profileInput } = input as ProfileFromDiscoveryInput & {
-      pendingId: string;
-    };
+    const { pendingId, ...profile } = parseOrThrow(reviewSchema, await readJsonBody(request));
+    await assertOwnsPending(pendingId);
 
     const db = getDatabase();
-
-    // Verify pending onboarding exists and belongs to this session
-    const [pending] = await db
-      .select()
-      .from(schema.pendingOnboardings)
-      .where(eq(schema.pendingOnboardings.id, pendingId))
-      .limit(1);
-
-    if (!pending) {
-      throw new Error("Pending onboarding not found");
+    const pending = await getPendingOnboarding(db, pendingId);
+    if (pending === undefined || pending.result === null) {
+      throw new AppError("not_found", "This sign-up has expired. Start again.");
     }
 
-    if (pending.consumedAt) {
-      throw new Error("This onboarding has already been completed");
-    }
-
-    if (pending.expiresAt < new Date()) {
-      throw new Error("This onboarding has expired");
-    }
-
-    // For anonymous, we use a temporary tenant ID
-    // The real tenant will be created when the magic link is clicked
-    const tempTenantId = "anon";
-
-    const { profileId } = await createProfileFromDiscovery({
-      db,
-      tenantId: tempTenantId,
-      input: profileInput,
-    });
-
-    const runId = await sendInteractiveJob(QUEUES.profileFirstRun, {
-      tenantId: tempTenantId,
-      profileId,
-    });
-
-    // Update pending onboarding with the reviewed profile data
-    await db
-      .update(schema.pendingOnboardings)
-      .set({
-        result: {
-          ...(pending.result as object),
-          // Merge the reviewed data
-        } as object,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.pendingOnboardings.id, pendingId));
-
-    return { profileId, runId };
+    await savePendingReview(db, pendingId, profile);
+    return { pendingId };
   });
 }

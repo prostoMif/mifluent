@@ -35,7 +35,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { magicLink } from "better-auth/plugins";
 import { PROMO_COOKIE_NAME, REFERRAL_COOKIE_NAME } from "./acquisition-cookie";
-import { type Database, getDatabase } from "./db";
+import { getDatabase } from "./db";
 import { INVITE_COOKIE_NAME } from "./invitation-cookie";
 import { logger } from "./logger";
 import { isEmailConfigured, sendEmail } from "./mailer";
@@ -98,7 +98,12 @@ export const authOptions = {
 const SIGN_UP_PATH = "/sign-up/email";
 
 /** Magic link verification endpoint. */
-const MAGIC_LINK_VERIFY_PATH = "/sign-in/magic-link/verify";
+/**
+ * Better Auth serves the link in the email at `/magic-link/verify`; sending it
+ * is `/sign-in/magic-link`. An earlier version listened for a path that does
+ * not exist, so no sign-up from the start page ever got its profile.
+ */
+const MAGIC_LINK_VERIFY_PATH = "/magic-link/verify";
 
 function createAuth() {
   const config = getConfig();
@@ -132,6 +137,10 @@ function createAuth() {
           });
         },
         expiresIn: 30 * 60, // 30 minutes
+        // The sign-up gate above guards the password form only; without this
+        // a magic link would create an account on an instance closed to
+        // sign-ups. An existing account can always sign in by link.
+        disableSignUp: !config.REGISTRATION_OPEN,
       }),
     ],
 
@@ -215,14 +224,15 @@ function createAuth() {
           return;
         }
 
-        // The verification succeeded, ctx.body contains the verified email
-        const email = readEmail(ctx.body);
-        if (!email) return;
+        // The link is a GET with a token: no body. The account it signed in
+        // is the session the endpoint just created.
+        const user = ctx.context.newSession?.user;
+        if (user === undefined) return;
 
         try {
-          await completeOnboardingFromMagicLink(email);
+          await completeOnboardingFromMagicLink({ id: user.id, email: user.email });
         } catch (error) {
-          logger.error("auth.magic_link_onboarding_failed", { email, cause: error });
+          logger.error("auth.magic_link_onboarding_failed", { userId: user.id, cause: error });
           // Don't throw - the user is already signed in, onboarding can be completed later
         }
       }),
@@ -361,208 +371,39 @@ function readEmail(body: unknown): string | undefined {
 }
 
 /**
- * Complete onboarding after magic link verification.
- *
- * Finds the pending onboarding by email hash, creates tenant + profile,
- * starts first run, and marks pending as consumed.
+ * Complete onboarding after magic link verification: the visitor's pending
+ * onboarding (found by the email they gave) becomes their first profile, and
+ * its first run starts once the rows are committed.
  */
-async function completeOnboardingFromMagicLink(email: string): Promise<void> {
-  const { hashEmail } = await import("@mifluent/domain/onboarding/pending");
-  const { getDatabase } = await import("./db");
-  const { createProfileFromDiscovery } = await import("@mifluent/domain");
+async function completeOnboardingFromMagicLink(user: {
+  readonly id: string;
+  readonly email: string;
+}): Promise<void> {
+  const { completePendingOnboarding, findPendingForEmail, QUEUES } = await import(
+    "@mifluent/domain"
+  );
   const { sendInteractiveJob } = await import("./queue");
-  const { QUEUES } = await import("@mifluent/domain/jobs/queues");
-  const { schema } = await import("@mifluent/db");
-  const { eq, and, isNull } = await import("drizzle-orm");
-
   const db = getDatabase();
-  const emailHash = hashEmail(email);
 
-  // Find pending onboarding by email hash
-  const [pending] = await db
-    .select()
-    .from(schema.pendingOnboardings)
-    .where(
-      and(
-        eq(schema.pendingOnboardings.emailHash, emailHash),
-        isNull(schema.pendingOnboardings.consumedAt),
-        // Not expired
-        // Note: expiresAt check is done in getPendingOnboarding, but we do it here too
-      ),
-    )
-    .limit(1);
+  const pending = await findPendingForEmail(db, user.email);
+  if (pending === undefined) return; // An ordinary sign-in.
 
-  if (!pending) {
-    // No pending onboarding for this email - normal sign in
-    return;
-  }
-
-  const pendingOnboarding = pending as {
-    id: string;
-    result: unknown;
-    input: string;
-    language: string;
-    timezone: string | null;
-    channel: string;
-  };
-
-  if (!pendingOnboarding.result) {
-    logger.warn("auth.magic_link_no_discovery_result", { pendingId: pendingOnboarding.id });
-    return;
-  }
-
-  // Get or create user
-  const { getAuth } = await import("./auth");
-  const auth = getAuth();
-  const session = await auth.api.getSession();
-
-  if (!session?.user) {
-    logger.warn("auth.magic_link_no_user_after_verification", { email });
-    return;
-  }
-
-  const user = session.user;
-
-  // Create tenant and profile in a transaction
-  const result = pendingOnboarding.result as {
-    business: {
-      name: string;
-      description: string;
-      niche: string;
-      monetization: string;
-      platforms: string[];
-      countries: string[];
-      country: string | undefined;
-      extraCountries: string[];
-      homeCountry: string | undefined;
-      region: string | undefined;
-      customerType: string;
-      language: "en" | "ru";
-    };
-    targets: Array<{
-      kind: "competitor" | "platform" | "condition";
-      name: string;
-      websiteUrl: string | null;
-      reason: string;
-      surfaces: Array<{
-        type: "feed" | "diff" | "json" | "query";
-        url: string;
-        label: string;
-        pollIntervalMinutes: number;
-        verified: boolean;
-      }>;
-      newsQuery: string | undefined;
-    }>;
-    conditions: Array<{
-      name: string;
-      reason: string;
-      surfaces: Array<{
-        type: "feed" | "diff" | "json" | "query";
-        url: string;
-        label: string;
-        pollIntervalMinutes: number;
-        verified: boolean;
-      }>;
-      newsQuery: string | undefined;
-    }>;
-    needsDescription: boolean;
-  };
-
-  // Build profile input from discovery result
-  const profileInput = {
-    name: result.business.name,
-    businessDescription: result.business.description,
-    websiteUrl: isWebAddress(pendingOnboarding.input) ? pendingOnboarding.input : null,
-    facts: {
-      monetization: result.business.monetization as
-        | "free"
-        | "trial"
-        | "subscription"
-        | "one_time"
-        | "unknown",
-      platforms: result.business.platforms,
-      countries: result.business.countries,
-      country: result.business.country,
-      extraCountries: result.business.extraCountries,
-      homeCountry: result.business.homeCountry,
-      region: result.business.region,
-      market: result.business.country ? getMarket(result.business.country) : undefined,
-      customerType: result.business.customerType,
-      whatMatters: undefined,
-      language: result.business.language,
-    },
-    targets: result.targets.map((target) => ({
-      kind: target.kind,
-      name: target.name,
-      websiteUrl: target.websiteUrl,
-      reason: target.reason,
-      surfaces: target.surfaces
-        .filter((s) => s.verified)
-        .map((s) => ({
-          type: s.type,
-          url: s.url,
-          label: s.label,
-          pollIntervalMinutes: s.pollIntervalMinutes,
-        })),
-    })),
-    timezone: pendingOnboarding.timezone ?? undefined,
-  };
-
-  const { attachUserToInstance } = await import("@mifluent/domain");
-  const { getConfig } = await import("@mifluent/core");
-
-  const config = getConfig();
-
-  await db.transaction(async (tx) => {
-    const database = tx as unknown as Database;
-    // Attach user to instance (creates tenant + membership)
-    const membership = await attachUserToInstance({
-      db: database,
-      userId: user.id,
-      tenantName: user.name,
-      timezone: pendingOnboarding.timezone ?? config.DEFAULT_TIMEZONE,
-    });
-
-    // Create profile from discovery
-    const { profileId } = await createProfileFromDiscovery({
-      db: database,
-      tenantId: membership.tenantId,
-      input: profileInput,
-    });
-
-    // Mark pending as consumed
-    await tx
-      .update(schema.pendingOnboardings)
-      .set({ consumedAt: new Date(), updatedAt: new Date() })
-      .where(eq(schema.pendingOnboardings.id, pendingOnboarding.id));
-
-    // Start first run
-    await sendInteractiveJob(QUEUES.profileFirstRun, {
-      tenantId: membership.tenantId,
-      profileId,
-    });
-
-    logger.info("auth.onboarding_completed_via_magic_link", {
-      userId: user.id,
-      tenantId: membership.tenantId,
-      profileId,
-      pendingId: pendingOnboarding.id,
-    });
+  const completed = await completePendingOnboarding(db, {
+    pendingId: pending.id,
+    userId: user.id,
+    defaultTimezone: getConfig().DEFAULT_TIMEZONE,
   });
-}
-
-function isWebAddress(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return (url.protocol === "http:" || url.protocol === "https:") && url.hostname.includes(".");
-  } catch {
-    return false;
+  if (completed === undefined) {
+    logger.warn("auth.magic_link_onboarding_skipped", { pendingId: pending.id });
+    return;
   }
-}
 
-function getMarket(countryCode: string): "ru" | "en" {
-  const ruCountries = new Set(["RU", "BY", "KZ", "KG", "UZ", "TJ", "TM", "AZ", "AM", "GE", "MD"]);
-  return ruCountries.has(countryCode.toUpperCase()) ? "ru" : "en";
+  await sendInteractiveJob(QUEUES.profileFirstRun, { ...completed });
+  logger.info("auth.onboarding_completed_via_magic_link", {
+    userId: user.id,
+    ...completed,
+    pendingId: pending.id,
+  });
 }
 
 let instance: ReturnType<typeof createAuth> | undefined;

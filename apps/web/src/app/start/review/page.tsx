@@ -1,11 +1,14 @@
 import type { DiscoveryResult } from "@mifluent/discovery";
 import { getPendingOnboarding } from "@mifluent/domain/onboarding/pending";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { DiscoveryProgressPoller } from "@/components/onboarding/discovery-progress-poller";
 import { DiscoveryReviewAnon } from "@/components/onboarding/discovery-review-anon";
 import { LanguageSwitcher } from "@/components/onboarding/language-switcher";
 import { getDatabase } from "@/lib/db";
 import { getTranslations } from "@/lib/i18n";
+import { PENDING_COOKIE } from "@/lib/pending-cookie";
 import { getSessionContext } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Review discovery" };
@@ -28,6 +31,11 @@ export default async function ReviewPage({
     redirect("/start");
   }
 
+  // Only the browser that started this sign-up may see what discovery found.
+  if ((await cookies()).get(PENDING_COOKIE)?.value !== pending) {
+    redirect("/start");
+  }
+
   const db = getDatabase();
   const pendingOnboarding = await getPendingOnboarding(db, pending);
 
@@ -44,9 +52,7 @@ export default async function ReviewPage({
 
   if (!pendingOnboarding.result) {
     // Discovery still running - show progress page
-    return (
-      <DiscoveryProgress pendingId={pending} runId={pendingOnboarding.discoveryRunId ?? ""} t={t} />
-    );
+    return <DiscoveryProgress pendingId={pending} language={language} t={t} />;
   }
 
   return (
@@ -70,48 +76,22 @@ export default async function ReviewPage({
 
 interface DiscoveryProgressProps {
   readonly pendingId: string;
-  readonly runId: string;
+  readonly language: "en" | "ru";
   readonly t: ReturnType<typeof getTranslations>;
 }
 
-function DiscoveryProgress({ pendingId, runId, t }: DiscoveryProgressProps) {
+function DiscoveryProgress({ pendingId, language, t }: DiscoveryProgressProps) {
   return (
     <div className="discovery-progress">
       <h2>{t.progressTitle}</h2>
       <p>{t.progressSubtitle}</p>
-      <ProgressPoller pendingId={pendingId} runId={runId} />
+      <DiscoveryProgressPoller
+        pendingId={pendingId}
+        failedText={
+          language === "ru" ? "Не получилось прочитать сайт." : "Could not read the site."
+        }
+        retryText={language === "ru" ? "Попробовать ещё раз" : "Try again"}
+      />
     </div>
-  );
-}
-
-function ProgressPoller({ pendingId, runId }: { pendingId: string; runId: string }) {
-  // Client-side polling component
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
-          (function() {
-            const pendingId = ${JSON.stringify(pendingId)};
-            const runId = ${JSON.stringify(runId)};
-            const poll = async () => {
-              try {
-                const res = await fetch('/api/discovery/' + runId);
-                const data = await res.json();
-                if (data.state === 'completed') {
-                  window.location.href = '/start/review?pending=' + pendingId;
-                } else if (data.state === 'failed') {
-                  document.body.innerHTML = '<p>Discovery failed: ' + (data.error?.message || 'Unknown error') + '</p><p><a href="/start">Try again</a></p>';
-                } else {
-                  setTimeout(poll, 2000);
-                }
-              } catch (e) {
-                setTimeout(poll, 5000);
-              }
-            };
-            poll();
-          })();
-        `,
-      }}
-    />
   );
 }

@@ -382,7 +382,7 @@ export function DiscoveryReviewAnon({
     setIsPending(true);
     setError(undefined);
     try {
-      await sendRequest<{ profileId: string; runId: string }>({
+      await sendRequest<{ pendingId: string }>({
         method: "POST",
         path: "/api/watch-profiles/from-discovery-anon",
         body: payload,
