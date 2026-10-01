@@ -21,6 +21,7 @@ export default function robots(): MetadataRoute.Robots {
         "/targets",
         "/reports",
         "/tg",
+        "/showcase",
       ],
     },
     sitemap: `${base}/sitemap.xml`,

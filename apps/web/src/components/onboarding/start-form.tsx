@@ -14,12 +14,15 @@ export interface StartFormProps {
   readonly isClaimingInstance: boolean;
   readonly invitedEmail?: string | undefined;
   readonly language: "en" | "ru";
+  /** Typed on the landing page's hero field. */
+  readonly initialInput?: string | undefined;
 }
 
 export function StartForm({
   isClaimingInstance,
   invitedEmail: _invitedEmail,
   language,
+  initialInput,
 }: StartFormProps) {
   const router = useRouter();
   const t = useTranslations(language);
@@ -65,6 +68,7 @@ export function StartForm({
         id="start-input"
         label={t("startInputLabel")}
         name="input"
+        defaultValue={initialInput}
         required
       />
 

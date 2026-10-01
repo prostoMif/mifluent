@@ -94,6 +94,7 @@
         "apps/web/**/not-found.tsx",
         "apps/web/src/app/sitemap.ts",
         "apps/web/src/app/robots.ts",
+        "apps/web/src/app/opengraph-image.tsx",
         "**/*.config.ts",
         "**/*.config.js",
         "**/*.config.mjs"

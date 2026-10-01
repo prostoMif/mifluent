@@ -12,6 +12,7 @@
     "account:set-password": "node --env-file-if-exists=../../.env --import tsx scripts/set-password.ts"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
     "@mifluent/core": "*",
     "@mifluent/db": "*",
     "@mifluent/delivery": "*",

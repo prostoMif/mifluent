@@ -11,7 +11,12 @@ export const metadata: Metadata = { title: "Start monitoring" };
 
 export const dynamic = "force-dynamic";
 
-export default async function StartPage() {
+export default async function StartPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ site?: string }>;
+}) {
+  const { site } = await searchParams;
   // Somebody who is signed in came here for their digest, not for a pitch.
   if ((await getSessionContext()) !== undefined) {
     redirect("/today");
@@ -43,6 +48,7 @@ export default async function StartPage() {
           isClaimingInstance={availability.isClaimingInstance}
           invitedEmail={availability.invitedEmail}
           language={language}
+          initialInput={site?.slice(0, 200) ?? ""}
         />
       </main>
 
