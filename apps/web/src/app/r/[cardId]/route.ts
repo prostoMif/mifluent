@@ -29,6 +29,9 @@ export async function GET(_request: Request, context: RouteContext): Promise<Res
     // The text fragment (#:~:text=…) is part of the stored URL: a browser never
     // sends the fragment of the link it followed, so there is none to copy.
     const sourceUrl = await getCardSourceUrl(db, cardId);
-    return new Response(null, { status: 302, headers: { Location: sourceUrl ?? "/" } });
+    // Only web addresses: a stored link is material from outside, and this
+    // route must never become a redirect to some other scheme.
+    const isWeb = sourceUrl !== null && /^https?:\/\//i.test(sourceUrl);
+    return new Response(null, { status: 302, headers: { Location: isWeb ? sourceUrl : "/" } });
   });
 }

@@ -64,5 +64,6 @@ export async function sendEmail(email: OutboundEmail): Promise<void> {
 
   // The recipient is logged, the body is not. A password reset link in a log
   // file is a working password reset link.
-  logger.info("email.sent", { to: email.to, subject: email.subject });
+  // The domain only: a full address in a log is personal data kept for no reason.
+  logger.info("email.sent", { toDomain: email.to.split("@")[1], subject: email.subject });
 }

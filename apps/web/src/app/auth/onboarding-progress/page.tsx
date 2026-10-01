@@ -15,8 +15,12 @@ function OnboardingProgressContent() {
     // Poll for profile creation
     const poll = async () => {
       try {
-        const res = await fetch(`/api/auth/onboarding-status?pending=${pending}`);
-        const data = await res.json();
+        const res = await fetch(
+          `/api/auth/onboarding-status?pending=${encodeURIComponent(pending)}`,
+        );
+        // Every API answer is wrapped: { ok, data } or { ok: false, error }.
+        const body = await res.json();
+        const data = body.data ?? { error: body.error };
         if (data.profileId && data.runId) {
           setProfileId(data.profileId);
           setRunId(data.runId);

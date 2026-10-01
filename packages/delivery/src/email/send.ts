@@ -60,7 +60,7 @@ export async function sendDigestEmail(options: SendDigestEmailOptions): Promise<
 
   await transport.sendMail(mailOptions);
 
-  logger.info("email.digest_sent", { to: options.to, subject: options.rendered.subject });
+  logger.info("email.digest_sent", { toDomain: options.to.split("@")[1] });
 }
 
 /** `/unsubscribe/<token>` (the page a person opens) → `/api/unsubscribe/<token>` (the POST target). */

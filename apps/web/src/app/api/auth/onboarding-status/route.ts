@@ -4,6 +4,7 @@
  * Returns profileId once the after hook has completed.
  */
 
+import { isUuid } from "@mifluent/core";
 import { schema } from "@mifluent/db";
 import { and, eq, isNull } from "drizzle-orm";
 import { route } from "@/lib/api";
@@ -16,7 +17,7 @@ export async function GET(request: Request): Promise<Response> {
     const { searchParams } = new URL(request.url);
     const pending = searchParams.get("pending");
 
-    if (!pending) {
+    if (pending === null || !isUuid(pending)) {
       return { error: "No pending ID" };
     }
 
