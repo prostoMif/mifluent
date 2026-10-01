@@ -1,14 +1,15 @@
 /**
- * Attaching an account to the instance's tenant.
+ * Attaching an account to a tenant.
  *
- * One instance holds one tenant. The tenant column is on every table from the
- * first migration so that hosting several businesses later is a configuration
- * problem rather than a rewrite, but nothing here creates a second one: extra
- * people joining a self-hosted instance are joining the same business, not
- * founding their own.
+ * An account that arrives with an invitation joins the tenant that invited
+ * it, in the role the invitation names. Every other account founds its own
+ * tenant and owns it. On the hosted service that is every new customer; on a
+ * self-hosted instance with sign-up closed it is only the first account,
+ * because nobody else can get past the sign-up gate without an invitation.
  *
- * So: first account creates the tenant and owns it. Every account after that
- * joins the existing tenant as a member.
+ * An earlier version joined every uninvited account to the oldest tenant —
+ * one business per instance. With sign-up open that put each new customer
+ * inside the first customer's business, data and all.
  *
  * // TODO: security review — authorisation
  */
@@ -27,11 +28,11 @@ export interface Membership {
 /**
  * Guards the read-then-create below.
  *
- * Two people submitting the sign-up form in the same second would both see an
- * empty instance and both become owner. A transaction alone does not prevent
- * it: there is no existing row to lock, and PostgreSQL has nothing to serialise
- * on. An advisory lock is the standard answer — a named lock on a number rather
- * than on a row, released when the transaction ends.
+ * The sign-up hook and a page load's membership repair can run for the same
+ * account in the same second; both would find no membership and each found a
+ * tenant. A transaction alone does not prevent it: there is no existing row to
+ * lock. An advisory lock is the standard answer — a named lock on a number
+ * rather than on a row, released when the transaction ends.
  *
  * The number itself is arbitrary and only has to be unique within this
  * database. It is the ASCII of "mifl".
@@ -58,38 +59,20 @@ export async function findMembershipByUserId(
   return row;
 }
 
-/** The tenant this instance belongs to, if it has been claimed. */
-async function findInstanceTenantId(db: Queryable): Promise<string | undefined> {
-  const [row] = await db
-    .select({ id: schema.tenants.id })
-    .from(schema.tenants)
-    .where(isNull(schema.tenants.deletedAt))
-    .orderBy(asc(schema.tenants.createdAt))
-    .limit(1);
-
-  return row?.id;
-}
-
 export interface AttachUserOptions {
   readonly db: Database;
   /** Better Auth's identifier for the account that was just created. */
   readonly userId: string;
-  /** Used only when this account is the one creating the tenant. */
+  /** Used only when this account founds its own tenant. */
   readonly tenantName: string;
   /** IANA zone for the new tenant. Storage stays UTC regardless. */
   readonly timezone: string;
-  /**
-   * The role an invitation asked for, when the account came from one.
-   *
-   * Only consulted for an account that is not the first: whoever claims an
-   * empty instance is its owner regardless of what any invitation says, because
-   * at that point there is nobody who could have issued one.
-   */
-  readonly invitedRole?: MemberRole | undefined;
+  /** The invitation this account signed up with, if any: its tenant and role. */
+  readonly invitation?: { readonly tenantId: string; readonly role: MemberRole } | undefined;
 }
 
 /**
- * Give an account its membership, creating the tenant if this is the first one.
+ * Give an account its membership: the inviting tenant, or a new one it owns.
  *
  * Idempotent. It runs from a Better Auth hook during sign-up, and is called
  * again if a session ever turns up without a membership — an account that
@@ -108,11 +91,10 @@ export async function attachUserToInstance(options: AttachUserOptions): Promise<
       return existing;
     }
 
-    const claimedTenantId = await findInstanceTenantId(transaction);
-    const isFirstAccount = claimedTenantId === undefined;
-
-    const tenantId = claimedTenantId ?? (await createTenant(transaction, tenantName, timezone));
-    const role: MemberRole = isFirstAccount ? "owner" : (options.invitedRole ?? "member");
+    const invitation = options.invitation;
+    const tenantId =
+      invitation?.tenantId ?? (await createTenant(transaction, tenantName, timezone));
+    const role: MemberRole = invitation?.role ?? "owner";
 
     await transaction.insert(schema.memberships).values({
       id: uuidv7(),

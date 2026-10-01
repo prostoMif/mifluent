@@ -260,7 +260,10 @@ function createAuth() {
                 userId: user.id,
                 tenantName: user.name,
                 timezone: config.DEFAULT_TIMEZONE,
-                ...(invitation === undefined ? {} : { invitedRole: invitation.role }),
+                invitation:
+                  invitation === undefined
+                    ? undefined
+                    : { tenantId: invitation.tenantId, role: invitation.role },
               });
 
               if (invitation !== undefined) {
