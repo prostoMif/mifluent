@@ -61,6 +61,12 @@ export const events = pgTable(
     sourceUrl: text("source_url"),
     sourceTitle: text("source_title"),
     sourcePublishedAt: timestamp("source_published_at", { withTimezone: true }),
+    /**
+     * The shared source pack the material came from, for events about a
+     * profile's market and rules rather than its own competitors. Null for
+     * material from the profile's own sources.
+     */
+    packKey: text("pack_key"),
     /** Which watched thing this is about, when that is known. */
     targetId: uuid("target_id").references(() => watchTargets.id, {
       onDelete: "set null",

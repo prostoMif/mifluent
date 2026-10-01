@@ -18,13 +18,17 @@ export const DIFF_RESERVE_PER_DAY = 10;
  *
  * 0 — diff / job with a source target_id (the source is attached to a target).
  * 1 — release and items from a source with target_id (blog, changelog, target status page).
- * 2 — everything else (Google News queries, Reddit, manual feeds without a target).
+ *     Also material from a platform's or regulator's source pack: a marketplace
+ *     changing its rules or a tax office's notice outranks general news.
+ * 2 — everything else (Google News queries, Reddit, manual feeds without a target,
+ *     media packs).
  */
 export function priorityOf(candidate: Candidate): Priority {
   const hasTarget = candidate.sourceTargetId !== null;
   const isDiffOrJob = candidate.kind === "diff" || candidate.kind === "job";
+  const isRulesPack = candidate.pack?.kind === "platform" || candidate.pack?.kind === "regulator";
 
   if (isDiffOrJob && hasTarget) return 0;
-  if (isDiffOrJob || candidate.kind === "release" || hasTarget) return 1;
+  if (isDiffOrJob || candidate.kind === "release" || hasTarget || isRulesPack) return 1;
   return 2;
 }

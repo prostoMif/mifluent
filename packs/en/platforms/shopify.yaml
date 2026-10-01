@@ -1,0 +1,17 @@
+# Shopify platform and API changes that affect merchants and app builders.
+key: en.platforms.shopify
+title:
+  ru: "Shopify — изменения платформы"
+  en: "Shopify — platform changelog"
+market: en
+countries: ["*"]
+kind: platform
+applies_when:
+  platforms_any: [shopify]
+  niches_any: []
+sources:
+  - label: "Developer changelog"
+    type: feed
+    url: "https://shopify.dev/changelog/feed.xml"
+    interval_minutes: 360
+max_cards_per_digest: 3

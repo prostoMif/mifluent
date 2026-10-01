@@ -50,12 +50,16 @@ services:
       start_period: 20s
     mem_limit: 512m
 
-  # Runs the pending migrations and exits. The application starts only after
-  # it has finished successfully.
+  # Runs the pending migrations, then syncs the source packs in packs/, and
+  # exits. The application starts only after both have finished successfully;
+  # the pack sync is idempotent, so running it on every start costs nothing.
   migrate:
     <<: *app
     restart: "no"
-    command: ["npm", "run", "db:migrate", "--workspace", "@mifluent/db"]
+    command:
+      - sh
+      - -c
+      - npm run db:migrate --workspace @mifluent/db && npm run packs:sync --workspace @mifluent/worker
     depends_on:
       db:
         condition: service_healthy

@@ -1,0 +1,17 @@
+# Stripe product and pricing announcements.
+key: en.platforms.stripe
+title:
+  ru: "Stripe — новости и изменения"
+  en: "Stripe — product news"
+market: en
+countries: ["*"]
+kind: platform
+applies_when:
+  platforms_any: [stripe]
+  niches_any: []
+sources:
+  - label: "Stripe blog"
+    type: feed
+    url: "https://stripe.com/blog/feed.rss"
+    interval_minutes: 720
+max_cards_per_digest: 2

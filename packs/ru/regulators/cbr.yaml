@@ -1,0 +1,15 @@
+# Пресс-релизы Банка России: ставка, платёжные правила, требования к бизнесу.
+key: ru.regulators.cbr
+title:
+  ru: "Банк России — решения и пресс-релизы"
+  en: "Bank of Russia — decisions and press releases"
+market: ru
+countries: [RU]
+applies_to: home
+kind: regulator
+sources:
+  - label: "Пресс-релизы"
+    type: feed
+    url: "https://www.cbr.ru/rss/RssPress"
+    interval_minutes: 360
+max_cards_per_digest: 2

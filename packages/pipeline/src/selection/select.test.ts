@@ -151,6 +151,7 @@ describe("priorityOf", () => {
     id: "item-1",
     title: "Test",
     url: null,
+    pack: null,
     content: "Content",
     kind: "article",
     publishedAt: now,

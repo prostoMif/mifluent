@@ -20,6 +20,15 @@
 
 import { type Logger, toAppError, uuidv7 } from "@mifluent/core";
 import { type Queryable, schema, scoped } from "@mifluent/db";
+import {
+  loadPackCatalogue,
+  matchPacks,
+  NICHES,
+  PACKS_TENANT_ID,
+  type PackCandidate,
+  packCandidates,
+  profileForPacks,
+} from "@mifluent/domain";
 import type { EmbeddingProvider } from "@mifluent/embeddings";
 import type { LlmClient } from "@mifluent/llm";
 import { and, eq, gte, inArray, isNull, notExists, or, sql } from "drizzle-orm";
@@ -80,7 +89,11 @@ export interface Candidate {
   readonly publishedAt: Date | null;
   readonly fetchedAt: Date;
   readonly sourceTargetId: string | null;
+  /** The shared source pack the material came from; null for the profile's own sources. */
+  readonly pack: { readonly key: string; readonly kind: PackKind } | null;
 }
+
+type PackKind = PackCandidate["packKind"];
 
 interface Scored extends Candidate {
   readonly score: number;
@@ -114,7 +127,7 @@ export async function selectForProfile(options: SelectionOptions): Promise<Selec
   }
 
   const profileVectors = await loadProfileVectors(db, context, options.provider);
-  const vectors = await loadChunkVectors(db, context.tenantId, options.provider.model, candidates);
+  const vectors = await loadCandidateVectors(db, context, options.provider.model, candidates);
   const cutoff = cosineCutoff(context.relevanceThreshold);
 
   const survivors: Scored[] = [];
@@ -179,12 +192,15 @@ async function applyFreeSteps(
 ): Promise<SelectionDecision | Scored> {
   const { context, candidate } = input;
   const priority = priorityOf(candidate);
-  const isDiffOrJobWithTarget = priority === 0;
+  // A page diff from a pack the profile follows (a marketplace's rules, a
+  // regulator's notices) is relevant by the subscription itself, exactly like
+  // a diff of a target's page.
+  const skipsCosine = priority === 0 || (candidate.pack !== null && candidate.kind === "diff");
 
   let score = -1;
   let nearestTargetId: string | null = null;
 
-  if (!isDiffOrJobWithTarget) {
+  if (!skipsCosine) {
     const scored = scoreItem(input.chunkVectors, input.profileVectors);
     score = scored.score;
     nearestTargetId = scored.nearestTargetId;
@@ -202,7 +218,7 @@ async function applyFreeSteps(
     return { ...decision(candidate, score, "stopword", stopword), nearestTargetId, priority };
   }
 
-  if (!isDiffOrJobWithTarget && score < input.cutoff) {
+  if (!skipsCosine && score < input.cutoff) {
     await reject(db, {
       context,
       itemId: candidate.id,
@@ -430,6 +446,7 @@ async function createEvent(db: Queryable, event: NewEvent): Promise<string> {
       sourceUrl: item.url,
       sourceTitle: item.title,
       sourcePublishedAt: item.publishedAt,
+      packKey: item.pack?.key ?? null,
       targetId: event.targetId,
       relevanceScore: item.score,
       summary: event.summary.slice(0, 500),
@@ -480,12 +497,56 @@ function defaultSince(now: Date): Date {
   return new Date(now.getTime() - SELECTION_WINDOW_DAYS * DAY_MS);
 }
 
+/** The profile's own material first, then material from the packs it follows. */
 async function findCandidates(
   db: Queryable,
   context: ProfileContext,
   since: Date,
 ): Promise<Candidate[]> {
-  return db
+  const own = await findOwnCandidates(db, context, since);
+  const room = MAX_CANDIDATES_PER_RUN - own.length;
+  if (room <= 0) return own;
+  return [...own, ...(await findPackCandidates(db, context, since, room))];
+}
+
+async function findPackCandidates(
+  db: Queryable,
+  context: ProfileContext,
+  since: Date,
+  limit: number,
+): Promise<Candidate[]> {
+  const profile = profileForPacks(context.facts, context.businessDescription ?? "", NICHES);
+  if (profile === undefined) return [];
+
+  const packs = matchPacks(await loadPackCatalogue(db), profile);
+  const rows = await packCandidates(db, {
+    tenantId: context.tenantId,
+    profileId: context.profileId,
+    packs,
+    since,
+    limit,
+  });
+  return rows.map(
+    (row): Candidate => ({
+      id: row.id,
+      title: row.title,
+      url: row.url,
+      content: row.content,
+      kind: row.kind,
+      publishedAt: row.publishedAt,
+      fetchedAt: row.fetchedAt,
+      sourceTargetId: null,
+      pack: { key: row.packKey, kind: row.packKind },
+    }),
+  );
+}
+
+async function findOwnCandidates(
+  db: Queryable,
+  context: ProfileContext,
+  since: Date,
+): Promise<Candidate[]> {
+  const rows = await db
     .select({
       id: schema.rawItems.id,
       title: schema.rawItems.title,
@@ -534,6 +595,36 @@ async function findCandidates(
     )
     .orderBy(schema.rawItems.fetchedAt)
     .limit(MAX_CANDIDATES_PER_RUN);
+  return rows.map((row): Candidate => ({ ...row, pack: null }));
+}
+
+/**
+ * Chunk vectors live with the material: the profile's own items under its
+ * tenant, pack items under the service tenant, where they were embedded once
+ * for every profile that follows the pack.
+ */
+async function loadCandidateVectors(
+  db: Queryable,
+  context: ProfileContext,
+  model: string,
+  candidates: readonly Candidate[],
+): Promise<Map<string, number[][]>> {
+  const own = candidates.filter((candidate) => candidate.pack === null);
+  const fromPacks = candidates.filter((candidate) => candidate.pack !== null);
+
+  const vectors =
+    own.length === 0 ? new Map() : await loadChunkVectors(db, context.tenantId, model, own);
+  if (fromPacks.length === 0) return vectors;
+
+  for (const [itemId, itemVectors] of await loadChunkVectors(
+    db,
+    PACKS_TENANT_ID,
+    model,
+    fromPacks,
+  )) {
+    vectors.set(itemId, itemVectors);
+  }
+  return vectors;
 }
 
 async function loadChunkVectors(

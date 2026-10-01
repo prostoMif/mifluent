@@ -54,6 +54,7 @@ export {
   updatePendingChannel,
   updatePendingDiscoveryResult,
 } from "./onboarding/pending.js";
+export * from "./packs/index.js";
 export {
   assertCanRunDiscovery,
   assertCanWatchPage,

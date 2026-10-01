@@ -15,7 +15,9 @@
     "embed:bench": "node --env-file-if-exists=../../.env --import tsx src/embed-bench.ts",
     "telegram:webhook": "node --env-file-if-exists=../../.env --import tsx src/telegram-webhook.ts",
     "export:decisions": "node --env-file-if-exists=../../.env --import tsx src/export-decisions.ts",
-    "beta:report": "node --env-file-if-exists=../../.env --import tsx src/beta-report.ts"
+    "beta:report": "node --env-file-if-exists=../../.env --import tsx src/beta-report.ts",
+    "packs:sync": "node --env-file-if-exists=../../.env --import tsx src/packs-sync.ts",
+    "packs:verify": "node --env-file-if-exists=../../.env --import tsx src/packs-verify.ts"
   },
   "dependencies": {
     "@mifluent/core": "*",
@@ -30,6 +32,7 @@
     "@mifluent/sources": "*",
     "drizzle-orm": "^0.44.0",
     "pg-boss": "^12.27.0",
+    "yaml": "2.9.1",
     "zod": "^4.0.0"
   },
   "devDependencies": {

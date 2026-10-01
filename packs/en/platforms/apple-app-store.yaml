@@ -1,0 +1,17 @@
+# App Store rules, review guidelines and deadlines for app developers.
+key: en.platforms.apple_app_store
+title:
+  ru: "Apple — новости для разработчиков и правила App Store"
+  en: "Apple — developer news and App Store rules"
+market: en
+countries: ["*"]
+kind: platform
+applies_when:
+  platforms_any: [app store, apple, ios]
+  niches_any: [mobile_app]
+sources:
+  - label: "Developer news"
+    type: feed
+    url: "https://developer.apple.com/news/rss/news.rss"
+    interval_minutes: 360
+max_cards_per_digest: 2

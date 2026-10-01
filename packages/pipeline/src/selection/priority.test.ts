@@ -10,6 +10,7 @@ function baseCandidate(overrides: Partial<Candidate> = {}): Candidate {
     id: "item-1",
     title: "Test",
     url: null,
+    pack: null,
     content: "Content",
     kind: "article",
     publishedAt: now,
@@ -84,5 +85,27 @@ describe("priorityOf", () => {
     const p1: Priority = 1;
     const p2: Priority = 2;
     expect([p0, p1, p2]).toEqual([0, 1, 2]);
+  });
+});
+
+describe("priorityOf for source pack material", () => {
+  it("puts a marketplace's rules ahead of general news", () => {
+    const candidate = baseCandidate({
+      pack: { key: "ru.platforms.wildberries", kind: "platform" },
+    });
+
+    expect(priorityOf(candidate)).toBe(1);
+  });
+
+  it("puts a regulator's notice ahead of general news", () => {
+    const candidate = baseCandidate({ pack: { key: "ru.regulators.fns", kind: "regulator" } });
+
+    expect(priorityOf(candidate)).toBe(1);
+  });
+
+  it("leaves trade press with general news", () => {
+    const candidate = baseCandidate({ pack: { key: "en.media.saas", kind: "media" } });
+
+    expect(priorityOf(candidate)).toBe(2);
   });
 });

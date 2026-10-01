@@ -1,0 +1,15 @@
+# Новости ФНС: налоги для ИП, самозанятых и компаний.
+key: ru.regulators.fns
+title:
+  ru: "ФНС России — новости о налогах"
+  en: "Russian Federal Tax Service — tax news"
+market: ru
+countries: [RU]
+applies_to: home
+kind: regulator
+sources:
+  - label: "Новости ФНС"
+    type: feed
+    url: "https://www.nalog.gov.ru/rn77/rss/"
+    interval_minutes: 360
+max_cards_per_digest: 2

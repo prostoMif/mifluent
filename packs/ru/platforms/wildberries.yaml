@@ -1,0 +1,18 @@
+# Изменения правил, комиссий и логистики Wildberries для продавцов.
+key: ru.platforms.wildberries
+title:
+  ru: "Wildberries — правила и комиссии для продавцов"
+  en: "Wildberries — seller rules and fees"
+market: ru
+countries: [RU]
+applies_to: sales
+kind: platform
+applies_when:
+  platforms_any: [wildberries, вайлдберриз]
+  niches_any: []
+sources:
+  - label: "Новости о правилах для продавцов"
+    type: query
+    url: "https://news.google.com/rss/search?q=Wildberries%20%D0%BF%D1%80%D0%BE%D0%B4%D0%B0%D0%B2%D1%86%D1%8B&hl=ru&gl=RU&ceid=RU:ru"
+    interval_minutes: 180
+max_cards_per_digest: 3

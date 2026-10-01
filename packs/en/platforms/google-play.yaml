@@ -1,0 +1,17 @@
+# Google Play policy and Android platform changes for app developers.
+key: en.platforms.google_play
+title:
+  ru: "Google Play — новости для Android-разработчиков"
+  en: "Google Play — Android developer news"
+market: en
+countries: ["*"]
+kind: platform
+applies_when:
+  platforms_any: [google play, android]
+  niches_any: [mobile_app]
+sources:
+  - label: "Android Developers Blog"
+    type: feed
+    url: "https://android-developers.googleblog.com/feeds/posts/default"
+    interval_minutes: 360
+max_cards_per_digest: 2

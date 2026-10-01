@@ -4,6 +4,7 @@
  * never holds up polling and every step can be retried on its own.
  */
 
+import { listProfilesForPackMaterial, PACKS_TENANT_ID } from "@mifluent/domain";
 import { listTenantProfiles } from "@mifluent/pipeline";
 import type { PgBoss } from "pg-boss";
 import { z } from "zod";
@@ -26,7 +27,14 @@ export async function registerPipelineJobs(boss: PgBoss): Promise<void> {
       return;
     }
 
-    for (const profile of await listTenantProfiles(db, tenantId)) {
+    // Pack material belongs to the service tenant, whose own profile never
+    // runs selection; the profiles that may follow the pack are everyone
+    // else's, and each decides for itself in selection whether it does.
+    const profiles =
+      tenantId === PACKS_TENANT_ID
+        ? await listProfilesForPackMaterial(db)
+        : await listTenantProfiles(db, tenantId);
+    for (const profile of profiles) {
       await queueProfileStep(boss, QUEUES.pipelineSelect, profile);
     }
   });

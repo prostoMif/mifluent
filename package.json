@@ -37,10 +37,13 @@
     "embed:bench": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/embed-bench.ts",
     "digest:build": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/digest-build.ts",
     "pipeline:dry": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/pipeline-dry-run.ts",
-    "telegram:webhook": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/telegram-webhook.ts"
+    "telegram:webhook": "npm run build && node --env-file-if-exists=.env --import tsx apps/worker/src/telegram-webhook.ts",
+    "packs:sync": "npm run build && npm run packs:sync --workspace @mifluent/worker",
+    "packs:verify": "npm run build && npm run packs:verify --workspace @mifluent/worker"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
+    "@electric-sql/pglite": "0.3.16",
     "@types/node": "^22.0.0",
     "lefthook": "^1.11.0",
     "typescript": "^5.9.0",

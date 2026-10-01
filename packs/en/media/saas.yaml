@@ -1,0 +1,15 @@
+# Trade press for people running a SaaS business.
+key: en.media.saas
+title:
+  ru: "Отраслевые новости SaaS"
+  en: "SaaS industry news"
+market: en
+countries: ["*"]
+kind: media
+niches: [saas]
+sources:
+  - label: "SaaStr"
+    type: feed
+    url: "https://www.saastr.com/feed/"
+    interval_minutes: 720
+max_cards_per_digest: 2
