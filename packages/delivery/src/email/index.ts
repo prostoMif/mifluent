@@ -1,4 +1,10 @@
-export { type EmailRenderOptions, type RenderedEmail, renderEmailDigest } from "./render.js";
+export {
+  type EmailRenderOptions,
+  type MonthlyReportEmailData,
+  type RenderedEmail,
+  renderEmailDigest,
+  renderMonthlyReportEmail,
+} from "./render.js";
 export { type SendDigestEmailOptions, sendDigestEmail, verifyEmailConnection } from "./send.js";
 export {
   type ActionTokenPayload,

@@ -52,6 +52,9 @@ export const DAILY_REPORT_CRON = "0 8 * * *";
 /** Every 5 minutes: alert checks. */
 export const ALERT_CHECK_CRON = "*/5 * * * *";
 
+/** 09:00 UTC on the 1st of each month: monthly market report. */
+export const MONTHLY_REPORT_CRON = "0 9 1 * *";
+
 const RETRY_LIMIT = 2;
 
 const STATELY: Omit<Queue, "name"> = { policy: "stately" };
@@ -68,6 +71,8 @@ const QUEUE_OPTIONS: Readonly<Record<string, Omit<Queue, "name">>> = {
   [QUEUES.profileFirstRun]: { ...STATELY, expireInSeconds: 1_800, retryLimit: 0 },
   [QUEUES.ownerDailyReport]: { expireInSeconds: 300, retryLimit: 0 },
   [QUEUES.alertCheck]: { expireInSeconds: 300, retryLimit: 0 },
+  [QUEUES.monthlyReportBuild]: { ...STATELY, expireInSeconds: 600, retryLimit: 0 },
+  [QUEUES.monthlyReportDeliver]: { ...STATELY, expireInSeconds: 300, retryLimit: 0 },
 };
 
 export interface SourceJob {
@@ -86,6 +91,13 @@ export interface ProfileJob {
 export interface DigestJob {
   readonly tenantId: string;
   readonly digestId: string;
+}
+
+export interface MonthlyReportJob {
+  readonly tenantId: string;
+  readonly profileId: string;
+  readonly month: string; // "YYYY-MM"
+  readonly digestId?: string;
 }
 
 export function createQueueClient(): PgBoss {
@@ -134,4 +146,19 @@ export async function queueProfileStep(
 
 export async function queueDelivery(boss: PgBoss, job: DigestJob): Promise<void> {
   await boss.send(QUEUES.digestDeliver, job satisfies DigestJob, { singletonKey: job.digestId });
+}
+
+export async function queueMonthlyReportBuild(boss: PgBoss, job: MonthlyReportJob): Promise<void> {
+  await boss.send(QUEUES.monthlyReportBuild, job satisfies MonthlyReportJob, {
+    singletonKey: job.profileId,
+  });
+}
+
+export async function queueMonthlyReportDeliver(
+  boss: PgBoss,
+  job: MonthlyReportJob,
+): Promise<void> {
+  await boss.send(QUEUES.monthlyReportDeliver, job satisfies MonthlyReportJob, {
+    singletonKey: job.profileId,
+  });
 }

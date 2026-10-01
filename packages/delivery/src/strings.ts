@@ -34,6 +34,7 @@ export interface Strings {
     readonly influenced: string;
     readonly openMiniApp: string;
     readonly openTarget: string;
+    readonly fullReport: string;
   };
   readonly callback: {
     readonly recorded: string;
@@ -74,6 +75,31 @@ export interface Strings {
     readonly cannotRead: string;
     readonly limitReached: (limit: number) => string;
   };
+  readonly monthly: {
+    readonly title: (profile: string, month: string) => string;
+    readonly shortTitle: (profile: string, month: string) => string;
+    readonly proOnly: string;
+    readonly topEvents: string;
+    readonly perTarget: string;
+    readonly priceChanges: string;
+    readonly hiring: string;
+    readonly decisions: string;
+    readonly drift: string;
+    readonly noEvents: string;
+    readonly quiet: string;
+    readonly eventsCount: (count: number) => string;
+    readonly priceChangeRow: (
+      target: string,
+      kind: string,
+      was: string | null,
+      became: string,
+    ) => string;
+    readonly hiringRow: (target: string, open: number, newCount: number) => string;
+    readonly decisionCount: (count: number) => string;
+    readonly driftedTarget: (target: string, days: number) => string;
+    readonly sourcesChecked: (sources: number, items: number) => string;
+    readonly introLabel: string;
+  };
 }
 
 const en: Strings = {
@@ -112,6 +138,7 @@ const en: Strings = {
     influenced: "It changed a decision",
     openMiniApp: "Archive & settings",
     openTarget: "Open target page",
+    fullReport: "Full report",
   },
   callback: {
     recorded: "Noted",
@@ -154,6 +181,27 @@ const en: Strings = {
     limitReached: (limit) =>
       `You've reached the limit of ${limit} watched pages for your plan. Remove one or upgrade to watch more.`,
   },
+  monthly: {
+    title: (profile, month) => `${profile} — Monthly Report: ${month}`,
+    shortTitle: (profile, month) => `${profile} — ${month} summary`,
+    proOnly: "Full monthly report is a Pro feature.",
+    topEvents: "Top events of the month",
+    perTarget: "Per target",
+    priceChanges: "Price & plan changes",
+    hiring: "Hiring activity",
+    decisions: "Your decisions",
+    drift: "Targets to review (60+ days quiet)",
+    noEvents: "No significant events this month.",
+    quiet: "quiet",
+    eventsCount: (count) => `${count} event${count === 1 ? "" : "s"}`,
+    priceChangeRow: (target, kind, was, became) => `${target} (${kind}): ${was ?? "—"} → ${became}`,
+    hiringRow: (target, open, newCount) =>
+      `${target}: ${open} open${newCount > 0 ? `, ${newCount} new` : ""}`,
+    decisionCount: (count) => `${count} decision${count === 1 ? "" : "s"} recorded`,
+    driftedTarget: (target, days) => `${target} — no activity for ${days} days`,
+    sourcesChecked: (sources, items) => `Checked ${sources} sources, ${items} items.`,
+    introLabel: "Summary",
+  },
 };
 
 const ru: Strings = {
@@ -193,6 +241,7 @@ const ru: Strings = {
     influenced: "Повлияло",
     openMiniApp: "Архив и настройки",
     openTarget: "Открыть страницу цели",
+    fullReport: "Полный отчёт",
   },
   callback: {
     recorded: "Принято",
@@ -234,6 +283,28 @@ const ru: Strings = {
       "Не могу прочитать эту страницу — возможно, она за логином или рендерится через JavaScript. Попробуй публичную страницу.",
     limitReached: (limit) =>
       `Лимит отслеживаемых страниц для твоего тарифа — ${limit}. Удали одну или смени тариф, чтобы добавить больше.`,
+  },
+  monthly: {
+    title: (profile, month) => `${profile} — Ежемесячный отчёт: ${month}`,
+    shortTitle: (profile, month) => `${profile} — итоги ${month}`,
+    proOnly: "Полный ежемесячный отчёт — в Pro.",
+    topEvents: "Главные события месяца",
+    perTarget: "По целям",
+    priceChanges: "Изменения цен и планов",
+    hiring: "Найм",
+    decisions: "Твои решения",
+    drift: "Цели без активности 60+ дней — убрать?",
+    noEvents: "За месяц значимых событий не было.",
+    quiet: "тихо",
+    eventsCount: (count) => `${count} событи${count === 1 ? "е" : count < 5 ? "я" : "й"}`,
+    priceChangeRow: (target, kind, was, became) => `${target} (${kind}): ${was ?? "—"} → ${became}`,
+    hiringRow: (target, open, newCount) =>
+      `${target}: ${open} открыт${open === 1 ? "а" : open < 5 ? "ы" : ""}${newCount > 0 ? `, ${newCount} новых` : ""}`,
+    decisionCount: (count) =>
+      `Зафиксировано ${count} решени${count === 1 ? "е" : count < 5 ? "я" : "й"}`,
+    driftedTarget: (target, days) => `${target} — без активности ${days} дн.`,
+    sourcesChecked: (sources, items) => `Проверено ${sources} источников, ${items} материалов.`,
+    introLabel: "Суть",
   },
 };
 

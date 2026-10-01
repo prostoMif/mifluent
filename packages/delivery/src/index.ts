@@ -11,7 +11,13 @@ export {
 export { type DeliverOptions, type DeliveryOutcome, deliverDigest } from "./deliver.js";
 export * as email from "./email/index.js";
 export { escapeHtml } from "./html.js";
-export { type RenderOptions, renderDigest } from "./render.js";
+export {
+  type MonthlyReportData,
+  type MonthlyReportRenderOptions,
+  type RenderOptions,
+  renderDigest,
+  renderMonthlyReportTelegram,
+} from "./render.js";
 export { formatPeriod, type Language, stringsFor } from "./strings.js";
 export {
   createTelegramApi,

@@ -1,0 +1,223 @@
+.page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem;
+  color: #666;
+}
+
+.error {
+  text-align: center;
+  padding: 2rem;
+  color: #dc3545;
+}
+
+.header {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: #1a1a1a;
+}
+
+.proNotice {
+  color: #dc3545;
+  font-weight: 500;
+  margin: 0.5rem 0;
+}
+
+.meta {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.section {
+  margin-bottom: 2.5rem;
+}
+
+.sectionTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: #1a1a1a;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #eee;
+}
+
+.intro {
+  line-height: 1.7;
+}
+
+.intro p {
+  margin: 0.5rem 0;
+}
+
+.topEvents {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.topEvent {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #fafafa;
+}
+
+.topEventHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.topEventTarget {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.topEventKind {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  background: #e0e0e0;
+  border-radius: 4px;
+  color: #555;
+  text-transform: capitalize;
+}
+
+.topEventDate {
+  font-size: 0.8rem;
+  color: #888;
+  margin-left: auto;
+}
+
+.topEventSummary {
+  margin: 0 0 0.5rem;
+  line-height: 1.6;
+}
+
+.topEventFacts {
+  margin-top: 0.5rem;
+}
+
+.topEventFacts summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.topEventFacts ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+}
+
+.topEventFacts li {
+  margin-bottom: 0.5rem;
+}
+
+.topEventFacts q {
+  display: block;
+  margin-top: 0.25rem;
+  font-style: italic;
+  color: #555;
+}
+
+.sourceLink {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.sourceLink:hover {
+  text-decoration: underline;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.table th {
+  font-weight: 600;
+  color: #1a1a1a;
+  border-bottom: 2px solid #eee;
+}
+
+.table tr:hover td {
+  background: #fafafa;
+}
+
+.quietRow td {
+  color: #888;
+}
+
+.targetLink {
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.targetLink:hover {
+  text-decoration: underline;
+}
+
+.targetKind {
+  color: #888;
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
+.driftList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.driftList li {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.driftMeta {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.driftNote {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.6;
+}
+
+.decisionsNote {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #888;
+  font-style: italic;
+}

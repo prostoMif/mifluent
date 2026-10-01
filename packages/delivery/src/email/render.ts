@@ -27,6 +27,50 @@ export interface RenderedEmail {
   readonly text: string;
 }
 
+/** Monthly report data for email rendering. */
+export interface MonthlyReportEmailData {
+  readonly month: string; // "YYYY-MM"
+  readonly profileName: string;
+  readonly language: Language;
+  readonly isPro: boolean;
+  readonly topEvents: readonly {
+    readonly targetName: string | null;
+    readonly kind: string | null;
+    readonly summary: string;
+    readonly sourceUrl: string | null;
+    readonly occurredAt: Date;
+  }[];
+  readonly targetSummaries: readonly {
+    readonly targetName: string;
+    readonly targetKind: string;
+    readonly oneLiner: string;
+    readonly isQuiet: boolean;
+  }[];
+  readonly priceChanges: readonly {
+    readonly targetName: string;
+    readonly kind: "price" | "plan";
+    readonly was: string | null;
+    readonly became: string;
+    readonly sourceUrl: string | null;
+    readonly occurredAt: Date;
+  }[];
+  readonly hiringSummaries: readonly {
+    readonly targetName: string;
+    readonly openCount: number;
+    readonly newThisMonth: number;
+    readonly departments: readonly string[];
+  }[];
+  readonly decisionsCount: number;
+  readonly driftedTargets: readonly {
+    readonly targetName: string;
+    readonly targetKind: string;
+    readonly daysSinceActivity: number;
+  }[];
+  readonly intro: readonly { readonly text: string }[] | null;
+  readonly sourcesChecked: number;
+  readonly itemsConsidered: number;
+}
+
 const ACTION_LABELS: Readonly<Record<string, { en: string; ru: string }>> = {
   not_following_target: { en: "Not following this", ru: "Не слежу за этим" },
   not_important: { en: "Not important", ru: "Не важно" },
@@ -303,11 +347,355 @@ function renderTextCard(
 
 function renderTextFooter(options: EmailRenderOptions, _language: Language): string {
   return `
---------------------------------
+-------------------------------
 Summaries are AI-generated from the linked sources.
 Unsubscribe: ${options.unsubscribeUrl}
 Reply to this email — it goes straight to the founder.
 `;
+}
+
+/** Format month label for display. */
+function formatMonthLabel(month: string, language: Language): string {
+  const [yearStr, monthStr] = month.split("-") as [string, string];
+  const year = parseInt(yearStr, 10);
+  const monthIndex = parseInt(monthStr, 10) - 1;
+  const date = new Date(Date.UTC(year, monthIndex, 1));
+  const format = new Intl.DateTimeFormat(language === "ru" ? "ru-RU" : "en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return format.format(date);
+}
+
+/** Format date for display. */
+function formatDate(date: Date, language: Language): string {
+  return new Intl.DateTimeFormat(language === "ru" ? "ru-RU" : "en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+/** Build HTML section header. */
+function htmlSectionHeader(title: string): string {
+  return `<h2 style="font-size: 18px; font-weight: 600; margin: 24px 0 12px; color: #1a1a1a;">${escapeHtml(title)}</h2>`;
+}
+
+/** Build text section header. */
+function textSectionHeader(title: string): string {
+  return `${title}\n${"-".repeat(title.length)}\n`;
+}
+
+/** Render intro section for HTML. */
+function renderHtmlIntro(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.intro === null || report.intro.length === 0) return "";
+  let html = htmlSectionHeader(strings.monthly.introLabel);
+  for (const sentence of report.intro) {
+    html += `<p style="margin: 8px 0;">${escapeHtml(sentence.text)}</p>`;
+  }
+  return html;
+}
+
+/** Render intro section for text. */
+function renderTextIntro(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.intro === null || report.intro.length === 0) return "";
+  let text = textSectionHeader(strings.monthly.introLabel);
+  for (const sentence of report.intro) {
+    text += `${sentence.text}\n`;
+  }
+  return `${text}\n`;
+}
+
+/** Render top events section for HTML. */
+function renderHtmlTopEvents(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.topEvents.length === 0) return "";
+  let html = htmlSectionHeader(strings.monthly.topEvents);
+  for (const event of report.topEvents) {
+    const target = event.targetName ?? "General";
+    const kind = event.kind ?? "other";
+    const dateStr = formatDate(event.occurredAt, report.language);
+    const sourceLink = event.sourceUrl
+      ? `<a href="${escapeHtml(event.sourceUrl)}" style="color: #0066cc;">${strings.source}</a>`
+      : "";
+    html += `
+      <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin: 12px 0;">
+        <p style="margin: 0 0 8px;"><strong>${escapeHtml(target)}</strong> (${escapeHtml(kind)}) <span style="color: #888; font-size: 13px;">${dateStr}</span></p>
+        <p style="margin: 0;">${escapeHtml(event.summary)}</p>
+        ${sourceLink ? `<p style="margin: 8px 0 0; font-size: 13px; color: #666;">${sourceLink}</p>` : ""}
+      </div>
+    `;
+  }
+  return html;
+}
+
+/** Render top events section for text. */
+function renderTextTopEvents(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.topEvents.length === 0) return "";
+  let text = textSectionHeader(strings.monthly.topEvents);
+  for (const event of report.topEvents) {
+    const target = event.targetName ?? "General";
+    const kind = event.kind ?? "other";
+    const dateStr = formatDate(event.occurredAt, report.language);
+    text += `• ${target} (${kind}) — ${dateStr}: ${event.summary}\n`;
+    if (event.sourceUrl) text += `  Source: ${event.sourceUrl}\n`;
+  }
+  return `${text}\n`;
+}
+
+/** Render per-target section for HTML. */
+function renderHtmlTargetSummaries(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.targetSummaries.length === 0) return "";
+  let html = htmlSectionHeader(strings.monthly.perTarget);
+  html += `<table style="width: 100%; border-collapse: collapse; font-size: 14px;">`;
+  html += `<thead><tr style="border-bottom: 2px solid #eee;"><th style="text-align: left; padding: 8px;">${escapeHtml(strings.monthly.perTarget)}</th><th style="text-align: left; padding: 8px;">Activity</th></tr></thead><tbody>`;
+  for (const target of report.targetSummaries) {
+    const rowStyle = target.isQuiet ? 'style="color: #888;"' : "";
+    html += `<tr ${rowStyle}><td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(target.targetName)} <span style="color: #888; font-size: 12px;">(${escapeHtml(target.targetKind)})</span></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(target.oneLiner)}</td></tr>`;
+  }
+  html += `</tbody></table>`;
+  return html;
+}
+
+/** Render per-target section for text. */
+function renderTextTargetSummaries(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.targetSummaries.length === 0) return "";
+  let text = textSectionHeader(strings.monthly.perTarget);
+  for (const target of report.targetSummaries) {
+    text += `${target.targetName} (${target.targetKind}): ${target.oneLiner}\n`;
+  }
+  return `${text}\n`;
+}
+
+/** Render price changes section for HTML. */
+function renderHtmlPriceChanges(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.priceChanges.length === 0) return "";
+  let html = htmlSectionHeader(strings.monthly.priceChanges);
+  html += `<table style="width: 100%; border-collapse: collapse; font-size: 14px;">`;
+  html += `<thead><tr style="border-bottom: 2px solid #eee;"><th style="text-align: left; padding: 8px;">Target</th><th style="text-align: left; padding: 8px;">Kind</th><th style="text-align: left; padding: 8px;">Was</th><th style="text-align: left; padding: 8px;">Became</th><th style="text-align: left; padding: 8px;">Date</th></tr></thead><tbody>`;
+  for (const change of report.priceChanges) {
+    const dateStr = formatDate(change.occurredAt, report.language);
+    const sourceLink = change.sourceUrl
+      ? `<a href="${escapeHtml(change.sourceUrl)}" style="color: #0066cc; font-size: 12px;">${strings.source}</a>`
+      : "";
+    html += `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(change.targetName)}</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(change.kind)}</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(change.was ?? "—")}</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(change.became)}</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${dateStr} ${sourceLink}</td></tr>`;
+  }
+  html += `</tbody></table>`;
+  return html;
+}
+
+/** Render price changes section for text. */
+function renderTextPriceChanges(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.priceChanges.length === 0) return "";
+  let text = textSectionHeader(strings.monthly.priceChanges);
+  for (const change of report.priceChanges) {
+    const dateStr = formatDate(change.occurredAt, report.language);
+    text += `${change.targetName} (${change.kind}): ${change.was ?? "—"} → ${change.became} (${dateStr})\n`;
+    if (change.sourceUrl) text += `  Source: ${change.sourceUrl}\n`;
+  }
+  return `${text}\n`;
+}
+
+/** Render hiring section for HTML. */
+function renderHtmlHiring(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.hiringSummaries.length === 0) return "";
+  let html = htmlSectionHeader(strings.monthly.hiring);
+  html += `<table style="width: 100%; border-collapse: collapse; font-size: 14px;">`;
+  html += `<thead><tr style="border-bottom: 2px solid #eee;"><th style="text-align: left; padding: 8px;">Target</th><th style="text-align: left; padding: 8px;">Open</th><th style="text-align: left; padding: 8px;">New</th><th style="text-align: left; padding: 8px;">Departments</th></tr></thead><tbody>`;
+  for (const hiring of report.hiringSummaries) {
+    html += `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(hiring.targetName)}</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${hiring.openCount}</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${hiring.newThisMonth}</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(hiring.departments.join(", "))}</td></tr>`;
+  }
+  html += `</tbody></table>`;
+  return html;
+}
+
+/** Render hiring section for text. */
+function renderTextHiring(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.hiringSummaries.length === 0) return "";
+  let text = textSectionHeader(strings.monthly.hiring);
+  for (const hiring of report.hiringSummaries) {
+    text += `${hiring.targetName}: ${hiring.openCount} open, ${hiring.newThisMonth} new — ${hiring.departments.join(", ")}\n`;
+  }
+  return `${text}\n`;
+}
+
+/** Render decisions section for HTML. */
+function renderHtmlDecisions(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.decisionsCount === 0) return "";
+  return (
+    htmlSectionHeader(strings.monthly.decisions) +
+    `<p>${escapeHtml(strings.monthly.decisionCount(report.decisionsCount))}</p>`
+  );
+}
+
+/** Render decisions section for text. */
+function renderTextDecisions(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.decisionsCount === 0) return "";
+  return (
+    textSectionHeader(strings.monthly.decisions) +
+    `${strings.monthly.decisionCount(report.decisionsCount)}\n\n`
+  );
+}
+
+/** Render drifted targets section for HTML. */
+function renderHtmlDrifted(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.driftedTargets.length === 0) return "";
+  let html = htmlSectionHeader(strings.monthly.drift);
+  html += `<ul>`;
+  for (const drift of report.driftedTargets) {
+    html += `<li>${escapeHtml(strings.monthly.driftedTarget(drift.targetName, drift.daysSinceActivity))} <span style="color: #888; font-size: 12px;">(${escapeHtml(drift.targetKind)})</span></li>`;
+  }
+  html += `</ul>`;
+  return html;
+}
+
+/** Render drifted targets section for text. */
+function renderTextDrifted(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.driftedTargets.length === 0) return "";
+  let text = textSectionHeader(strings.monthly.drift);
+  for (const drift of report.driftedTargets) {
+    text += `${strings.monthly.driftedTarget(drift.targetName, drift.daysSinceActivity)} (${drift.targetKind})\n`;
+  }
+  return `${text}\n`;
+}
+
+/** Render sources checked line for HTML. */
+function renderHtmlSourcesChecked(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  return `<p style="margin-top: 24px; color: #888; font-size: 13px;">${escapeHtml(strings.monthly.sourcesChecked(report.sourcesChecked, report.itemsConsidered))}</p>`;
+}
+
+/** Render sources checked line for text. */
+function renderTextSourcesChecked(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  return `${strings.monthly.sourcesChecked(report.sourcesChecked, report.itemsConsidered)}\n`;
+}
+
+/** Render Pro notice for HTML. */
+function renderHtmlProNotice(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.isPro) return "";
+  return `<p style="color: #888; font-size: 13px;"><em>${escapeHtml(strings.monthly.proOnly)}</em></p>`;
+}
+
+/** Render Pro notice for text. */
+function renderTextProNotice(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+): string {
+  if (report.isPro) return "";
+  return `\n${strings.monthly.proOnly}\n`;
+}
+
+/** Render monthly report as HTML email. */
+function renderHtmlMonthlyReport(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+  options: EmailRenderOptions,
+): string {
+  const monthLabel = formatMonthLabel(report.month, report.language);
+  const title = report.isPro
+    ? strings.monthly.title(report.profileName, monthLabel)
+    : strings.monthly.shortTitle(report.profileName, monthLabel);
+
+  let html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 640px; margin: 0 auto; padding: 24px;">
+      <h1 style="font-size: 22px; font-weight: 600; margin: 0 0 16px; color: #1a1a1a;">${escapeHtml(title)}</h1>
+  `;
+
+  html += renderHtmlIntro(report, strings);
+  html += renderHtmlTopEvents(report, strings);
+  html += renderHtmlTargetSummaries(report, strings);
+  html += renderHtmlPriceChanges(report, strings);
+  html += renderHtmlHiring(report, strings);
+  html += renderHtmlDecisions(report, strings);
+  html += renderHtmlDrifted(report, strings);
+  html += renderHtmlSourcesChecked(report, strings);
+  html += renderHtmlProNotice(report, strings);
+
+  html += renderHtmlFooter(options, report.language);
+  return html;
+}
+
+/** Render monthly report as plain text email. */
+function renderTextMonthlyReport(
+  report: MonthlyReportEmailData,
+  strings: ReturnType<typeof stringsFor>,
+  options: EmailRenderOptions,
+): string {
+  const monthLabel = formatMonthLabel(report.month, report.language);
+  const title = report.isPro
+    ? strings.monthly.title(report.profileName, monthLabel)
+    : strings.monthly.shortTitle(report.profileName, monthLabel);
+
+  let text = `${title}\n${"=".repeat(title.length)}\n\n`;
+
+  text += renderTextIntro(report, strings);
+  text += renderTextTopEvents(report, strings);
+  text += renderTextTargetSummaries(report, strings);
+  text += renderTextPriceChanges(report, strings);
+  text += renderTextHiring(report, strings);
+  text += renderTextDecisions(report, strings);
+  text += renderTextDrifted(report, strings);
+  text += renderTextSourcesChecked(report, strings);
+  text += renderTextProNotice(report, strings);
+
+  text += renderTextFooter(options, report.language);
+  return text;
+}
+
+/** Render monthly report subject line. */
+function renderMonthlySubject(report: MonthlyReportEmailData): string {
+  const monthLabel = formatMonthLabel(report.month, report.language);
+  return `Mifluent: Monthly report — ${report.profileName} — ${monthLabel}`;
 }
 
 export function renderEmailDigest(digest: DigestView, options: EmailRenderOptions): RenderedEmail {
@@ -349,5 +737,16 @@ export function renderEmailDigest(digest: DigestView, options: EmailRenderOption
 
   text += renderTextFooter(options, digest.language);
 
+  return { subject, html, text };
+}
+
+export function renderMonthlyReportEmail(
+  report: MonthlyReportEmailData,
+  options: EmailRenderOptions,
+): RenderedEmail {
+  const strings = stringsFor(report.language);
+  const subject = renderMonthlySubject(report);
+  const html = renderHtmlMonthlyReport(report, strings, options);
+  const text = renderTextMonthlyReport(report, strings, options);
   return { subject, html, text };
 }

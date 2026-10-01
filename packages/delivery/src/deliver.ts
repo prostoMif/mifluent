@@ -10,6 +10,7 @@ import { type AppError, type Logger, toAppError } from "@mifluent/core";
 import type { Queryable } from "@mifluent/db";
 import { schema, scoped } from "@mifluent/db";
 import {
+  type MonthlyReportData as DigestMonthlyReportData,
   type DigestRef,
   type DigestView,
   loadDigestView,
@@ -17,8 +18,13 @@ import {
   markDigestFailed,
 } from "@mifluent/digest";
 import { and, eq, sql } from "drizzle-orm";
-import { type EmailRenderOptions, renderEmailDigest, sendDigestEmail } from "./email/index.js";
-import { renderDigest } from "./render.js";
+import {
+  type EmailRenderOptions,
+  renderEmailDigest,
+  renderMonthlyReportEmail,
+  sendDigestEmail,
+} from "./email/index.js";
+import { renderDigest, renderMonthlyReportTelegram } from "./render.js";
 import type { TelegramApi } from "./telegram-api.js";
 
 export interface DeliverOptions {
@@ -267,12 +273,396 @@ async function deliverEmail(options: DeliverOptions, digest: DigestView): Promis
   return { status: "delivered", retryAfterMinutes: undefined };
 }
 
+/** Extract monthly report data from the digest's special card block. */
+function extractMonthlyReportData(digest: DigestView): DigestMonthlyReportData | null {
+  for (const card of digest.cards) {
+    for (const block of card.blocks) {
+      if (block.kind === "analyst_opinion") {
+        try {
+          const parsed = JSON.parse(block.content);
+          if (parsed.type === "monthly_report") {
+            return parseMonthlyReportData(parsed);
+          }
+        } catch {
+          // Not a monthly report block
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function parseMonthlyReportData(data: {
+  month: string;
+  profileName: string;
+  language: "en" | "ru";
+  topEvents: Array<{
+    id: string;
+    targetName: string | null;
+    kind: string | null;
+    summary: string;
+    sourceUrl: string | null;
+    occurredAt: string;
+    facts?: Array<{ statement: string; quote: string }>;
+  }>;
+  targetSummaries: Array<{
+    targetId: string;
+    targetName: string;
+    targetKind: string;
+    oneLiner: string;
+    isQuiet: boolean;
+  }>;
+  priceChanges: Array<{
+    targetId: string;
+    targetName: string;
+    kind: "price" | "plan";
+    was: string | null;
+    became: string;
+    sourceUrl: string | null;
+    occurredAt: string;
+  }>;
+  hiringSummaries: Array<{
+    targetId: string;
+    targetName: string;
+    openCount: number;
+    newThisMonth: number;
+    departments: string[];
+  }>;
+  decisions: { count: number; decisionIds: string[] };
+  driftedTargets: Array<{
+    targetId: string;
+    targetName: string;
+    targetKind: string;
+    daysSinceActivity: number;
+    lastEventAt: string | null;
+    lastReactionAt: string | null;
+  }>;
+  intro: Array<{ text: string; eventIds: string[] }> | null;
+  sourcesChecked: number;
+  itemsConsidered: number;
+}): DigestMonthlyReportData {
+  return {
+    month: data.month,
+    profileId: "", // Not stored in JSON, but not needed for delivery
+    profileName: data.profileName,
+    language: data.language,
+    topEvents: data.topEvents.map((e) => ({
+      id: e.id,
+      targetId: null, // Not stored in JSON
+      targetName: e.targetName,
+      targetKind: null,
+      kind: e.kind,
+      summary: e.summary,
+      facts: e.facts ?? [],
+      occurredAt: new Date(e.occurredAt),
+      sourceUrl: e.sourceUrl,
+    })),
+    targetSummaries: data.targetSummaries.map((t) => ({
+      targetId: t.targetId,
+      targetName: t.targetName,
+      targetKind: t.targetKind,
+      eventCount: 0, // Not stored in JSON
+      topEventKinds: [], // Not stored in JSON
+      oneLiner: t.oneLiner,
+      isQuiet: t.isQuiet,
+    })),
+    priceChanges: data.priceChanges.map((p) => ({
+      targetId: p.targetId,
+      targetName: p.targetName,
+      kind: p.kind,
+      was: p.was,
+      became: p.became,
+      quote: null,
+      sourceUrl: p.sourceUrl,
+      occurredAt: new Date(p.occurredAt),
+    })),
+    hiringSummaries: data.hiringSummaries,
+    decisions: { count: data.decisions.count, decisionIds: data.decisions.decisionIds },
+    driftedTargets: data.driftedTargets.map((d) => ({
+      targetId: d.targetId,
+      targetName: d.targetName,
+      targetKind: d.targetKind,
+      lastEventAt: d.lastEventAt ? new Date(d.lastEventAt) : null,
+      lastReactionAt: d.lastReactionAt ? new Date(d.lastReactionAt) : null,
+      daysSinceActivity: d.daysSinceActivity,
+    })),
+    intro: data.intro ? { sentences: data.intro } : null,
+    sourcesChecked: data.sourcesChecked,
+    itemsConsidered: data.itemsConsidered,
+    generatedAt: new Date(),
+  };
+}
+
+/** Convert full MonthlyReportData to simplified version for Telegram rendering. */
+function toTelegramReportData(report: DigestMonthlyReportData): {
+  readonly month: string;
+  readonly profileName: string;
+  readonly language: "en" | "ru";
+  readonly topEvents: readonly {
+    readonly targetName: string | null;
+    readonly kind: string | null;
+    readonly summary: string;
+  }[];
+  readonly targetSummaries: readonly {
+    readonly targetName: string;
+    readonly oneLiner: string;
+    readonly isQuiet: boolean;
+  }[];
+  readonly priceChangesCount: number;
+  readonly hiringCount: number;
+  readonly decisionsCount: number;
+  readonly driftedCount: number;
+  readonly intro: readonly { readonly text: string }[] | null;
+  readonly sourcesChecked: number;
+  readonly itemsConsidered: number;
+} {
+  return {
+    month: report.month,
+    profileName: report.profileName,
+    language: report.language,
+    topEvents: report.topEvents.map((e) => ({
+      targetName: e.targetName,
+      kind: e.kind,
+      summary: e.summary,
+    })),
+    targetSummaries: report.targetSummaries.map((t) => ({
+      targetName: t.targetName,
+      oneLiner: t.oneLiner,
+      isQuiet: t.isQuiet,
+    })),
+    priceChangesCount: report.priceChanges.length,
+    hiringCount: report.hiringSummaries.length,
+    decisionsCount: report.decisions.count,
+    driftedCount: report.driftedTargets.length,
+    intro: report.intro?.sentences.map((s) => ({ text: s.text })) ?? null,
+    sourcesChecked: report.sourcesChecked,
+    itemsConsidered: report.itemsConsidered,
+  };
+}
+
+/** Deliver monthly report via Telegram (short version with button to full report). */
+async function deliverMonthlyReportTelegram(
+  options: DeliverOptions,
+  digest: DigestView,
+): Promise<DeliveryOutcome> {
+  const { db, ref, logger, telegramApi, appUrl, timezone, now } = options;
+
+  if (!telegramApi) {
+    logger.warn("monthly_report.delivery_skipped", { ...ref, reason: "telegram_not_configured" });
+    return { status: "failed", retryAfterMinutes: undefined };
+  }
+
+  if (digest.telegramChatId === null) {
+    await markDigestFailed(db, ref, "telegram_not_bound");
+    return { status: "not_bound", retryAfterMinutes: undefined };
+  }
+
+  const reportData = extractMonthlyReportData(digest);
+  if (!reportData) {
+    logger.warn("monthly_report.no_data", { ...ref });
+    await markDigestFailed(db, ref, "monthly_report_no_data");
+    return { status: "failed", retryAfterMinutes: undefined };
+  }
+
+  const miniAppUrl = `${appUrl.replace(/\/+$/, "")}/tg`;
+  const reportUrl = `${appUrl.replace(/\/+$/, "")}/reports/${reportData.month}?profile=${digest.profileId}`;
+  const isPro = true; // Monthly reports are only for Pro
+
+  const telegramData = toTelegramReportData(reportData);
+  const messages = renderMonthlyReportTelegram(telegramData, {
+    appUrl,
+    timezone,
+    miniAppUrl,
+    isPro,
+    reportUrl,
+  });
+
+  try {
+    for (const message of messages) {
+      await telegramApi.sendMessage(digest.telegramChatId, message);
+    }
+  } catch (thrown) {
+    const error = toAppError(thrown);
+    logger.warn("monthly_report.delivery_failed", {
+      ...ref,
+      code: error.code,
+      details: error.details,
+    });
+
+    if (isBotBlockedError(error)) {
+      await markProfileTelegramBlocked(db, ref.tenantId, digest.profileId, now ?? new Date());
+      await markDigestFailed(db, ref, "telegram_blocked");
+      return { status: "failed", retryAfterMinutes: undefined };
+    }
+
+    const currentAttempt = getCurrentAttempt(digest.failureReason);
+    if (isRetryableError(error) && currentAttempt < MAX_RETRIES) {
+      const nextAttempt = currentAttempt + 1;
+      const retryAfterMinutes = RETRY_DELAYS_MINUTES[nextAttempt - 1];
+      await scheduleRetry(db, ref, nextAttempt, now ?? new Date());
+      return { status: "failed", retryAfterMinutes };
+    }
+
+    await markDigestFailed(db, ref, error.code);
+    return { status: "failed", retryAfterMinutes: undefined };
+  }
+
+  await markDigestDelivered(db, ref, now ?? new Date());
+  logger.info("monthly_report.delivered", { ...ref, channel: "telegram" });
+  return { status: "delivered", retryAfterMinutes: undefined };
+}
+
+/** Deliver monthly report via email (full version). */
+async function deliverMonthlyReportEmail(
+  options: DeliverOptions,
+  digest: DigestView,
+): Promise<DeliveryOutcome> {
+  const { db, ref, logger, appUrl, timezone, now } = options;
+  const currentTime = now ?? new Date();
+
+  // Get the tenant owner's email
+  const [owner] = await db
+    .select({ email: schema.user.email })
+    .from(schema.user)
+    .innerJoin(schema.memberships, eq(schema.memberships.userId, schema.user.id))
+    .innerJoin(schema.watchProfiles, eq(schema.watchProfiles.tenantId, schema.memberships.tenantId))
+    .where(
+      and(
+        eq(schema.watchProfiles.id, digest.profileId),
+        eq(schema.memberships.role, "owner"),
+        eq(schema.memberships.tenantId, ref.tenantId),
+      ),
+    )
+    .limit(1);
+
+  if (!owner?.email) {
+    await markDigestFailed(db, ref, "email_not_found");
+    return { status: "failed", retryAfterMinutes: undefined };
+  }
+  const ownerEmail = owner.email;
+
+  const config = await import("@mifluent/core").then((m) => m.getConfig());
+  const feedbackEmail = config.FEEDBACK_EMAIL ?? config.SMTP_FROM;
+  if (!feedbackEmail) {
+    await markDigestFailed(db, ref, "email_not_configured");
+    return { status: "failed", retryAfterMinutes: undefined };
+  }
+
+  const reportData = extractMonthlyReportData(digest);
+  if (!reportData) {
+    logger.warn("monthly_report.no_data", { ...ref });
+    await markDigestFailed(db, ref, "monthly_report_no_data");
+    return { status: "failed", retryAfterMinutes: undefined };
+  }
+
+  const emailRenderOptions: EmailRenderOptions = {
+    appUrl,
+    timezone,
+    actionBaseUrl: `${appUrl.replace(/\/+$/, "")}/a`,
+    unsubscribeUrl: `${appUrl.replace(/\/+$/, "")}/unsubscribe/`,
+    feedbackEmail,
+  };
+
+  // Convert report data to email format
+  const emailData = {
+    month: reportData.month,
+    profileName: reportData.profileName,
+    language: reportData.language,
+    isPro: true,
+    topEvents: reportData.topEvents.map((e) => ({
+      targetName: e.targetName,
+      kind: e.kind,
+      summary: e.summary,
+      sourceUrl: e.sourceUrl,
+      occurredAt: e.occurredAt,
+    })),
+    targetSummaries: reportData.targetSummaries.map((t) => ({
+      targetName: t.targetName,
+      targetKind: t.targetKind,
+      oneLiner: t.oneLiner,
+      isQuiet: t.isQuiet,
+    })),
+    priceChanges: reportData.priceChanges.map((p) => ({
+      targetName: p.targetName,
+      kind: p.kind as "price" | "plan",
+      was: p.was,
+      became: p.became,
+      sourceUrl: p.sourceUrl,
+      occurredAt: p.occurredAt,
+    })),
+    hiringSummaries: reportData.hiringSummaries.map((h) => ({
+      targetName: h.targetName,
+      openCount: h.openCount,
+      newThisMonth: h.newThisMonth,
+      departments: h.departments,
+    })),
+    decisionsCount: reportData.decisions.count,
+    driftedTargets: reportData.driftedTargets.map((d) => ({
+      targetName: d.targetName,
+      targetKind: d.targetKind,
+      daysSinceActivity: d.daysSinceActivity,
+    })),
+    intro: reportData.intro?.sentences.map((s) => ({ text: s.text })) ?? null,
+    sourcesChecked: reportData.sourcesChecked,
+    itemsConsidered: reportData.itemsConsidered,
+  };
+
+  const rendered = renderMonthlyReportEmail(emailData, emailRenderOptions);
+
+  try {
+    await sendDigestEmail({
+      to: ownerEmail,
+      rendered,
+      feedbackEmail,
+    });
+  } catch (thrown) {
+    const error = toAppError(thrown);
+    return handleDeliveryError(db, ref, error, digest, currentTime, logger);
+  }
+
+  await markDigestDelivered(db, ref, currentTime);
+  logger.info("monthly_report.delivered", { ...ref, channel: "email" });
+  return { status: "delivered", retryAfterMinutes: undefined };
+}
+
 export async function deliverDigest(options: DeliverOptions): Promise<DeliveryOutcome> {
   const { db, ref, logger } = options;
   const digest = await loadDigestView(db, ref.tenantId, ref.digestId);
 
   if (digest === undefined) return { status: "missing", retryAfterMinutes: undefined };
 
+  // Check if this is a monthly report digest
+  const isMonthlyReport = digest.cards.some((card) =>
+    card.blocks.some((block) => {
+      try {
+        const parsed = JSON.parse(block.content);
+        return parsed.type === "monthly_report";
+      } catch {
+        return false;
+      }
+    }),
+  );
+
+  if (isMonthlyReport) {
+    switch (digest.channel) {
+      case "telegram":
+        return deliverMonthlyReportTelegram(options, digest);
+      case "email":
+        return deliverMonthlyReportEmail(options, digest);
+      case "web_only":
+        await markDigestDelivered(db, ref, options.now ?? new Date());
+        logger.info("monthly_report.delivered", {
+          ...ref,
+          channel: "web_only",
+        });
+        return { status: "delivered", retryAfterMinutes: undefined };
+      default:
+        await markDigestFailed(db, ref, "unknown_channel");
+        return { status: "failed", retryAfterMinutes: undefined };
+    }
+  }
+
+  // Regular digest delivery
   switch (digest.channel) {
     case "telegram":
       return deliverTelegram(options, digest);

@@ -29,6 +29,158 @@ export function renderDigest(digest: DigestView, options: RenderOptions): Outgoi
   return [header, ...cards];
 }
 
+/** Render a monthly report as a short Telegram message with a "Full report" button. */
+export interface MonthlyReportRenderOptions {
+  readonly appUrl: string;
+  readonly timezone: string;
+  readonly miniAppUrl?: string;
+  readonly isPro: boolean;
+  readonly reportUrl: string; // Web URL for the full report
+}
+
+export interface MonthlyReportData {
+  readonly month: string; // "YYYY-MM"
+  readonly profileName: string;
+  readonly language: "en" | "ru";
+  readonly topEvents: readonly {
+    readonly targetName: string | null;
+    readonly kind: string | null;
+    readonly summary: string;
+  }[];
+  readonly targetSummaries: readonly {
+    readonly targetName: string;
+    readonly oneLiner: string;
+    readonly isQuiet: boolean;
+  }[];
+  readonly priceChangesCount: number;
+  readonly hiringCount: number;
+  readonly decisionsCount: number;
+  readonly driftedCount: number;
+  readonly intro: readonly { readonly text: string }[] | null;
+  readonly sourcesChecked: number;
+  readonly itemsConsidered: number;
+}
+
+export function renderMonthlyReportTelegram(
+  report: MonthlyReportData,
+  options: MonthlyReportRenderOptions,
+): OutgoingMessage[] {
+  const strings = stringsFor(report.language);
+  const monthLabel = formatMonthLabel(report.month, report.language);
+  const title = buildMonthlyReportTitle(report.profileName, monthLabel, strings, options.isPro);
+
+  const lines = buildMonthlyReportLines(report, strings, options.isPro);
+  lines.unshift(`<b>${escapeHtml(title)}</b>`);
+
+  const buttons = buildMonthlyReportButtons(strings, options);
+
+  return [{ text: fitToLimit(lines), buttons }];
+}
+
+function buildMonthlyReportTitle(
+  profileName: string,
+  monthLabel: string,
+  strings: Strings,
+  isPro: boolean,
+): string {
+  return isPro
+    ? strings.monthly.title(profileName, monthLabel)
+    : strings.monthly.shortTitle(profileName, monthLabel);
+}
+
+function buildMonthlyReportLines(
+  report: MonthlyReportData,
+  strings: Strings,
+  isPro: boolean,
+): string[] {
+  const lines: string[] = [];
+
+  // Intro from model (if available)
+  if (report.intro !== null && report.intro.length > 0) {
+    lines.push("", `<b>${escapeHtml(strings.monthly.introLabel)}</b>`);
+    for (const sentence of report.intro) {
+      lines.push(escapeHtml(sentence.text));
+    }
+  }
+
+  // Top events (max 3 for short version)
+  if (report.topEvents.length > 0) {
+    lines.push("", `<b>${escapeHtml(strings.monthly.topEvents)}</b>`);
+    for (const event of report.topEvents.slice(0, 3)) {
+      const target = event.targetName ?? strings.monthly.perTarget;
+      const kind = event.kind ?? "other";
+      lines.push(
+        `• <b>${escapeHtml(target)}</b> (${escapeHtml(kind)}): ${escapeHtml(event.summary)}`,
+      );
+    }
+  }
+
+  // Quick stats line
+  const statsParts = buildStatsParts(report, strings);
+  if (statsParts.length > 0) {
+    lines.push("", `<i>${escapeHtml(statsParts.join(" · "))}</i>`);
+  }
+
+  // Sources checked
+  lines.push(
+    "",
+    escapeHtml(strings.monthly.sourcesChecked(report.sourcesChecked, report.itemsConsidered)),
+  );
+
+  // Pro notice for free users
+  if (!isPro) {
+    lines.push("", `<i>${escapeHtml(strings.monthly.proOnly)}</i>`);
+  }
+
+  return lines;
+}
+
+function buildStatsParts(report: MonthlyReportData, _strings: Strings): string[] {
+  const parts: string[] = [];
+  if (report.targetSummaries.length > 0) {
+    const quietCount = report.targetSummaries.filter((t) => t.isQuiet).length;
+    const activeCount = report.targetSummaries.length - quietCount;
+    parts.push(`${activeCount} active, ${quietCount} quiet`);
+  }
+  if (report.priceChangesCount > 0) parts.push(`${report.priceChangesCount} price changes`);
+  if (report.hiringCount > 0) parts.push(`${report.hiringCount} hiring`);
+  if (report.decisionsCount > 0) parts.push(`${report.decisionsCount} decisions`);
+  if (report.driftedCount > 0) parts.push(`${report.driftedCount} to review`);
+  return parts;
+}
+
+function buildMonthlyReportButtons(
+  strings: Strings,
+  options: MonthlyReportRenderOptions,
+): readonly InlineButton[] {
+  const buttons: InlineButton[] = [
+    { type: "web_app", text: strings.buttons.fullReport, webAppUrl: options.reportUrl },
+  ];
+
+  if (options.miniAppUrl) {
+    buttons.push({
+      type: "web_app",
+      text: strings.buttons.openMiniApp,
+      webAppUrl: options.miniAppUrl,
+    });
+  }
+
+  return buttons;
+}
+
+function formatMonthLabel(month: string, language: "en" | "ru"): string {
+  const [yearStr, monthStr] = month.split("-") as [string, string];
+  const year = parseInt(yearStr, 10);
+  const monthIndex = parseInt(monthStr, 10) - 1;
+  const date = new Date(Date.UTC(year, monthIndex, 1));
+  const format = new Intl.DateTimeFormat(language === "ru" ? "ru-RU" : "en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return format.format(date);
+}
+
 function renderHeader(
   digest: DigestView,
   strings: Strings,

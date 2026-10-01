@@ -25,6 +25,9 @@ export const QUEUES = {
   profileFirstRun: "profile:first_run",
   ownerDailyReport: "owner:daily_report",
   alertCheck: "alert:check",
+  monthlyReportTick: "monthly_report:tick",
+  monthlyReportBuild: "monthly_report:build",
+  monthlyReportDeliver: "monthly_report:deliver",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
