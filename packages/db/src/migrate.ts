@@ -30,6 +30,13 @@ async function main(): Promise<void> {
     await assertDatabaseReady(sql);
     logger.info("migrate.started");
 
+    // The very first migration declares vector columns, and no migration
+    // enables the extension: drizzle-kit does not emit CREATE EXTENSION. A
+    // fresh database — a new VPS, someone's self-host — would fail on
+    // "type vector does not exist". The pgvector image ships the extension;
+    // it only has to be switched on, and doing so twice is a no-op.
+    await sql`CREATE EXTENSION IF NOT EXISTS vector`;
+
     await migrate(drizzle(sql), { migrationsFolder: "./migrations" });
 
     logger.info("migrate.finished");

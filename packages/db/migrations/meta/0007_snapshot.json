@@ -1,5 +1,5 @@
 {
-  "id": "d0c80727-fe21-4dab-a676-df914ffcf677",
+  "id": "3b4657e9-65d7-4221-bb59-c606c3c64c2e",
   "prevId": "0b694bac-ffa7-438c-be41-ed95de79ef37",
   "version": "7",
   "dialect": "postgresql",
@@ -3359,6 +3359,147 @@
           "primaryKey": true,
           "notNull": true
         },
+        "discovery_run_id": {
+          "name": "discovery_run_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result": {
+          "name": "result",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "input": {
+          "name": "input",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "language": {
+          "name": "language",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'en'"
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "channel": {
+          "name": "channel",
+          "type": "onboarding_channel",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_hash": {
+          "name": "email_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ip_hash": {
+          "name": "ip_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consumed_at": {
+          "name": "consumed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "pending_onboardings_ip_hash_idx": {
+          "name": "pending_onboardings_ip_hash_idx",
+          "columns": [
+            {
+              "expression": "ip_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pending_onboardings_expires_at_idx": {
+          "name": "pending_onboardings_expires_at_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pending_onboardings_consumed_at_idx": {
+          "name": "pending_onboardings_consumed_at_idx",
+          "columns": [
+            {
+              "expression": "consumed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pending_telegram_onboardings": {
+      "name": "pending_telegram_onboardings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
         "chat_id": {
           "name": "chat_id",
           "type": "text",
@@ -3373,7 +3514,7 @@
         },
         "step": {
           "name": "step",
-          "type": "onboarding_step",
+          "type": "telegram_onboarding_step",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
@@ -3478,11 +3619,17 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
-        "pending_onboardings_chat_id_unique": {
-          "name": "pending_onboardings_chat_id_unique",
+        "pending_telegram_onboardings_chat_id_unique": {
+          "name": "pending_telegram_onboardings_chat_id_unique",
           "columns": [
             {
               "expression": "chat_id",
@@ -3497,8 +3644,8 @@
           "method": "btree",
           "with": {}
         },
-        "pending_onboardings_tenant_idx": {
-          "name": "pending_onboardings_tenant_idx",
+        "pending_telegram_onboardings_tenant_idx": {
+          "name": "pending_telegram_onboardings_tenant_idx",
           "columns": [
             {
               "expression": "tenant_id",
@@ -3512,8 +3659,8 @@
           "method": "btree",
           "with": {}
         },
-        "pending_onboardings_telegram_user_idx": {
-          "name": "pending_onboardings_telegram_user_idx",
+        "pending_telegram_onboardings_telegram_user_idx": {
+          "name": "pending_telegram_onboardings_telegram_user_idx",
           "columns": [
             {
               "expression": "telegram_user_id",
@@ -3529,9 +3676,9 @@
         }
       },
       "foreignKeys": {
-        "pending_onboardings_tenant_id_tenants_id_fk": {
-          "name": "pending_onboardings_tenant_id_tenants_id_fk",
-          "tableFrom": "pending_onboardings",
+        "pending_telegram_onboardings_tenant_id_tenants_id_fk": {
+          "name": "pending_telegram_onboardings_tenant_id_tenants_id_fk",
+          "tableFrom": "pending_telegram_onboardings",
           "tableTo": "tenants",
           "columnsFrom": [
             "tenant_id"
@@ -5273,8 +5420,17 @@
         "influenced"
       ]
     },
-    "public.onboarding_step": {
-      "name": "onboarding_step",
+    "public.onboarding_channel": {
+      "name": "onboarding_channel",
+      "schema": "public",
+      "values": [
+        "email",
+        "telegram",
+        "waitlist"
+      ]
+    },
+    "public.telegram_onboarding_step": {
+      "name": "telegram_onboarding_step",
       "schema": "public",
       "values": [
         "awaiting_input",
@@ -5290,7 +5446,8 @@
       "values": [
         "competitor",
         "platform",
-        "condition"
+        "condition",
+        "self"
       ]
     },
     "public.source_kind": {
