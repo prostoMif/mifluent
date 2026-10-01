@@ -20,6 +20,7 @@ export interface DigestBlockView {
 export interface DigestCardView {
   readonly id: string;
   readonly eventId: string;
+  readonly targetId: string | null;
   readonly kind: "event" | "group";
   readonly headline: string;
   readonly sourceUrl: string | null;
@@ -133,6 +134,7 @@ async function withCards(db: Queryable, row: DigestRow): Promise<DigestView> {
     .select({
       id: schema.digestCards.id,
       eventId: schema.digestCards.eventId,
+      targetId: schema.events.targetId,
       kind: schema.digestCards.kind,
       headline: schema.digestCards.headline,
       sourceUrl: schema.digestCards.sourceUrl,
@@ -191,6 +193,7 @@ async function withCards(db: Queryable, row: DigestRow): Promise<DigestView> {
     failureReason: row.failureReason,
     cards: cards.map((card) => ({
       ...card,
+      targetId: card.targetId ?? null,
       kind: card.kind === "group" ? "group" : "event",
       targetKind: card.targetKind ?? null,
       blocks: blocks

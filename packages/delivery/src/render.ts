@@ -104,6 +104,13 @@ function renderCard(
   const age = card.ageDays === null ? "" : ` <i>(${escapeHtml(strings.age(card.ageDays))})</i>`;
 
   const lines = [`<b>${escapeHtml(headline)}</b>${age}`];
+
+  // Add target link if available
+  if (card.targetId !== null && card.targetId !== undefined) {
+    const targetUrl = `${options.appUrl.replace(/\/+$/, "")}/targets/${card.targetId}`;
+    lines.push("", link(targetUrl, strings.buttons.openTarget));
+  }
+
   for (const block of card.blocks) {
     lines.push("", renderBlock(block, strings));
   }

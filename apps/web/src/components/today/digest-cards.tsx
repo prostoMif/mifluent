@@ -6,7 +6,8 @@
  * already checked, with `rel="noopener noreferrer nofollow"` (docs/security.md).
  */
 
-import type { DigestBlockView, DigestView } from "@mifluent/digest";
+import type { DigestBlockView, DigestCardView, DigestView } from "@mifluent/digest";
+import Link from "next/link";
 import { CardActions } from "./card-actions";
 import styles from "./today.module.css";
 
@@ -54,30 +55,40 @@ export function DigestCards({ digest, canAct }: DigestCardsProps) {
       ) : (
         <ol className={styles["cards"]}>
           {digest.cards.map((card) => (
-            <li
-              className={`${styles["card"]} ${card.isUrgent ? styles["cardUrgent"] : ""}`}
-              key={card.id}
-            >
-              <h2 className={styles["headline"]}>
-                {card.kind === "group"
-                  ? `${card.headline}: ${card.blocks.length + card.moreCount} changes`
-                  : card.headline}{" "}
-                {card.ageDays === null ? null : (
-                  <span className={styles["age"]}>({formatAge(card.ageDays)})</span>
-                )}
-              </h2>
-              {card.blocks.map((block, index) => (
-                <Block block={block} key={`${card.id}-${index}`} />
-              ))}
-              {card.moreCount > 0 ? (
-                <p className={styles["period"]}>and {card.moreCount} more</p>
-              ) : null}
-              {canAct ? <CardActions cardId={card.id} /> : null}
-            </li>
+            <DigestCard card={card} canAct={canAct} key={card.id} />
           ))}
         </ol>
       )}
     </section>
+  );
+}
+
+function DigestCard({ card, canAct }: { readonly card: DigestCardView; readonly canAct: boolean }) {
+  return (
+    <li className={`${styles["card"]} ${card.isUrgent ? styles["cardUrgent"] : ""}`}>
+      <h2 className={styles["headline"]}>
+        {card.kind === "group"
+          ? `${card.headline}: ${card.blocks.length + card.moreCount} changes`
+          : card.headline}{" "}
+        {card.ageDays === null ? null : (
+          <span className={styles["age"]}>({formatAge(card.ageDays)})</span>
+        )}
+        {card.targetId !== null && card.targetId !== undefined ? (
+          <Link
+            href={`/targets/${card.targetId}`}
+            className={styles["targetLink"]}
+            aria-label="View target history"
+          >
+            →
+          </Link>
+        ) : null}
+      </h2>
+      {card.blocks.map((block, index) => (
+        <Block block={block} key={`${card.id}-${index}`} />
+      ))}
+      {card.moreCount > 0 ? <p className={styles["period"]}>and {card.moreCount} more</p> : null}
+      {canAct ? <CardActions cardId={card.id} /> : null}
+    </li>
   );
 }
 

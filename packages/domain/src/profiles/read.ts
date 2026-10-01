@@ -126,6 +126,40 @@ export async function listStopwords(
   return rows.map((row) => row.term);
 }
 
+export interface WatchTargetDetail {
+  readonly id: string;
+  readonly profileId: string;
+  readonly kind: string;
+  readonly name: string;
+  readonly websiteUrl: string | null;
+  readonly aliases: readonly string[];
+  readonly reason: string | null;
+  readonly pausedAt: Date | null;
+}
+
+export async function findWatchTarget(
+  db: Queryable,
+  tenantId: string,
+  targetId: string,
+): Promise<WatchTargetDetail | undefined> {
+  const [target] = await db
+    .select({
+      id: schema.watchTargets.id,
+      profileId: schema.watchTargets.profileId,
+      kind: schema.watchTargets.kind,
+      name: schema.watchTargets.name,
+      websiteUrl: schema.watchTargets.websiteUrl,
+      aliases: schema.watchTargets.aliases,
+      reason: schema.watchTargets.reason,
+      pausedAt: schema.watchTargets.pausedAt,
+    })
+    .from(schema.watchTargets)
+    .where(scopedAlive(schema.watchTargets, tenantId, eq(schema.watchTargets.id, targetId)))
+    .limit(1);
+
+  return target;
+}
+
 /** When and where the profile's digest goes. Empty settings mean the defaults. */
 export async function findProfileDelivery(
   db: Queryable,

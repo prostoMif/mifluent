@@ -33,6 +33,7 @@ export interface Strings {
     readonly save: string;
     readonly influenced: string;
     readonly openMiniApp: string;
+    readonly openTarget: string;
   };
   readonly callback: {
     readonly recorded: string;
@@ -110,6 +111,7 @@ const en: Strings = {
     save: "Save",
     influenced: "It changed a decision",
     openMiniApp: "Archive & settings",
+    openTarget: "Open target page",
   },
   callback: {
     recorded: "Noted",
@@ -190,6 +192,7 @@ const ru: Strings = {
     save: "Сохранить",
     influenced: "Повлияло",
     openMiniApp: "Архив и настройки",
+    openTarget: "Открыть страницу цели",
   },
   callback: {
     recorded: "Принято",

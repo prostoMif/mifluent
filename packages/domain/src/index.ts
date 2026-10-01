@@ -81,6 +81,7 @@ export {
 export {
   findProfileDelivery,
   findWatchProfile,
+  findWatchTarget,
   listStopwords,
   listTargets,
   listTopics,
@@ -104,6 +105,21 @@ export {
 export { isReturner } from "./reports/returner-rule.js";
 export * from "./schemas.js";
 export * from "./sources/index.js";
+export {
+  type EventKind,
+  fetchCheckCount,
+  fetchPriceChanges,
+  fetchTargetHeader,
+  fetchTargetTimeline,
+  fetchVacancies,
+  getHistoryDaysLimit,
+  PAGE_SIZE,
+  type PriceChange,
+  type TargetHeader,
+  type TargetHistoryResult,
+  type TimelineEntry,
+  type Vacancy,
+} from "./targets/history.js";
 export {
   type CreatedInvitation,
   type CreateInvitationOptions,

@@ -1,6 +1,6 @@
 import { getConfig } from "@mifluent/core";
 import { listRecentUrgentDigests, loadLatestDigestView } from "@mifluent/digest";
-import { can, findProfileDelivery, listWatchProfiles } from "@mifluent/domain";
+import { can, findProfileDelivery, listTargets, listWatchProfiles } from "@mifluent/domain";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TelegramBinding } from "@/components/telegram/telegram-binding";
@@ -52,10 +52,11 @@ export default async function TodayPage({ searchParams }: PageProps) {
   if (profile === undefined) return null;
 
   const since = new Date(Date.now() - URGENT_SHOWN_DAYS * 24 * 60 * 60 * 1000);
-  const [digest, urgent, delivery] = await Promise.all([
+  const [digest, urgent, delivery, targets] = await Promise.all([
     loadLatestDigestView(db, session.tenantId, profile.id),
     listRecentUrgentDigests(db, session.tenantId, profile.id, since),
     findProfileDelivery(db, session.tenantId, profile.id),
+    listTargets(db, session.tenantId, profile.id),
   ]);
   const config = getConfig();
   const canEdit = can(session.role, "profile:write");
@@ -81,6 +82,16 @@ export default async function TodayPage({ searchParams }: PageProps) {
           ))}
         </nav>
       ) : null}
+
+      {targets.length > 0 && (
+        <nav aria-label="Targets" className={styles["targetSwitch"]}>
+          {targets.map((target) => (
+            <Link href={`/targets/${target.id}`} key={target.id} className={styles["targetLink"]}>
+              {target.name}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       {urgent.map((view) => (
         <DigestCards canAct={canEdit} digest={view} key={view.id} />

@@ -1,0 +1,546 @@
+.targetHeader {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--surface-color);
+}
+
+.headerMain {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.kindIcon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.targetName {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.targetKind {
+  margin: 0;
+  color: var(--muted-color);
+  font-size: 0.9rem;
+}
+
+.websiteLink {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.websiteLink:hover {
+  text-decoration: underline;
+}
+
+.statusBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--muted-bg);
+  color: var(--muted-color);
+}
+
+.badgeActive {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badgePaused {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.reason {
+  margin: 0;
+  color: var(--muted-color);
+  font-size: 0.9rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--surface-color);
+  color: var(--text-color);
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--hover-bg);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.buttonPrimary {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.buttonPrimary:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.buttonDanger {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.buttonDanger:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.error {
+  margin: 0.75rem 0 0;
+  color: #ef4444;
+  font-size: 0.875rem;
+}
+
+.timeline {
+  padding: 1.5rem;
+}
+
+.sectionTitle {
+  margin: 0 0 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.timelineHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filterLabel {
+  font-size: 0.875rem;
+  color: var(--muted-color);
+}
+
+.filterSelect {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background: var(--surface-color);
+  color: var(--text-color);
+}
+
+.timelineList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.timelineItem {
+  position: relative;
+  padding-left: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.timelineItem::before {
+  content: "";
+  position: absolute;
+  left: 0.25rem;
+  top: 0;
+  bottom: -1.5rem;
+  width: 2px;
+  background: var(--border-color);
+}
+
+.timelineItem:last-child::before {
+  display: none;
+}
+
+.entry {
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: var(--surface-color);
+}
+
+.entryDecision {
+  border-left: 3px solid #6366f1;
+}
+
+.entryHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.entryDate {
+  font-size: 0.875rem;
+  color: var(--muted-color);
+  white-space: nowrap;
+}
+
+.entryKindBadge {
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.entryKindDecision {
+  background: #6366f1;
+}
+
+.entryKindUrgent {
+  background: #ef4444;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.entryContent {
+  margin-bottom: 0.5rem;
+}
+
+.entrySummary {
+  margin: 0 0 0.5rem;
+  line-height: 1.5;
+}
+
+.entryQuote {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--primary-color);
+  background: var(--muted-bg);
+  font-style: italic;
+  color: var(--muted-color);
+  font-size: 0.875rem;
+}
+
+.entrySource {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+}
+
+.entrySource a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.entrySource a:hover {
+  text-decoration: underline;
+}
+
+.entryRevisit {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted-color);
+}
+
+.entryDecisionDetails {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.entryDecisionSummary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--link-color);
+}
+
+.entryDecisionSummary:hover {
+  text-decoration: underline;
+}
+
+.entryDecisionText {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: var(--muted-bg);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.loadMore {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--surface-color);
+  color: var(--text-color);
+}
+
+.loadMore:hover:not(:disabled) {
+  background: var(--hover-bg);
+}
+
+.loadMore:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.emptyTimeline {
+  margin: 0;
+  color: var(--muted-color);
+  text-align: center;
+  padding: 2rem;
+}
+
+.priceHistory {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.priceTableWrapper {
+  overflow-x: auto;
+}
+
+.priceTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.priceTable th,
+.priceTable td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.priceTable th {
+  font-weight: 600;
+  color: var(--muted-color);
+  background: var(--surface-color);
+  position: sticky;
+  top: 0;
+}
+
+.priceKindBadge {
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+}
+
+.priceWas {
+  color: var(--muted-color);
+}
+
+.priceBaseline {
+  font-style: italic;
+}
+
+.priceBecame {
+  font-weight: 500;
+}
+
+.quoteDetails {
+  margin-right: 0.5rem;
+}
+
+.quoteDetails summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--link-color);
+}
+
+.quoteDetails blockquote {
+  margin: 0.25rem 0 0;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--muted-color);
+  background: var(--muted-bg);
+  border-radius: 0.25rem;
+}
+
+.sourceLink {
+  font-size: 0.75rem;
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.sourceLink:hover {
+  text-decoration: underline;
+}
+
+.baselineOnly {
+  margin: 0;
+  color: var(--muted-color);
+}
+
+.baselineLink {
+  margin-left: 0.5rem;
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.baselineLink:hover {
+  text-decoration: underline;
+}
+
+.emptyPrice {
+  margin: 0;
+  color: var(--muted-color);
+  text-align: center;
+  padding: 2rem;
+}
+
+.vacancies {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.vacancyCount {
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.vacancySubtitle {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-color);
+}
+
+.vacancyList ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.vacancyItem {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  margin-bottom: 0.5rem;
+  background: var(--surface-color);
+}
+
+.vacancyTitle {
+  display: block;
+  font-weight: 500;
+  color: var(--text-color);
+  text-decoration: none;
+  margin-bottom: 0.25rem;
+}
+
+.vacancyTitle:hover {
+  color: var(--link-color);
+}
+
+.vacancyMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--muted-color);
+}
+
+.vacancyDate {
+  white-space: nowrap;
+}
+
+.closedVacancies {
+  margin-top: 1rem;
+}
+
+.closedVacanciesSummary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-color);
+}
+
+.closedVacanciesSummary:hover {
+  color: var(--text-color);
+}
+
+.closedVacancies ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+}
+
+@media (max-width: 640px) {
+  .headerMain {
+    flex-direction: column;
+  }
+
+  .timelineHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .priceTable th:nth-child(3),
+  .priceTable td:nth-child(3),
+  .priceTable th:nth-child(4),
+  .priceTable td:nth-child(4) {
+    display: none;
+  }
+}

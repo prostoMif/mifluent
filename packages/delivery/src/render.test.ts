@@ -32,6 +32,7 @@ function digest(overrides: Partial<DigestView> = {}): DigestView {
 const card = {
   id: "c1",
   eventId: "e1",
+  targetId: "t1",
   kind: "event" as const,
   headline: "Fathom raised Business to $99",
   sourceUrl: "https://usefathom.com/pricing",
