@@ -1,0 +1,128 @@
+.page {
+  width: 100%;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-3) var(--space-5);
+}
+
+.eyebrow {
+  color: var(--colour-text-muted);
+  font-size: 0.875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.title {
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  margin: var(--space-1) 0 var(--space-2);
+}
+
+.lead {
+  color: var(--colour-text-muted);
+  margin-bottom: var(--space-4);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.filter {
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--colour-border);
+  border-radius: 999px;
+  color: var(--colour-text);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.filterCurrent {
+  border-color: var(--colour-accent);
+  color: var(--colour-accent);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.change {
+  padding: var(--space-3);
+  border: 1px solid var(--colour-border);
+  border-radius: 0.75rem;
+  background: var(--colour-surface);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  color: var(--colour-text-muted);
+  font-size: 0.85rem;
+  margin-bottom: var(--space-1);
+}
+
+.kind {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.summary {
+  font-weight: 600;
+  margin: 0 0 var(--space-1);
+}
+
+.quote {
+  margin: var(--space-1) 0;
+  padding-left: var(--space-2);
+  border-left: 3px solid var(--colour-border);
+  color: var(--colour-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--space-4);
+  font-size: 0.95rem;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--space-1) var(--space-2) var(--space-1) 0;
+  border-bottom: 1px solid var(--colour-border);
+  vertical-align: top;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.cta {
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border-radius: 0.75rem;
+  background: var(--colour-accent);
+  color: var(--colour-accent-contrast);
+}
+
+.cta a {
+  color: inherit;
+  font-weight: 700;
+}
+
+.companies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-4);
+  font-size: 0.9rem;
+}

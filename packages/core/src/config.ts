@@ -194,6 +194,18 @@ const configSchema = z.object({
   OWNER_TELEGRAM_CHAT_ID: z.string().optional(),
 
   /**
+   * The public radar (TASK-030): a tenant of our own whose verified events
+   * become public pages at /changes and post drafts for the owner. Unset —
+   * no radar: the pages say so and no drafts are made.
+   */
+  RADAR_TENANT_ID: z.string().uuid().optional(),
+  /** The Telegram channel posts go to, e.g. @mifluent_radar or -100…; the bot must be its admin. */
+  RADAR_TELEGRAM_CHANNEL_ID: z.string().optional(),
+  /** The last line of a Russian post points here (the bot), and of an English one to the site. */
+  RADAR_BOT_LINK: httpUrl.optional(),
+  RADAR_SITE_LINK: httpUrl.optional(),
+
+  /**
    * Hard ceiling on model spend for the whole instance per UTC day. When it is
    * crossed, every job that would call a model stops until midnight UTC.
    */

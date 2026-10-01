@@ -30,6 +30,7 @@ import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { consumeBindingCode, deliverFirstDigestOnBind } from "./bind.js";
 import { escapeHtml } from "./html.js";
+import { handleRadarButton, isRadarButton } from "./radar-telegram.js";
 import { stringsFor } from "./strings.js";
 import type { TelegramApi } from "./telegram-api.js";
 
@@ -326,6 +327,19 @@ async function handleButton(
 ): Promise<void> {
   const strings = stringsFor(query.from?.language_code?.startsWith("ru") === true ? "ru" : "en");
   const chatId = query.message === undefined ? undefined : String(query.message.chat.id);
+
+  if (isRadarButton(query.data ?? "")) {
+    const answer = await handleRadarButton({
+      db: options.db,
+      api: options.api,
+      logger: options.logger,
+      chatId,
+      data: query.data ?? "",
+    });
+    await options.api.answerCallbackQuery(query.id, answer);
+    return;
+  }
+
   const [action = "", cardId = ""] = (query.data ?? "").split(":");
 
   const owner =

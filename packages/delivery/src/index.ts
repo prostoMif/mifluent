@@ -12,6 +12,14 @@ export { type DeliverOptions, type DeliveryOutcome, deliverDigest } from "./deli
 export * as email from "./email/index.js";
 export { escapeHtml } from "./html.js";
 export {
+  composeTelegramPost,
+  composeWeeklyPost,
+  composeXPost,
+  type RadarPostInput,
+  type WeeklyItem,
+} from "./radar-posts.js";
+export { sendRadarDraft, sendWeeklyRadarDraft } from "./radar-telegram.js";
+export {
   type MonthlyReportData,
   type MonthlyReportRenderOptions,
   type RenderOptions,

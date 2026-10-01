@@ -92,6 +92,8 @@
         "apps/web/**/loading.tsx",
         "apps/web/**/error.tsx",
         "apps/web/**/not-found.tsx",
+        "apps/web/src/app/sitemap.ts",
+        "apps/web/src/app/robots.ts",
         "**/*.config.ts",
         "**/*.config.js",
         "**/*.config.mjs"

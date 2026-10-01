@@ -1,0 +1,135 @@
+# The public radar, English: SaaS tools people pay for.
+# Each company: its pricing page (diffed twice a day) and a news search for its
+# price and plan changes. `npm run radar:sync` after editing.
+profile:
+  name: "Radar — SaaS (en)"
+  language: en
+  description: >-
+    A public log of pricing, plan, policy and major feature changes at well-known
+    SaaS companies. Relevant: price increases or cuts, new or removed plans, seat
+    and usage limits, free tier changes, terms and policy changes, and launches that
+    change what a plan includes. Not relevant: funding, hiring, opinion pieces,
+    tutorials, or general company news.
+companies:
+  - name: "Notion"
+    website: "https://www.notion.com"
+    category: "productivity"
+    surfaces:
+      - { type: diff, url: "https://www.notion.com/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Notion%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Figma"
+    website: "https://www.figma.com"
+    category: "design"
+    surfaces:
+      - { type: diff, url: "https://www.figma.com/pricing/", label: "Pricing page", interval_minutes: 720 }
+      - { type: feed, url: "https://www.figma.com/release-notes/feed/atom.xml", label: "Changelog", interval_minutes: 360 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Figma%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Slack"
+    website: "https://slack.com"
+    category: "communication"
+    surfaces:
+      - { type: diff, url: "https://slack.com/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Slack%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Linear"
+    website: "https://linear.app"
+    category: "project management"
+    surfaces:
+      - { type: diff, url: "https://linear.app/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: feed, url: "https://linear.app/rss/changelog.xml", label: "Changelog", interval_minutes: 360 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Linear%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Vercel"
+    website: "https://vercel.com"
+    category: "developer tools"
+    surfaces:
+      - { type: diff, url: "https://vercel.com/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: feed, url: "https://vercel.com/atom", label: "Changelog", interval_minutes: 360 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Vercel%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "GitHub"
+    website: "https://github.com"
+    category: "developer tools"
+    surfaces:
+      - { type: diff, url: "https://github.com/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: feed, url: "https://github.blog/changelog/feed/", label: "Changelog", interval_minutes: 360 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22GitHub%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Zoom"
+    website: "https://zoom.us"
+    category: "communication"
+    surfaces:
+      - { type: diff, url: "https://zoom.us/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Zoom%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Jira"
+    website: "https://www.atlassian.com/software/jira"
+    category: "project management"
+    surfaces:
+      - { type: diff, url: "https://www.atlassian.com/software/jira/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Jira%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Webflow"
+    website: "https://webflow.com"
+    category: "website builders"
+    surfaces:
+      - { type: diff, url: "https://webflow.com/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Webflow%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Framer"
+    website: "https://www.framer.com"
+    category: "website builders"
+    surfaces:
+      - { type: diff, url: "https://www.framer.com/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Framer%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Airtable"
+    website: "https://airtable.com"
+    category: "productivity"
+    surfaces:
+      - { type: diff, url: "https://airtable.com/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Airtable%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Miro"
+    website: "https://miro.com"
+    category: "collaboration"
+    surfaces:
+      - { type: diff, url: "https://miro.com/pricing/", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Miro%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Zapier"
+    website: "https://zapier.com"
+    category: "automation"
+    surfaces:
+      - { type: diff, url: "https://zapier.com/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Zapier%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Intercom"
+    website: "https://www.intercom.com"
+    category: "customer support"
+    surfaces:
+      - { type: diff, url: "https://www.intercom.com/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Intercom%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Calendly"
+    website: "https://calendly.com"
+    category: "scheduling"
+    surfaces:
+      - { type: diff, url: "https://calendly.com/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Calendly%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Mailchimp"
+    website: "https://mailchimp.com"
+    category: "email marketing"
+    surfaces:
+      - { type: diff, url: "https://mailchimp.com/pricing/marketing/", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Mailchimp%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Dropbox"
+    website: "https://www.dropbox.com"
+    category: "storage"
+    surfaces:
+      - { type: diff, url: "https://www.dropbox.com/plans", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Dropbox%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Anthropic"
+    website: "https://www.anthropic.com"
+    category: "AI"
+    surfaces:
+      - { type: diff, url: "https://www.anthropic.com/pricing", label: "Pricing page", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Anthropic%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "OpenAI"
+    website: "https://openai.com"
+    category: "AI"
+    surfaces:
+      - { type: query, url: "https://news.google.com/rss/search?q=%22OpenAI%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }
+  - name: "Canva"
+    website: "https://www.canva.com"
+    category: "design"
+    surfaces:
+      - { type: query, url: "https://news.google.com/rss/search?q=%22Canva%22%20pricing%20OR%20plan%20OR%20price&hl=en-US&gl=US&ceid=US:en", label: "News: pricing", interval_minutes: 360 }

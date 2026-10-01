@@ -28,6 +28,7 @@ export const QUEUES = {
   monthlyReportTick: "monthly_report:tick",
   monthlyReportBuild: "monthly_report:build",
   monthlyReportDeliver: "monthly_report:deliver",
+  radarWeekly: "radar:weekly",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

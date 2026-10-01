@@ -20,7 +20,8 @@
     "packs:verify": "node --env-file-if-exists=../../.env --import tsx src/packs-verify.ts",
     "billing:refund": "node --env-file-if-exists=../../.env --import tsx src/billing-refund.ts",
     "partners:report": "node --env-file-if-exists=../../.env --import tsx src/partners.ts report",
-    "partners:add": "node --env-file-if-exists=../../.env --import tsx src/partners.ts add"
+    "partners:add": "node --env-file-if-exists=../../.env --import tsx src/partners.ts add",
+    "radar:sync": "node --env-file-if-exists=../../.env --import tsx src/radar-sync.ts"
   },
   "dependencies": {
     "@mifluent/core": "*",

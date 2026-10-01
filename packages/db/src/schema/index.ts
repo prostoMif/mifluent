@@ -31,5 +31,6 @@ export * from "./onboarding.js";
 export * from "./packs.js";
 export * from "./profiles.js";
 export * from "./promo.js";
+export * from "./radar.js";
 export * from "./sources.js";
 export * from "./tenancy.js";

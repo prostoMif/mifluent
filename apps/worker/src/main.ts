@@ -22,6 +22,7 @@ import { registerDigestJobs } from "./jobs/digests.js";
 import { registerMaintenanceJobs } from "./jobs/maintenance.js";
 import { registerOnboardingJobs } from "./jobs/onboarding.js";
 import { registerPipelineJobs } from "./jobs/pipeline.js";
+import { registerRadarJobs } from "./jobs/radar.js";
 import { registerSourceJobs } from "./jobs/sources.js";
 import { pollSource } from "./poll-source.js";
 import {
@@ -31,7 +32,9 @@ import {
   DIGEST_TICK_CRON,
   declareQueues,
   MAINTENANCE_CRON,
+  MONTHLY_REPORT_CRON,
   QUEUES,
+  RADAR_WEEKLY_CRON,
   SOURCES_TICK_CRON,
 } from "./queue.js";
 import { getDatabase, getTelegramApi, logger } from "./runtime.js";
@@ -82,12 +85,15 @@ async function runForever(): Promise<void> {
   await registerDigestJobs(boss);
   await registerOnboardingJobs(boss);
   await registerMaintenanceJobs(boss);
+  await registerRadarJobs(boss);
 
   await boss.schedule(QUEUES.sourcesTick, SOURCES_TICK_CRON);
   await boss.schedule(QUEUES.digestTick, DIGEST_TICK_CRON);
   await boss.schedule(QUEUES.maintenanceDaily, MAINTENANCE_CRON);
   await boss.schedule(QUEUES.ownerDailyReport, DAILY_REPORT_CRON);
   await boss.schedule(QUEUES.alertCheck, ALERT_CHECK_CRON);
+  await boss.schedule(QUEUES.monthlyReportTick, MONTHLY_REPORT_CRON);
+  await boss.schedule(QUEUES.radarWeekly, RADAR_WEEKLY_CRON);
 
   const stopHeartbeat = startHeartbeat(config.WORKER_HEARTBEAT_FILE);
   const telegram = getTelegramApi();

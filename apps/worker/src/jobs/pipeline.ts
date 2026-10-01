@@ -11,6 +11,7 @@ import { z } from "zod";
 import { QUEUES, queueDelivery, queueEmbed, queueProfileStep } from "../queue.js";
 import { getDatabase, logger } from "../runtime.js";
 import { buildUrgentDigests, embedTenant, extractProfile, selectProfile } from "../steps.js";
+import { draftRadarEvents, isRadarTenant } from "./radar.js";
 
 const tenantJobSchema = z.object({ tenantId: z.string().uuid() });
 const profileJobSchema = z.object({ tenantId: z.string().uuid(), profileId: z.string().uuid() });
@@ -61,6 +62,17 @@ export async function registerPipelineJobs(boss: PgBoss): Promise<void> {
     const result = await extractProfile(db, ref);
     if (typeof result === "string") {
       logger.info("pipeline.extract_skipped", { ...ref, reason: result });
+      return;
+    }
+
+    if (isRadarTenant(ref.tenantId)) {
+      // The radar's events become post drafts for the owner, not digests.
+      await draftRadarEvents(
+        db,
+        result.outcomes
+          .filter((event) => event.outcome === "extracted")
+          .map((event) => event.eventId),
+      );
       return;
     }
 

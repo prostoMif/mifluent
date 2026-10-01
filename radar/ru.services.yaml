@@ -1,0 +1,94 @@
+# Публичный радар, русский: площадки и сервисы, которыми платят малые бизнесы в РФ.
+# Страница тарифов (сравнивается дважды в день) и поиск новостей об изменениях.
+# После правки — `npm run radar:sync`.
+profile:
+  name: "Радар — площадки и сервисы РФ"
+  language: ru
+  description: >-
+    Публичный журнал изменений тарифов, комиссий, правил и условий у площадок и
+    сервисов, которыми пользуются малые бизнесы в России: маркетплейсы, доставка,
+    CRM, конструкторы сайтов, реклама, платежи. Важно: рост или снижение цен и
+    комиссий, новые и отменённые тарифы, лимиты, правила для продавцов, штрафы,
+    сроки вступления в силу. Не важно: инвестиции, найм, мнения, обучающие статьи.
+companies:
+  - name: "Wildberries"
+    website: "https://www.wildberries.ru"
+    category: "маркетплейсы"
+    surfaces:
+      - { type: query, url: "https://news.google.com/rss/search?q=Wildberries%20%D0%BF%D1%80%D0%BE%D0%B4%D0%B0%D0%B2%D1%86%D1%8B%20%D0%BA%D0%BE%D0%BC%D0%B8%D1%81%D1%81%D0%B8%D1%8F%20OR%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B%20OR%20%D0%BF%D1%80%D0%B0%D0%B2%D0%B8%D0%BB%D0%B0&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "Ozon"
+    website: "https://www.ozon.ru"
+    category: "маркетплейсы"
+    surfaces:
+      - { type: query, url: "https://news.google.com/rss/search?q=Ozon%20%D0%BF%D1%80%D0%BE%D0%B4%D0%B0%D0%B2%D1%86%D1%8B%20%D0%BA%D0%BE%D0%BC%D0%B8%D1%81%D1%81%D0%B8%D1%8F%20OR%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B%20OR%20%D0%BF%D1%80%D0%B0%D0%B2%D0%B8%D0%BB%D0%B0&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "Яндекс Маркет"
+    website: "https://market.yandex.ru"
+    category: "маркетплейсы"
+    surfaces:
+      - { type: query, url: "https://news.google.com/rss/search?q=%D0%AF%D0%BD%D0%B4%D0%B5%D0%BA%D1%81%20%D0%9C%D0%B0%D1%80%D0%BA%D0%B5%D1%82%20%D0%BF%D1%80%D0%BE%D0%B4%D0%B0%D0%B2%D1%86%D1%8B%20%D0%BA%D0%BE%D0%BC%D0%B8%D1%81%D1%81%D0%B8%D1%8F%20OR%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "Авито"
+    website: "https://www.avito.ru"
+    category: "объявления"
+    surfaces:
+      - { type: query, url: "https://news.google.com/rss/search?q=%D0%90%D0%B2%D0%B8%D1%82%D0%BE%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B%20OR%20%D0%BA%D0%BE%D0%BC%D0%B8%D1%81%D1%81%D0%B8%D1%8F%20OR%20%D0%BF%D1%80%D0%B0%D0%B2%D0%B8%D0%BB%D0%B0%20%D0%BF%D1%80%D0%BE%D0%B4%D0%B0%D0%B2%D1%86%D0%BE%D0%B2&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "СДЭК"
+    website: "https://www.cdek.ru"
+    category: "доставка"
+    surfaces:
+      - { type: diff, url: "https://www.cdek.ru/ru/tariffs", label: "Тарифы", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%D0%A1%D0%94%D0%AD%D0%9A%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "Тильда"
+    website: "https://tilda.cc"
+    category: "конструкторы сайтов"
+    surfaces:
+      - { type: diff, url: "https://tilda.cc/ru/pricing/", label: "Тарифы", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%D0%A2%D0%B8%D0%BB%D1%8C%D0%B4%D0%B0%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B%20OR%20%D1%86%D0%B5%D0%BD%D1%8B&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "Битрикс24"
+    website: "https://www.bitrix24.ru"
+    category: "CRM"
+    surfaces:
+      - { type: diff, url: "https://www.bitrix24.ru/prices/", label: "Тарифы", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=%D0%91%D0%B8%D1%82%D1%80%D0%B8%D0%BA%D1%8124%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B%20OR%20%D1%86%D0%B5%D0%BD%D1%8B&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "amoCRM"
+    website: "https://www.amocrm.ru"
+    category: "CRM"
+    surfaces:
+      - { type: query, url: "https://news.google.com/rss/search?q=amoCRM%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B%20OR%20%D1%86%D0%B5%D0%BD%D1%8B&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "RetailCRM"
+    website: "https://www.retailcrm.ru"
+    category: "CRM"
+    surfaces:
+      - { type: diff, url: "https://www.retailcrm.ru/tarify", label: "Тарифы", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=RetailCRM%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "Unisender"
+    website: "https://www.unisender.com/ru/"
+    category: "рассылки"
+    surfaces:
+      - { type: diff, url: "https://www.unisender.com/ru/prices/", label: "Тарифы", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=Unisender%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "GetCourse"
+    website: "https://getcourse.ru"
+    category: "онлайн-школы"
+    surfaces:
+      - { type: diff, url: "https://getcourse.ru/prices", label: "Тарифы", interval_minutes: 720 }
+      - { type: query, url: "https://news.google.com/rss/search?q=GetCourse%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B%20OR%20%D0%BA%D0%BE%D0%BC%D0%B8%D1%81%D1%81%D0%B8%D1%8F&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "МойСклад"
+    website: "https://www.moysklad.ru"
+    category: "учёт"
+    surfaces:
+      - { type: query, url: "https://news.google.com/rss/search?q=%D0%9C%D0%BE%D0%B9%D0%A1%D0%BA%D0%BB%D0%B0%D0%B4%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B%20OR%20%D1%86%D0%B5%D0%BD%D1%8B&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "Яндекс Директ"
+    website: "https://direct.yandex.ru"
+    category: "реклама"
+    surfaces:
+      - { type: query, url: "https://news.google.com/rss/search?q=%D0%AF%D0%BD%D0%B4%D0%B5%D0%BA%D1%81%20%D0%94%D0%B8%D1%80%D0%B5%D0%BA%D1%82%20%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D1%8F%20OR%20%D0%BF%D1%80%D0%B0%D0%B2%D0%B8%D0%BB%D0%B0%20OR%20%D1%81%D1%82%D0%B0%D0%B2%D0%BA%D0%B8&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "VK Реклама"
+    website: "https://ads.vk.com"
+    category: "реклама"
+    surfaces:
+      - { type: query, url: "https://news.google.com/rss/search?q=VK%20%D0%A0%D0%B5%D0%BA%D0%BB%D0%B0%D0%BC%D0%B0%20%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D1%8F%20OR%20%D0%BF%D1%80%D0%B0%D0%B2%D0%B8%D0%BB%D0%B0&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }
+  - name: "Т-Банк эквайринг"
+    website: "https://www.tbank.ru/business/acquiring/"
+    category: "платежи"
+    surfaces:
+      - { type: query, url: "https://news.google.com/rss/search?q=%D0%A2-%D0%91%D0%B0%D0%BD%D0%BA%20%D1%8D%D0%BA%D0%B2%D0%B0%D0%B9%D1%80%D0%B8%D0%BD%D0%B3%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B%20OR%20%D0%BA%D0%BE%D0%BC%D0%B8%D1%81%D1%81%D0%B8%D1%8F&hl=ru&gl=RU&ceid=RU:ru", label: "Новости: тарифы и правила", interval_minutes: 360 }

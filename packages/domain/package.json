@@ -46,5 +46,8 @@
     "@mifluent/db": "*",
     "drizzle-orm": "^0.44.0",
     "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "yaml": "2.9.1"
   }
 }

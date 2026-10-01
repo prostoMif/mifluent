@@ -55,6 +55,9 @@ export const ALERT_CHECK_CRON = "*/5 * * * *";
 /** 09:00 UTC on the 1st of each month: monthly market report. */
 export const MONTHLY_REPORT_CRON = "0 9 1 * *";
 
+/** Mondays 10:00 UTC: the radar's weekly round-up draft. */
+export const RADAR_WEEKLY_CRON = "0 10 * * 1";
+
 const RETRY_LIMIT = 2;
 
 const STATELY: Omit<Queue, "name"> = { policy: "stately" };
@@ -73,6 +76,7 @@ const QUEUE_OPTIONS: Readonly<Record<string, Omit<Queue, "name">>> = {
   [QUEUES.alertCheck]: { expireInSeconds: 300, retryLimit: 0 },
   [QUEUES.monthlyReportBuild]: { ...STATELY, expireInSeconds: 600, retryLimit: 0 },
   [QUEUES.monthlyReportDeliver]: { ...STATELY, expireInSeconds: 300, retryLimit: 0 },
+  [QUEUES.radarWeekly]: { expireInSeconds: 300, retryLimit: 0 },
 };
 
 export interface SourceJob {
