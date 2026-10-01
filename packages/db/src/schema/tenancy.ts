@@ -54,11 +54,28 @@ export const tenants = pgTable(
     trialEndsAt: timestamp("trial_ends_at", { withTimezone: true })
       .notNull()
       .default(sql`now() + interval '14 days'`),
+    /**
+     * Where this customer came from: "organic", "code" (a promo or partner
+     * code) or "referral" (a friend's link). Set once, at sign-up; the
+     * beta report counts trials and payments by it.
+     */
+    acquiredVia: text("acquired_via").notNull().default("organic"),
+    /** The promo or partner code remembered at sign-up, applied at checkout. */
+    acquiredCode: text("acquired_code"),
+    /** This tenant's own "invite a friend" code. Made on first request. */
+    referralCode: text("referral_code"),
+    /** The one win-back message, once paid time ran out. Never twice. */
+    winbackSentAt: timestamp("winback_sent_at", { withTimezone: true }),
     ...timestamps,
     ...softDelete,
   },
   (table) => [
     index("tenants_deleted_at_idx").on(table.deletedAt),
+    uniqueIndex("tenants_referral_code_unique").on(table.referralCode),
+    check(
+      "tenants_acquired_via_check",
+      sql`${table.acquiredVia} IN ('organic', 'code', 'referral')`,
+    ),
     check("tenants_plan_check", sql`${table.plan} IN ('free', 'starter', 'pro', 'team')`),
   ],
 );

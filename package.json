@@ -41,6 +41,8 @@
     "packs:sync": "npm run build && npm run packs:sync --workspace @mifluent/worker",
     "packs:verify": "npm run build && npm run packs:verify --workspace @mifluent/worker",
     "billing:refund": "npm run build && npm run billing:refund --workspace @mifluent/worker --",
+    "partners:report": "npm run build && npm run partners:report --workspace @mifluent/worker --",
+    "partners:add": "npm run build && npm run partners:add --workspace @mifluent/worker --",
     "build:web": "npm run build && scripts/build-web.sh"
   },
   "devDependencies": {

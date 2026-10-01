@@ -5,7 +5,7 @@
 
 import { getConfig } from "@mifluent/core";
 import { createDatabase } from "@mifluent/db";
-import { type BetaReportRow, generateBetaReport } from "@mifluent/domain";
+import { acquisitionSummary, type BetaReportRow, generateBetaReport } from "@mifluent/domain";
 import { logger } from "./runtime.js";
 
 interface CliOptions {
@@ -35,6 +35,13 @@ async function main(): Promise<void> {
     const pct = total > 0 ? Math.round((returners / total) * 100) : 0;
 
     process.stdout.write(`\nReturners: ${returners}/${total} (${pct}%)\n`);
+
+    // Trials and payments by where people came from: which post paid off.
+    process.stdout.write("\nBy channel (sign-ups / paying):\n");
+    for (const row of await acquisitionSummary(db)) {
+      const label = row.code === null ? row.via : `${row.via} ${row.code}`;
+      process.stdout.write(`  ${label}: ${row.tenants} / ${row.paying}\n`);
+    }
 
     logger.info("beta.report.completed", { total: rows.length, returners });
   } catch (thrown) {

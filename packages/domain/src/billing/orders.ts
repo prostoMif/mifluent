@@ -13,6 +13,8 @@ import { AppError, uuidv7 } from "@mifluent/core";
 import { type Queryable, schema, scoped } from "@mifluent/db";
 import { and, count, desc, eq, exists, gt, inArray, isNull, lte, ne } from "drizzle-orm";
 import { resolvePlans } from "../plans/plans.js";
+import { recordPartnerEarning } from "./affiliate.js";
+import { addMonths } from "./dates.js";
 import {
   type Currency,
   type PaidPlan,
@@ -20,11 +22,15 @@ import {
   quote,
   type TermMonths,
 } from "./pricing.js";
+import { countPromoUse, usableDiscounts } from "./promo.js";
+import { rewardReferrer } from "./referral.js";
 
 /** A refund on request, no questions asked, within this many days of paying. */
 export const REFUND_WINDOW_DAYS = 14;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+export { addMonths };
 
 export interface CreatedOrder {
   readonly orderId: string;
@@ -79,14 +85,12 @@ export async function createOrder(
     readonly months: TermMonths;
     readonly currency: Currency;
     readonly earlySeats: number;
+    /** A code the buyer typed; an unusable one is refused with the reason. */
+    readonly promoCode?: string | undefined;
+    readonly now?: Date | undefined;
   },
 ): Promise<CreatedOrder> {
-  const price = quote({
-    plan: input.plan,
-    months: input.months,
-    currency: input.currency,
-    isEarlyEligible: await isEarlyEligible(db, input.tenantId, input.earlySeats),
-  });
+  const price = await quoteFor(db, input);
 
   const orderId = uuidv7();
   await db.insert(schema.paymentOrders).values({
@@ -97,8 +101,41 @@ export async function createOrder(
     amountMinor: price.amountMinor,
     currency: price.currency,
     isEarly: price.isEarly,
+    promoCode: price.appliedCode,
   });
   return { orderId, quote: price };
+}
+
+/**
+ * What this tenant would pay now: the price table, the early price, the code
+ * it typed or arrived with, and any running campaign. The pricing page shows
+ * this figure and the checkout charges it.
+ */
+export async function quoteFor(
+  db: Queryable,
+  input: {
+    readonly tenantId: string;
+    readonly plan: PaidPlan;
+    readonly months: TermMonths;
+    readonly currency: Currency;
+    readonly earlySeats: number;
+    readonly promoCode?: string | undefined;
+    readonly now?: Date | undefined;
+  },
+): Promise<PriceQuote> {
+  return quote({
+    plan: input.plan,
+    months: input.months,
+    currency: input.currency,
+    isEarlyEligible: await isEarlyEligible(db, input.tenantId, input.earlySeats),
+    discounts: await usableDiscounts(db, {
+      tenantId: input.tenantId,
+      plan: input.plan,
+      months: input.months,
+      now: input.now ?? new Date(),
+      typedCode: input.promoCode,
+    }),
+  });
 }
 
 export type NotificationOutcome =
@@ -185,6 +222,10 @@ export async function applyPaymentNotification(
       .update(schema.tenants)
       .set({ plan: order.plan, updatedAt: now })
       .where(eq(schema.tenants.id, order.tenantId));
+
+    if (order.promoCode !== null) await countPromoUse(transaction, order.promoCode);
+    await rewardReferrer(transaction, order.tenantId, now);
+    await recordPartnerEarning(transaction, order, now);
     return "applied";
   });
 }
@@ -207,6 +248,7 @@ export async function requestRefund(
         schema.paymentOrders,
         tenantId,
         eq(schema.paymentOrders.status, "paid"),
+        eq(schema.paymentOrders.provider, "prodamus"),
         gt(schema.paymentOrders.paidAt, new Date(now.getTime() - REFUND_WINDOW_DAYS * DAY_MS)),
       ),
     )
@@ -256,19 +298,21 @@ export async function confirmRefund(
 }
 
 /**
- * Daily: tenants whose paid time has run out go back to Free, keeping
- * everything and pausing what Free does not cover. Returns who changed.
+ * Daily: every tenant with paid time gets the plan that paid time covers
+ * today. Paid time that ran out sends a tenant back to Free (keeping
+ * everything, pausing what Free does not cover); paid time that starts today
+ * — a free month earned by inviting a friend, queued after the trial —
+ * moves it up. Returns who went back to Free.
  *
  * Only tenants that have ever paid: a plan the owner set by hand — a beta
  * tester, a friend — has no order behind it and is left alone.
  */
 export async function expirePaidPlans(db: Queryable, now: Date = new Date()): Promise<string[]> {
   const tenants = await db
-    .select({ id: schema.tenants.id })
+    .select({ id: schema.tenants.id, plan: schema.tenants.plan })
     .from(schema.tenants)
     .where(
       and(
-        ne(schema.tenants.plan, "free"),
         isNull(schema.tenants.deletedAt),
         exists(
           db
@@ -286,6 +330,7 @@ export async function expirePaidPlans(db: Queryable, now: Date = new Date()): Pr
 
   const downgraded: string[] = [];
   for (const tenant of tenants) {
+    if ((await planCoveringNow(db, tenant.id, now)) === tenant.plan) continue;
     const plan = await settleTenantPlan(db, tenant.id, now);
     if (plan === "free") downgraded.push(tenant.id);
   }
@@ -380,8 +425,8 @@ export async function pauseExcessTargets(
   return excess.length;
 }
 
-/** Set the tenant's plan from the paid time that covers `now`, or Free. */
-async function settleTenantPlan(
+/** The plan the paid time covering `now` bought, or Free. */
+async function planCoveringNow(
   db: Queryable,
   tenantId: string,
   now: Date,
@@ -401,10 +446,18 @@ async function settleTenantPlan(
     .orderBy(desc(schema.paymentOrders.paidAt))
     .limit(1);
 
-  const plan =
-    covering?.plan === "starter" || covering?.plan === "pro" || covering?.plan === "team"
-      ? covering.plan
-      : "free";
+  return covering?.plan === "starter" || covering?.plan === "pro" || covering?.plan === "team"
+    ? covering.plan
+    : "free";
+}
+
+/** Set the tenant's plan from the paid time that covers `now`, or Free. */
+async function settleTenantPlan(
+  db: Queryable,
+  tenantId: string,
+  now: Date,
+): Promise<PaidPlan | "free"> {
+  const plan = await planCoveringNow(db, tenantId, now);
   await db
     .update(schema.tenants)
     .set({ plan, updatedAt: now })
@@ -434,19 +487,6 @@ async function paidUntil(db: Queryable, tenantId: string, now: Date): Promise<Da
   return latest?.periodEnd ?? now;
 }
 
-/** Calendar months, clamped: Jan 31 + 1 month is Feb 28, not Mar 3. */
-export function addMonths(start: Date, months: number): Date {
-  const result = new Date(start);
-  const day = result.getUTCDate();
-  result.setUTCDate(1);
-  result.setUTCMonth(result.getUTCMonth() + months);
-  const lastDay = new Date(
-    Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0),
-  ).getUTCDate();
-  result.setUTCDate(Math.min(day, lastDay));
-  return result;
-}
-
 export interface BillingStatus {
   readonly paidPlan: string;
   readonly trialEndsAt: Date | null;
@@ -468,10 +508,23 @@ export async function getBillingStatus(
     .from(schema.tenants)
     .where(eq(schema.tenants.id, tenantId));
   const [latest] = await db
-    .select({ periodEnd: schema.paymentOrders.periodEnd, paidAt: schema.paymentOrders.paidAt })
+    .select({ periodEnd: schema.paymentOrders.periodEnd })
     .from(schema.paymentOrders)
     .where(scoped(schema.paymentOrders, tenantId, eq(schema.paymentOrders.status, "paid")))
     .orderBy(desc(schema.paymentOrders.periodEnd))
+    .limit(1);
+  const [latestPayment] = await db
+    .select({ paidAt: schema.paymentOrders.paidAt })
+    .from(schema.paymentOrders)
+    .where(
+      scoped(
+        schema.paymentOrders,
+        tenantId,
+        eq(schema.paymentOrders.status, "paid"),
+        eq(schema.paymentOrders.provider, "prodamus"),
+      ),
+    )
+    .orderBy(desc(schema.paymentOrders.paidAt))
     .limit(1);
   const refundCutoff = now.getTime() - REFUND_WINDOW_DAYS * DAY_MS;
 
@@ -480,6 +533,7 @@ export async function getBillingStatus(
     trialEndsAt: tenant?.trialEndsAt ?? null,
     paidUntil: latest?.periodEnd ?? null,
     earlySeatsLeft: Math.max(0, earlySeats - (await countEarlySeatsTaken(db))),
-    isRefundPossible: latest?.paidAt != null && latest.paidAt.getTime() > refundCutoff,
+    isRefundPossible:
+      latestPayment?.paidAt != null && latestPayment.paidAt.getTime() > refundCutoff,
   };
 }

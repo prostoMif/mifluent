@@ -1,4 +1,12 @@
 export {
+  addPartner,
+  PARTNER_CUSTOMER_MONTHS,
+  PARTNER_CUSTOMER_PERCENT,
+  type PartnerReportRow,
+  partnersReport,
+  recordPartnerEarning,
+} from "./affiliate.js";
+export {
   addMonths,
   applyPaymentNotification,
   type BillingStatus,
@@ -14,6 +22,7 @@ export {
   type NotificationOutcome,
   type PaymentNotification,
   pauseExcessTargets,
+  quoteFor,
   REFUND_WINDOW_DAYS,
   requestRefund,
   type TrialReminder,
@@ -22,6 +31,7 @@ export {
   CURRENCIES,
   type Currency,
   DEFAULT_EARLY_SEATS,
+  type Discount,
   EARLY_PRO_TABLE,
   isPaidPlan,
   isTerm,
@@ -34,3 +44,23 @@ export {
   TERMS,
   type TermMonths,
 } from "./pricing.js";
+export {
+  activeCampaigns,
+  findPromo,
+  issueWinbackCode,
+  listWinbackCandidates,
+  normalizeCode,
+  redeemTrialCode,
+  usableDiscounts,
+  whyUnusable,
+} from "./promo.js";
+export {
+  type Acquisition,
+  getReferralCode,
+  getReferralStats,
+  MAX_REFERRAL_MONTHS,
+  REFERRAL_TRIAL_DAYS,
+  type ReferralStats,
+  recordAcquisition,
+  rewardReferrer,
+} from "./referral.js";

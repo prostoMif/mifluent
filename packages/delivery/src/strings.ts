@@ -20,6 +20,10 @@ export interface Strings {
   readonly marketSection: string;
   /** Sent three days before and on the last day of the free trial. */
   readonly trialEnding: (daysLeft: number, pricingUrl: string) => string;
+  /** One message, a month after paid time ran out. */
+  readonly winback: (code: string, pricingUrl: string) => string;
+  /** `/start ref_…` or `/start promo_…`: where to sign up with the bonus kept. */
+  readonly startFromLink: (kind: "ref" | "promo", url: string) => string;
   readonly more: (count: number) => string;
   readonly emptyDigest: (period: string, sources: number, items: number) => string;
   readonly emptyDigestFirstWeek: (sources: number, items: number, closestTitle: string) => string;
@@ -120,6 +124,12 @@ const en: Strings = {
     daysLeft <= 1
       ? `Your free Pro trial ends today. After that you keep 3 targets and a weekly digest — nothing is deleted. Plans: ${pricingUrl}`
       : `Your free Pro trial ends in ${daysLeft} days. After that you keep 3 targets and a weekly digest — nothing is deleted. Plans: ${pricingUrl}`,
+  winback: (code, pricingUrl) =>
+    `It has been a month since your Mifluent plan ended. If you want it back: code ${code} takes 40% off for two months, for the next 7 days. ${pricingUrl}?code=${code}`,
+  startFromLink: (kind, url) =>
+    kind === "ref"
+      ? `Hi! Set up Mifluent through this link — your friend's bonus (28 days of Pro free) is applied on its own: ${url}`
+      : `Hi! Your code is saved. Set up Mifluent through this link and it is applied at checkout: ${url}`,
   more: (count) => `and ${count} more`,
   emptyDigest: (period, sources, items) =>
     `Nothing that concerns you for ${period}. Checked ${sources} sources, ${items} items.`,
@@ -226,6 +236,12 @@ const ru: Strings = {
     daysLeft <= 1
       ? `Бесплатный Pro заканчивается сегодня. Дальше — 3 цели и сводка раз в неделю, ничего не удаляется. Тарифы: ${pricingUrl}`
       : `Бесплатный Pro закончится через ${daysLeft} дня. Дальше — 3 цели и сводка раз в неделю, ничего не удаляется. Тарифы: ${pricingUrl}`,
+  winback: (code, pricingUrl) =>
+    `Месяц назад закончился ваш тариф Mifluent. Если захотите вернуться: промокод ${code} — минус 40% на два месяца, действует 7 дней. ${pricingUrl}?code=${code}`,
+  startFromLink: (kind, url) =>
+    kind === "ref"
+      ? `Привет! Настрой Mifluent по этой ссылке — бонус от друга (28 дней Pro бесплатно) применится сам: ${url}`
+      : `Привет! Промокод сохранён. Настрой Mifluent по этой ссылке — скидка применится при оплате: ${url}`,
   selfGroupHeadline: (count) =>
     `О тебе: ${count} упоминани${count === 1 ? "е" : count < 5 ? "я" : "й"}`,
   more: (count) => `и ещё ${count}`,

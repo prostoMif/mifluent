@@ -8,14 +8,14 @@
 
 import {
   type Currency,
-  EARLY_PRO_TABLE,
+  type Discount,
   PAID_PLANS,
   type PaidPlan,
-  PRICE_TABLE,
+  quote,
   TERMS,
   type TermMonths,
 } from "@mifluent/domain/billing/pricing";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import formStyles from "@/components/ui/form.module.css";
 import { Notice } from "@/components/ui/notice";
 import { sendRequest } from "@/lib/api-client";
@@ -28,6 +28,26 @@ export interface PlanPickerProps {
   readonly isSignedIn: boolean;
   readonly isPaymentEnabled: boolean;
   readonly earlySeatsLeft: number;
+  /** A campaign running now: applies to everyone, no code to type. */
+  readonly campaign: {
+    readonly discount: Discount;
+    readonly endsAt: string;
+    /** Only on terms this long or longer: a year, for the dated campaigns. */
+    readonly minMonths: number;
+  } | null;
+  /** From a promo link (`/pricing?code=…`). */
+  readonly initialCode: string;
+}
+
+interface PlanQuote {
+  readonly amountMinor: number;
+  readonly appliedCode: string | null;
+  readonly codeError: string | null;
+}
+
+interface QuoteResponse {
+  readonly quotes: Readonly<Record<PaidPlan, PlanQuote>>;
+  readonly trialEndsAt: string | null;
 }
 
 const RU_TERMS: Readonly<Record<number, string>> = {
@@ -48,6 +68,11 @@ const TEXT = {
     buy: "Choose",
     start: "Start free",
     notYet: "Payments open soon. Everyone gets 14 days of Pro free.",
+    campaign: (percent: number, until: string) => `−${percent}% on a year, until ${until}`,
+    codeLabel: "Promo code",
+    apply: "Apply",
+    applied: (code: string) => `Code ${code} applied`,
+    trial: (until: string) => `Free Pro until ${until}`,
     features: {
       starter: [
         "7 competitors and platforms",
@@ -83,6 +108,11 @@ const TEXT = {
     buy: "Выбрать",
     start: "Начать бесплатно",
     notYet: "Оплата откроется скоро. Всем — 14 дней Pro бесплатно.",
+    campaign: (percent: number, until: string) => `−${percent}% на год до ${until}`,
+    codeLabel: "Промокод",
+    apply: "Применить",
+    applied: (code: string) => `Промокод ${code} применён`,
+    trial: (until: string) => `Pro бесплатно до ${until}`,
     features: {
       starter: [
         "7 конкурентов и площадок",
@@ -115,21 +145,79 @@ export function PlanPicker({
   isSignedIn,
   isPaymentEnabled,
   earlySeatsLeft,
+  campaign,
+  initialCode,
 }: PlanPickerProps) {
   const text = TEXT[language];
   const [months, setMonths] = useState<TermMonths>(12);
   const [pending, setPending] = useState<PaidPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [code, setCode] = useState(initialCode);
+  const [sentCode, setSentCode] = useState(initialCode);
+  const [server, setServer] = useState<QuoteResponse | null>(null);
   const isEarly = earlySeatsLeft > 0;
+
+  // Signed in, the server's figure is the one charged: it knows the code this
+  // account arrived with and whether it holds an early seat.
+  const refresh = useCallback(
+    async (term: TermMonths, promoCode: string): Promise<void> => {
+      if (!isSignedIn) return;
+      setError(null);
+      try {
+        setServer(
+          await sendRequest<QuoteResponse>({
+            method: "POST",
+            path: "/api/billing/quote",
+            body: { months: term, currency, promoCode },
+          }),
+        );
+        setSentCode(promoCode);
+      } catch (thrown) {
+        setError(toDisplayMessage(thrown));
+      }
+    },
+    [currency, isSignedIn],
+  );
+
+  // Only the term re-quotes on its own; a newly typed code waits for "Apply".
+  useEffect(() => {
+    void refresh(months, sentCode);
+  }, [months, refresh]);
+
+  function priceOf(plan: PaidPlan): number {
+    const fromServer = server?.quotes[plan];
+    if (fromServer !== undefined) return fromServer.amountMinor / 100;
+    return (
+      quote({
+        plan,
+        months,
+        currency,
+        isEarlyEligible: isEarly,
+        discounts: campaign === null || months < campaign.minMonths ? [] : [campaign.discount],
+      }).amountMinor / 100
+    );
+  }
+
+  const appliedCode = PAID_PLANS.map((plan) => server?.quotes[plan]?.appliedCode).find(
+    (applied) => applied != null && applied === sentCode.trim().toUpperCase(),
+  );
+  const codeError = PAID_PLANS.map((plan) => server?.quotes[plan]?.codeError).find(
+    (message) => message != null,
+  );
 
   async function buy(plan: PaidPlan): Promise<void> {
     setPending(plan);
     setError(null);
+    const planQuote = server?.quotes[plan];
+    const promoCode =
+      planQuote !== undefined && planQuote.codeError === null && sentCode.trim() !== ""
+        ? sentCode
+        : undefined;
     try {
       const { url } = await sendRequest<{ url: string }>({
         method: "POST",
         path: "/api/billing/checkout",
-        body: { plan, months, currency },
+        body: { plan, months, currency, promoCode },
       });
       window.location.assign(url);
     } catch (thrown) {
@@ -137,6 +225,11 @@ export function PlanPicker({
       setPending(null);
     }
   }
+
+  const dateFormat = new Intl.DateTimeFormat(language === "ru" ? "ru-RU" : "en-US", {
+    day: "numeric",
+    month: "short",
+  });
 
   return (
     <div>
@@ -155,16 +248,52 @@ export function PlanPicker({
         ))}
       </fieldset>
 
+      {campaign === null ? null : (
+        <Notice tone="success">
+          {text.campaign(
+            campaign.discount.percentOff,
+            dateFormat.format(new Date(campaign.endsAt)),
+          )}
+        </Notice>
+      )}
       {isEarly ? <p className={styles["muted"]}>{text.early(earlySeatsLeft)}</p> : null}
+      {isSignedIn ? (
+        <form
+          className={styles["promo"]}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void refresh(months, code);
+          }}
+        >
+          <label className={styles["muted"]} htmlFor="promo-code">
+            {text.codeLabel}
+          </label>
+          <input
+            id="promo-code"
+            className={formStyles["control"]}
+            value={code}
+            maxLength={32}
+            autoCapitalize="characters"
+            onChange={(event) => setCode(event.target.value)}
+          />
+          <button type="submit" className={`${formStyles["button"]} ${formStyles["secondary"]}`}>
+            {text.apply}
+          </button>
+        </form>
+      ) : null}
+      {appliedCode == null ? null : <p className={styles["muted"]}>{text.applied(appliedCode)}</p>}
+      {server?.trialEndsAt == null ? null : (
+        <Notice tone="success">
+          {text.trial(dateFormat.format(new Date(server.trialEndsAt)))}
+        </Notice>
+      )}
+      {codeError === undefined ? null : <Notice tone="error">{codeError}</Notice>}
       {error === null ? null : <Notice tone="error">{error}</Notice>}
       {isPaymentEnabled ? null : <Notice tone="neutral">{text.notYet}</Notice>}
 
       <div className={styles["plans"]}>
         {PAID_PLANS.map((plan) => {
-          const total =
-            plan === "pro" && isEarly
-              ? EARLY_PRO_TABLE[currency][months]
-              : PRICE_TABLE[currency][plan][months];
+          const total = priceOf(plan);
           return (
             <section key={plan} className={styles["plan"]}>
               <h2>{text.names[plan]}</h2>

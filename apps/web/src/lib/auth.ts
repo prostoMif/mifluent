@@ -27,12 +27,14 @@ import {
   findUsableInvitation,
   hasAnyAccount,
   markInvitationAccepted,
+  recordAcquisition,
   type UsableInvitation,
 } from "@mifluent/domain";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { magicLink } from "better-auth/plugins";
+import { PROMO_COOKIE_NAME, REFERRAL_COOKIE_NAME } from "./acquisition-cookie";
 import { type Database, getDatabase } from "./db";
 import { INVITE_COOKIE_NAME } from "./invitation-cookie";
 import { logger } from "./logger";
@@ -265,6 +267,26 @@ function createAuth() {
                     ? undefined
                     : { tenantId: invitation.tenantId, role: invitation.role },
               });
+
+              if (invitation === undefined) {
+                // A new business: note whether a friend's link or a promo
+                // code brought it. Never fails the sign-up.
+                await recordAcquisition(
+                  getDatabase(),
+                  {
+                    tenantId: membership.tenantId,
+                    email: user.email,
+                    referralCode: context?.getCookie(REFERRAL_COOKIE_NAME) ?? null,
+                    promoCode: context?.getCookie(PROMO_COOKIE_NAME) ?? null,
+                  },
+                  new Date(),
+                ).catch((error: unknown) => {
+                  logger.warn("billing.acquisition_not_recorded", {
+                    userId: user.id,
+                    cause: error,
+                  });
+                });
+              }
 
               if (invitation !== undefined) {
                 // Marked used only now, so an invitation is not spent by a

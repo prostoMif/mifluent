@@ -103,6 +103,7 @@ export {
   saveWatchProfile,
   type UpdateProfileOptions,
 } from "./profiles/write.js";
+export { type AcquisitionRow, acquisitionSummary } from "./reports/acquisition.js";
 export {
   type BetaReportRow,
   generateBetaReport,

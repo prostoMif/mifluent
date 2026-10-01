@@ -41,7 +41,10 @@ export const paymentOrders = pgTable(
     isEarly: boolean("is_early").notNull().default(false),
     /** created → paid → (refund_requested → refunded); created → failed */
     status: text("status").notNull().default("created"),
+    /** "prodamus", or "referral" for a free month earned by inviting a friend. */
     provider: text("provider").notNull().default("prodamus"),
+    /** The promo, partner or campaign code that set the price, if any. */
+    promoCode: text("promo_code"),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     periodStart: timestamp("period_start", { withTimezone: true }),
     periodEnd: timestamp("period_end", { withTimezone: true }),

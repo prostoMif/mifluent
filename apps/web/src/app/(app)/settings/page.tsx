@@ -4,6 +4,7 @@ import {
   findTenant,
   findTenantPlan,
   getBillingStatus,
+  getReferralStats,
   listInvitations,
   readCostCap,
   readDiscoveryAllowance,
@@ -12,6 +13,7 @@ import {
 } from "@mifluent/domain";
 import type { Metadata } from "next";
 import { BillingPanel } from "@/components/billing/billing-panel";
+import { ReferralPanel } from "@/components/billing/referral-panel";
 import { InstanceSettingsForm } from "@/components/settings/instance-settings-form";
 import { InvitationsPanel } from "@/components/settings/invitations-panel";
 import { SpendSummaryPanel } from "@/components/settings/spend-summary";
@@ -81,18 +83,29 @@ export default async function SettingsPage() {
 
 async function renderBilling(tenantId: string, earlySeats: number) {
   const db = getDatabase();
-  const [status, plan] = await Promise.all([
+  const config = getConfig();
+  const [status, plan, referrals] = await Promise.all([
     getBillingStatus(db, tenantId, earlySeats),
     findTenantPlan(db, tenantId),
+    getReferralStats(db, tenantId),
   ]);
+  const bot = config.TELEGRAM_BOT_USERNAME;
   return (
-    <BillingPanel
-      effectivePlan={plan.name}
-      paidPlan={status.paidPlan}
-      trialEndsAt={status.trialEndsAt?.toISOString() ?? null}
-      paidUntil={status.paidUntil?.toISOString() ?? null}
-      isRefundPossible={status.isRefundPossible}
-    />
+    <>
+      <BillingPanel
+        effectivePlan={plan.name}
+        paidPlan={status.paidPlan}
+        trialEndsAt={status.trialEndsAt?.toISOString() ?? null}
+        paidUntil={status.paidUntil?.toISOString() ?? null}
+        isRefundPossible={status.isRefundPossible}
+      />
+      <ReferralPanel
+        siteLink={`${config.APP_URL}/r/ref/${referrals.code}`}
+        telegramLink={bot === undefined ? null : `https://t.me/${bot}?start=ref_${referrals.code}`}
+        signedUp={referrals.signedUp}
+        rewarded={referrals.rewarded}
+      />
+    </>
   );
 }
 

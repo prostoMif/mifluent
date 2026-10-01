@@ -18,6 +18,7 @@ const checkoutSchema = z.object({
   plan: z.enum(PAID_PLANS),
   months: z.union([z.literal(1), z.literal(3), z.literal(6), z.literal(12)]),
   currency: z.enum(CURRENCIES),
+  promoCode: z.string().max(64).optional(),
 });
 
 const PLAN_TITLES = { starter: "Starter", pro: "Pro", team: "Team" } as const;
@@ -45,6 +46,7 @@ export async function POST(request: Request): Promise<Response> {
       months: input.months,
       currency: input.currency,
       earlySeats: config.EARLY_SEATS,
+      promoCode: input.promoCode?.trim() === "" ? undefined : input.promoCode,
     });
 
     const url = buildPaymentLink({

@@ -18,7 +18,9 @@
     "beta:report": "node --env-file-if-exists=../../.env --import tsx src/beta-report.ts",
     "packs:sync": "node --env-file-if-exists=../../.env --import tsx src/packs-sync.ts",
     "packs:verify": "node --env-file-if-exists=../../.env --import tsx src/packs-verify.ts",
-    "billing:refund": "node --env-file-if-exists=../../.env --import tsx src/billing-refund.ts"
+    "billing:refund": "node --env-file-if-exists=../../.env --import tsx src/billing-refund.ts",
+    "partners:report": "node --env-file-if-exists=../../.env --import tsx src/partners.ts report",
+    "partners:add": "node --env-file-if-exists=../../.env --import tsx src/partners.ts add"
   },
   "dependencies": {
     "@mifluent/core": "*",

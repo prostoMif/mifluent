@@ -64,6 +64,27 @@ export interface PriceQuote {
   readonly isEarly: boolean;
   /** The undiscounted monthly price times the months, for "you save" lines. */
   readonly fullAmountMinor: number;
+  /** The code that lowered the price, when one did. */
+  readonly appliedCode: string | null;
+}
+
+/**
+ * A discount on top of the price table, already checked as usable for this
+ * plan and term (see promo.ts).
+ *
+ * - `campaign` replaces the term discount: −40% off the full price instead
+ *   of the year's −30%. It does not stack with it.
+ * - any other kind comes off the term price, for `months` of the term (all
+ *   of it when null): −20% for 3 months on a year is −5% of the year.
+ *
+ * Promo discounts never stack with each other: the caller passes every
+ * usable one and the cheapest result wins.
+ */
+export interface Discount {
+  readonly code: string;
+  readonly kind: "campaign" | "code";
+  readonly percentOff: number;
+  readonly months: number | null;
 }
 
 export interface QuoteInput {
@@ -72,13 +93,30 @@ export interface QuoteInput {
   readonly currency: Currency;
   /** True when the tenant already holds an early seat, or one is still free. */
   readonly isEarlyEligible: boolean;
+  readonly discounts?: readonly Discount[];
 }
 
 export function quote(input: QuoteInput): PriceQuote {
   const isEarly = input.plan === "pro" && input.isEarlyEligible;
-  const amount = isEarly
+  const base = isEarly
     ? EARLY_PRO_TABLE[input.currency][input.months]
     : PRICE_TABLE[input.currency][input.plan][input.months];
+  const full = PRICE_TABLE[input.currency][input.plan][1] * input.months;
+  // Whole roubles or dollars, never below the 60% cap.
+  const floor = Math.floor(full * (1 - MAX_TOTAL_DISCOUNT));
+
+  let amount = base;
+  let appliedCode: string | null = null;
+  for (const discount of input.discounts ?? []) {
+    const candidate = Math.max(
+      floor,
+      Math.round(discountedPrice(base, full, input.months, discount)),
+    );
+    if (candidate < amount) {
+      amount = candidate;
+      appliedCode = discount.code;
+    }
+  }
 
   return {
     plan: input.plan,
@@ -86,8 +124,21 @@ export function quote(input: QuoteInput): PriceQuote {
     currency: input.currency,
     amountMinor: amount * 100,
     isEarly,
-    fullAmountMinor: PRICE_TABLE[input.currency][input.plan][1] * input.months * 100,
+    fullAmountMinor: full * 100,
+    appliedCode,
   };
+}
+
+function discountedPrice(
+  base: number,
+  full: number,
+  months: TermMonths,
+  discount: Discount,
+): number {
+  const share = discount.percentOff / 100;
+  if (discount.kind === "campaign") return full * (1 - share);
+  const covered = Math.min(discount.months ?? months, months) / months;
+  return base * (1 - share * covered);
 }
 
 export function isPaidPlan(value: string): value is PaidPlan {

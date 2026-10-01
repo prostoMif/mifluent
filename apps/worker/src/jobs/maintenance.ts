@@ -19,6 +19,7 @@ import type { PgBoss } from "pg-boss";
 import { QUEUES } from "../queue.js";
 import { getDatabase, getTelegramApi, logger } from "../runtime.js";
 import { sendTrialReminders } from "./trial-reminders.js";
+import { sendWinbacks } from "./winback.js";
 
 export async function registerMaintenanceJobs(boss: PgBoss): Promise<void> {
   // Daily owner report at 08:00 UTC
@@ -54,7 +55,10 @@ async function pruneRetainedData(): Promise<void> {
   logger.info("maintenance.completed", { rejections, items });
 }
 
-/** Paid time that ran out, trials that ended, and reminders before a trial ends. */
+/**
+ * Paid time that ran out (or starts today), trials that ended, reminders
+ * before a trial ends, and the one win-back a month after paid time ended.
+ */
 async function settleBilling(): Promise<void> {
   const db = getDatabase();
   const now = new Date();
@@ -64,12 +68,14 @@ async function settleBilling(): Promise<void> {
   const reminders = await listTrialReminders(db, now);
   const telegram = getTelegramApi();
   const sent = telegram === undefined ? 0 : await sendTrialReminders(db, telegram, reminders);
+  const winbacks = telegram === undefined ? 0 : await sendWinbacks(db, telegram, now);
 
   logger.info("billing.settled", {
     downgraded: downgraded.length,
     trialsClosed: trialsClosed.length,
     reminders: reminders.length,
     remindersSent: sent,
+    winbacks,
   });
 }
 

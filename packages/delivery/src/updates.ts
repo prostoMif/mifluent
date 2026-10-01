@@ -71,6 +71,8 @@ export interface HandleUpdateOptions {
 }
 
 const START_COMMAND = /^\/start(?:@\w+)?(?:\s+([A-Za-z0-9]{4,32}))?\s*$/;
+/** `/start ref_ABC` or `/start promo_ABC`: a link from a friend or a post. */
+const START_LINK_COMMAND = /^\/start(?:@\w+)?\s+(ref|promo)_([A-Za-z0-9_-]{3,32})\s*$/;
 const WATCH_COMMAND = /^\/watch(?:@\w+)?(?:\s+(\S+))?\s*$/;
 
 /** First 8 characters of a UUID (after the first hyphen group). */
@@ -157,6 +159,16 @@ async function handleMessage(
   const watchMatch = WATCH_COMMAND.exec(text);
   if (watchMatch !== null) {
     await handleWatchCommand(options, chatId, strings, watchMatch[1]);
+    return;
+  }
+
+  // Nobody can be signed up from inside the bot yet, so the code is carried
+  // to the site, where the sign-up remembers it.
+  const linkMatch = START_LINK_COMMAND.exec(text);
+  if (linkMatch !== null) {
+    const kind = linkMatch[1] === "ref" ? "ref" : "promo";
+    const url = `${getConfig().APP_URL}/r/${kind}/${encodeURIComponent(linkMatch[2] ?? "")}`;
+    await options.api.sendMessage(chatId, { text: strings.startFromLink(kind, url) });
     return;
   }
 

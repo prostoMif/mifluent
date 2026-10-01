@@ -73,3 +73,103 @@ describe("the price tables", () => {
     expect(PRICE_TABLE.USD.team[1]).toBe(45);
   });
 });
+
+describe("quote with discounts", () => {
+  const campaign = { code: "LAUNCH_RU", kind: "campaign", percentOff: 40, months: null } as const;
+  const partner = { code: "BLOGGER", kind: "code", percentOff: 20, months: 3 } as const;
+  const edu = { code: "EDU", kind: "code", percentOff: 50, months: null } as const;
+
+  it("lets a campaign replace the year's discount instead of adding to it", () => {
+    // Full year 790 × 12 = 9 480; −40% = 5 688, below the table's 6 590 (−30%).
+    const price = quote({
+      plan: "pro",
+      months: 12,
+      currency: "RUB",
+      isEarlyEligible: false,
+      discounts: [campaign],
+    });
+    expect(price.amountMinor).toBe(5_688_00);
+    expect(price.appliedCode).toBe("LAUNCH_RU");
+  });
+
+  it("takes a percentage off the term price only for the months the code covers", () => {
+    // 20% on 3 of 12 months: 6 590 × (1 − 0.2 × 3/12) = 6 260.5 → 6 261.
+    const year = quote({
+      plan: "pro",
+      months: 12,
+      currency: "RUB",
+      isEarlyEligible: false,
+      discounts: [partner],
+    });
+    const month = quote({
+      plan: "pro",
+      months: 1,
+      currency: "RUB",
+      isEarlyEligible: false,
+      discounts: [partner],
+    });
+    expect(year.amountMinor).toBe(6_261_00);
+    expect(month.amountMinor).toBe(632_00);
+  });
+
+  it("does not stack promo discounts: the cheapest one wins", () => {
+    const price = quote({
+      plan: "starter",
+      months: 1,
+      currency: "USD",
+      isEarlyEligible: false,
+      discounts: [partner, edu, campaign],
+    });
+    expect(price.amountMinor).toBe(3_00);
+    expect(price.appliedCode).toBe("EDU");
+  });
+
+  it("never goes past 60% off the full price, even on the early price", () => {
+    const price = quote({
+      plan: "pro",
+      months: 12,
+      currency: "RUB",
+      isEarlyEligible: true,
+      discounts: [edu],
+    });
+    expect(price.amountMinor).toBe(3_790_00);
+    expect(price.appliedCode).toBeNull();
+
+    const capped = quote({
+      plan: "team",
+      months: 1,
+      currency: "RUB",
+      isEarlyEligible: false,
+      discounts: [{ code: "ALL", kind: "code", percentOff: 90, months: null }],
+    });
+    expect(capped.amountMinor).toBe(796_00);
+  });
+
+  it("rounds to whole roubles and whole dollars", () => {
+    for (const currency of CURRENCIES) {
+      for (const months of TERMS) {
+        const price = quote({
+          plan: "starter",
+          months,
+          currency,
+          isEarlyEligible: false,
+          discounts: [partner],
+        });
+        expect(price.amountMinor % 100).toBe(0);
+      }
+    }
+  });
+
+  it("leaves the price alone when a discount would make it dearer", () => {
+    // −10% off the full year is 3 132, dearer than the table's 2 390.
+    const price = quote({
+      plan: "starter",
+      months: 12,
+      currency: "RUB",
+      isEarlyEligible: false,
+      discounts: [{ code: "SMALL", kind: "campaign", percentOff: 10, months: null }],
+    });
+    expect(price.amountMinor).toBe(2_390_00);
+    expect(price.appliedCode).toBeNull();
+  });
+});

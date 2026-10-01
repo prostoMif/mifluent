@@ -5,7 +5,7 @@
  */
 
 import { getConfig } from "@mifluent/core";
-import { countEarlySeatsTaken } from "@mifluent/domain";
+import { activeCampaigns, countEarlySeatsTaken, normalizeCode } from "@mifluent/domain";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { PlanPicker } from "@/components/billing/plan-picker";
@@ -17,7 +17,11 @@ export const metadata: Metadata = { title: "Pricing — Mifluent" };
 
 export const dynamic = "force-dynamic";
 
-export default async function PricingPage() {
+interface PageProps {
+  readonly searchParams: Promise<{ readonly code?: string }>;
+}
+
+export default async function PricingPage({ searchParams }: PageProps) {
   const config = getConfig();
   const session = await getSessionContext();
   const acceptLanguage = (await headers()).get("accept-language") ?? "";
@@ -26,6 +30,21 @@ export default async function PricingPage() {
   // a price that cannot be paid is worse than a price in another currency.
   const currency = language === "ru" || !config.PRODAMUS_FOREIGN_CARDS ? "RUB" : "USD";
   const seatsLeft = Math.max(0, config.EARLY_SEATS - (await countEarlySeatsTaken(getDatabase())));
+  const [running] = await activeCampaigns(getDatabase(), new Date());
+  const campaign =
+    running === undefined || running.endsAt === null
+      ? null
+      : {
+          discount: {
+            code: running.code,
+            kind: "campaign" as const,
+            percentOff: running.percentOff,
+            months: running.months,
+          },
+          endsAt: running.endsAt.toISOString(),
+          minMonths: running.minMonths ?? 1,
+        };
+  const initialCode = normalizeCode((await searchParams).code) ?? "";
 
   return (
     <main className={styles["content"]}>
@@ -41,6 +60,8 @@ export default async function PricingPage() {
         isSignedIn={session !== undefined}
         isPaymentEnabled={config.PRODAMUS_URL !== undefined && config.PRODAMUS_SECRET !== undefined}
         earlySeatsLeft={seatsLeft}
+        campaign={campaign}
+        initialCode={initialCode}
       />
     </main>
   );
