@@ -299,10 +299,9 @@ async function loadEventsForCards(
       targetId: schema.events.targetId,
       targetName: schema.watchTargets.name,
       targetKind: schema.watchTargets.kind,
-      sourceUrl: schema.rawItems.url,
+      sourceUrl: schema.events.sourceUrl,
     })
     .from(schema.events)
-    .innerJoin(schema.rawItems, eq(schema.rawItems.id, schema.events.rawItemId))
     .leftJoin(schema.watchTargets, eq(schema.watchTargets.id, schema.events.targetId))
     .where(
       scoped(

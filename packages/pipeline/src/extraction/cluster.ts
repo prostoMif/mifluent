@@ -84,15 +84,21 @@ export async function clusterEvent(
       ),
     );
 
-  if (recent.length === 0) return null;
+  // An event whose raw item has been pruned has no vectors left to compare
+  // with; it can no longer gather new items, which is fine for something that
+  // old.
+  const comparable = recent.flatMap((row) =>
+    row.rawItemId === null ? [] : [{ eventId: row.eventId, rawItemId: row.rawItemId }],
+  );
+  if (comparable.length === 0) return null;
 
   const centroids = await itemCentroids(
     db,
     tenantId,
     input.model,
-    recent.map((row) => row.rawItemId),
+    comparable.map((row) => row.rawItemId),
   );
-  const candidates = recent.flatMap((row) => {
+  const candidates = comparable.flatMap((row) => {
     const candidate = centroids.get(row.rawItemId);
     return candidate === undefined ? [] : [{ eventId: row.eventId, centroid: candidate }];
   });

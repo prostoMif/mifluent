@@ -9,6 +9,7 @@ function baseCandidate(overrides: Partial<Candidate> = {}): Candidate {
   return {
     id: "item-1",
     title: "Test",
+    url: null,
     content: "Content",
     kind: "article",
     publishedAt: now,

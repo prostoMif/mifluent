@@ -49,9 +49,18 @@ export const events = pgTable(
     profileVersionId: uuid("profile_version_id")
       .notNull()
       .references(() => watchProfileVersions.id),
-    rawItemId: uuid("raw_item_id")
-      .notNull()
-      .references(() => rawItems.id, { onDelete: "cascade" }),
+    /**
+     * The item that started this event. Null once that raw material has aged
+     * out: raw text is kept for a plan's retention period, the event — and
+     * everything a person did with it — is kept for good. Nothing reads the
+     * source through this column; the source's address and title are copied
+     * below for that reason.
+     */
+    rawItemId: uuid("raw_item_id").references(() => rawItems.id, { onDelete: "set null" }),
+    /** The source as it was when the event was created; survives the raw item. */
+    sourceUrl: text("source_url"),
+    sourceTitle: text("source_title"),
+    sourcePublishedAt: timestamp("source_published_at", { withTimezone: true }),
     /** Which watched thing this is about, when that is known. */
     targetId: uuid("target_id").references(() => watchTargets.id, {
       onDelete: "set null",
@@ -123,9 +132,8 @@ export const eventItems = pgTable(
     eventId: uuid("event_id")
       .notNull()
       .references(() => events.id, { onDelete: "cascade" }),
-    rawItemId: uuid("raw_item_id")
-      .notNull()
-      .references(() => rawItems.id, { onDelete: "cascade" }),
+    /** Null once the raw item has been pruned; the link to the event stays. */
+    rawItemId: uuid("raw_item_id").references(() => rawItems.id, { onDelete: "set null" }),
     /** True for the primary item that triggered the event. */
     isPrimary: boolean("is_primary").notNull().default(false),
     createdAt: timestamps.createdAt,

@@ -74,6 +74,7 @@ export interface SelectionResult {
 export interface Candidate {
   readonly id: string;
   readonly title: string | null;
+  readonly url: string | null;
   readonly content: string;
   readonly kind: string;
   readonly publishedAt: Date | null;
@@ -424,6 +425,11 @@ async function createEvent(db: Queryable, event: NewEvent): Promise<string> {
       profileId: context.profileId,
       profileVersionId: context.versionId,
       rawItemId: item.id,
+      // Copied, not joined: the raw item is pruned after the plan's retention
+      // period, and the card in the archive must still link to its source.
+      sourceUrl: item.url,
+      sourceTitle: item.title,
+      sourcePublishedAt: item.publishedAt,
       targetId: event.targetId,
       relevanceScore: item.score,
       summary: event.summary.slice(0, 500),
@@ -483,6 +489,7 @@ async function findCandidates(
     .select({
       id: schema.rawItems.id,
       title: schema.rawItems.title,
+      url: schema.rawItems.url,
       content: schema.rawItems.content,
       kind: schema.rawItems.kind,
       publishedAt: schema.rawItems.publishedAt,

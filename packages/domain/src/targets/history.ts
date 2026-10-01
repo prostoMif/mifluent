@@ -7,7 +7,7 @@
  */
 
 import { type Queryable, schema, scoped, scopedAlive } from "@mifluent/db";
-import { and, desc, eq, gte, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
 
 export const PAGE_SIZE = 30;
 
@@ -193,13 +193,12 @@ export async function fetchTargetTimeline(
       eventKind: schema.events.kind,
       summary: schema.events.summary,
       quote: sql<string | null>`null`,
-      sourceUrl: schema.rawItems.url,
+      sourceUrl: schema.events.sourceUrl,
       isUrgent: schema.events.isUrgent,
       decisionText: sql<string | null>`null`,
       revisitAt: sql<Date | null>`null`,
     })
     .from(schema.events)
-    .leftJoin(schema.rawItems, eq(schema.events.rawItemId, schema.rawItems.id))
     .where(and(...whereConditions))
     .orderBy(desc(schema.events.occurredAt))
     .limit(limit + 1);
@@ -333,10 +332,9 @@ async function fetchPricePlanEvents(
       kind: schema.events.kind,
       summary: schema.events.summary,
       quote: sql<string | null>`null`,
-      sourceUrl: schema.rawItems.url,
+      sourceUrl: schema.events.sourceUrl,
     })
     .from(schema.events)
-    .leftJoin(schema.rawItems, eq(schema.events.rawItemId, schema.rawItems.id))
     .where(and(...whereConditions))
     .orderBy(desc(schema.events.occurredAt));
 }
@@ -478,7 +476,7 @@ async function fetchLatestJobItems(
     .where(
       and(
         scoped(schema.rawItems, tenantId),
-        sql`${schema.rawItems.sourceId} IN (${sourceIds.join(",")})`,
+        inArray(schema.rawItems.sourceId, [...sourceIds]),
         eq(schema.rawItems.kind, "job"),
       ),
     )
@@ -555,7 +553,7 @@ async function fetchHistoricalJobItems(
     .where(
       and(
         scoped(schema.rawItems, tenantId),
-        sql`${schema.rawItems.sourceId} IN (${sourceIds.join(",")})`,
+        inArray(schema.rawItems.sourceId, [...sourceIds]),
         eq(schema.rawItems.kind, "job"),
         gte(schema.rawItems.fetchedAt, ninetyDaysAgo),
       ),
@@ -646,7 +644,7 @@ export async function fetchCheckCount(
     .where(
       and(
         scoped(schema.rawItems, tenantId),
-        sql`${schema.rawItems.sourceId} IN (${ids.join(",")})`,
+        inArray(schema.rawItems.sourceId, ids),
         gte(schema.rawItems.fetchedAt, cutoff),
       ),
     );

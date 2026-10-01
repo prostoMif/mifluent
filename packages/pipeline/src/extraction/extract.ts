@@ -329,7 +329,9 @@ async function findPendingEvents(
   return db
     .select({
       id: schema.events.id,
-      rawItemId: schema.events.rawItemId,
+      // From the joined row rather than the event: the inner join guarantees
+      // the item still exists, which the event's own nullable column cannot.
+      rawItemId: schema.rawItems.id,
       isUrgent: schema.events.isUrgent,
       relevanceScore: schema.events.relevanceScore,
       createdAt: schema.events.createdAt,

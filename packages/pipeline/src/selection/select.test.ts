@@ -150,6 +150,7 @@ describe("priorityOf", () => {
   const baseCandidate = {
     id: "item-1",
     title: "Test",
+    url: null,
     content: "Content",
     kind: "article",
     publishedAt: now,

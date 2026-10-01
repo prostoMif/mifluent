@@ -258,10 +258,9 @@ async function loadMonthlyEvents(
       implication: schema.events.implication,
       interpretation: schema.events.interpretation,
       occurredAt: schema.events.occurredAt,
-      sourceUrl: schema.rawItems.url,
+      sourceUrl: schema.events.sourceUrl,
     })
     .from(schema.events)
-    .innerJoin(schema.rawItems, eq(schema.rawItems.id, schema.events.rawItemId))
     .leftJoin(schema.watchTargets, eq(schema.watchTargets.id, schema.events.targetId))
     .where(
       scoped(
@@ -461,10 +460,9 @@ async function fetchPricePlanEvents(
       kind: schema.events.kind,
       summary: schema.events.summary,
       occurredAt: schema.events.occurredAt,
-      sourceUrl: schema.rawItems.url,
+      sourceUrl: schema.events.sourceUrl,
     })
     .from(schema.events)
-    .innerJoin(schema.rawItems, eq(schema.rawItems.id, schema.events.rawItemId))
     .where(
       scoped(
         schema.events,

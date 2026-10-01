@@ -25,9 +25,11 @@ export async function pruneRejections(db: Queryable, now: Date = new Date()): Pr
 }
 
 /**
- * Delete fetched material older than the tenant's plan keeps it. Events,
- * facts and digest cards built from it go with it through the foreign keys:
- * a card whose source is gone could no longer show its quote in context.
+ * Delete fetched material older than the tenant's plan keeps it — the raw text
+ * and, through the foreign keys, its chunks and embeddings. Events, facts,
+ * digest cards, decisions and actions stay: an event's link to its raw item
+ * is set to null, and the event carries its own copy of the source's address
+ * and title. Retention limits what can be re-read, never the history.
  */
 export async function pruneExpiredMaterial(db: Queryable, now: Date = new Date()): Promise<number> {
   const tenants = await db
