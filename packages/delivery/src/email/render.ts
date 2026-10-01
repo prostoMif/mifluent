@@ -11,7 +11,7 @@
 
 import type { DigestView } from "@mifluent/digest";
 import { escapeHtml } from "../html.js";
-import { formatPeriod, type Language, stringsFor } from "../strings.js";
+import { formatPeriod, type Language, type Strings, stringsFor } from "../strings.js";
 
 export interface EmailRenderOptions {
   readonly appUrl: string;
@@ -710,13 +710,10 @@ export function renderEmailDigest(digest: DigestView, options: EmailRenderOption
     html += renderHtmlNotice(notice, strings);
   }
 
-  if (digest.cards.length === 0) {
-    html += renderHtmlEmptyDigest(digest, strings, period);
-  } else {
-    for (const card of digest.cards) {
-      html += renderHtmlCard(card, strings, options, digest.language);
-    }
-  }
+  html +=
+    digest.cards.length === 0
+      ? renderHtmlEmptyDigest(digest, strings, period)
+      : renderHtmlCards(digest, strings, options);
 
   html += renderHtmlFooter(options, digest.language);
 
@@ -727,17 +724,49 @@ export function renderEmailDigest(digest: DigestView, options: EmailRenderOption
     text += renderTextNotice(notice, strings);
   }
 
-  if (digest.cards.length === 0) {
-    text += renderTextEmptyDigest(digest, strings, period);
-  } else {
-    for (const card of digest.cards) {
-      text += renderTextCard(card, strings, options, digest.language);
-    }
-  }
+  text +=
+    digest.cards.length === 0
+      ? renderTextEmptyDigest(digest, strings, period)
+      : renderTextCards(digest, strings, options);
 
   text += renderTextFooter(options, digest.language);
 
   return { subject, html, text };
+}
+
+function renderHtmlCards(
+  digest: DigestView,
+  strings: Strings,
+  options: EmailRenderOptions,
+): string {
+  return digest.cards
+    .map((card, index) => {
+      const heading = startsMarketSection(digest.cards, index)
+        ? `<h2 style="font-size:18px;margin:32px 0 8px">${escapeHtml(strings.marketSection)}</h2>`
+        : "";
+      return heading + renderHtmlCard(card, strings, options, digest.language);
+    })
+    .join("");
+}
+
+function renderTextCards(
+  digest: DigestView,
+  strings: Strings,
+  options: EmailRenderOptions,
+): string {
+  return digest.cards
+    .map((card, index) => {
+      const heading = startsMarketSection(digest.cards, index)
+        ? `\n${strings.marketSection.toUpperCase()}\n\n`
+        : "";
+      return heading + renderTextCard(card, strings, options, digest.language);
+    })
+    .join("");
+}
+
+/** True for the first card of the market section: the place for its heading. */
+function startsMarketSection(cards: DigestView["cards"], index: number): boolean {
+  return cards[index]?.section === "market" && cards[index - 1]?.section !== "market";
 }
 
 export function renderMonthlyReportEmail(

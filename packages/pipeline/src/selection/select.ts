@@ -44,6 +44,7 @@ import {
   type RelevanceAnswer,
   relevanceSchema,
 } from "../prompts/selection.js";
+import { articleEventKind, isUrgentRule, isWrongCountry } from "./market-rules.js";
 import { DIFF_RESERVE_PER_DAY, type Priority, priorityOf } from "./priority.js";
 import { cosineCutoff, findStopword, scoreItem } from "./score.js";
 
@@ -344,14 +345,28 @@ async function judgeOne(options: JudgeOptions, item: Scored): Promise<SelectionD
     tenantId: context.tenantId,
     temperature: 0,
   });
-  return recordRelevance(db, { context, item, answer: value });
+  return recordRelevance(db, { context, item, answer: value, now: options.now });
 }
 
 async function recordRelevance(
   db: Queryable,
-  input: { context: ProfileContext; item: Scored; answer: RelevanceAnswer },
+  input: { context: ProfileContext; item: Scored; answer: RelevanceAnswer; now: Date },
 ): Promise<SelectionDecision> {
   const { context, item, answer } = input;
+
+  if (answer.relevant && isWrongCountry(answer, context.facts)) {
+    // The model's own verdict, overruled: a law or market story about a
+    // country this business neither sells in nor is based in.
+    const detail = `wrong_country: about ${answer.geo ?? "?"} — ${answer.reason}`.slice(0, 500);
+    await reject(db, {
+      context,
+      itemId: item.id,
+      reason: "model_rejected",
+      score: item.score,
+      detail,
+    });
+    return decision(item, item.score, "model_rejected", detail, item.priority);
+  }
 
   if (!answer.relevant) {
     await reject(db, {
@@ -369,8 +384,8 @@ async function recordRelevance(
     item,
     targetId: pickTarget(context, answer.targetId, item),
     summary: item.title ?? answer.reason,
-    kind: item.kind === "release" ? "feature" : "news",
-    isUrgent: false,
+    kind: articleEventKind(item.kind, answer.scope),
+    isUrgent: isUrgentRule(answer, input.now),
   });
   return { ...decision(item, item.score, "event", answer.reason, item.priority), eventId };
 }

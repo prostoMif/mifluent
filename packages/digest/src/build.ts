@@ -300,6 +300,8 @@ async function loadEventsForCards(
       targetName: schema.watchTargets.name,
       targetKind: schema.watchTargets.kind,
       sourceUrl: schema.events.sourceUrl,
+      kind: schema.events.kind,
+      packKey: schema.events.packKey,
     })
     .from(schema.events)
     .leftJoin(schema.watchTargets, eq(schema.watchTargets.id, schema.events.targetId))

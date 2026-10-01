@@ -16,6 +16,8 @@ export interface Strings {
   readonly source: string;
   readonly groupHeadline: (target: string, count: number) => string;
   readonly selfGroupHeadline: (count: number) => string;
+  /** Heading of the section for pack material: laws, platform rules, market news. */
+  readonly marketSection: string;
   readonly more: (count: number) => string;
   readonly emptyDigest: (period: string, sources: number, items: number) => string;
   readonly emptyDigestFirstWeek: (sources: number, items: number, closestTitle: string) => string;
@@ -111,6 +113,7 @@ const en: Strings = {
   source: "source",
   groupHeadline: (target, count) => `${target}: ${count} changes`,
   selfGroupHeadline: (count) => `About you: ${count} mention${count === 1 ? "" : "s"}`,
+  marketSection: "Your market & rules",
   more: (count) => `and ${count} more`,
   emptyDigest: (period, sources, items) =>
     `Nothing that concerns you for ${period}. Checked ${sources} sources, ${items} items.`,
@@ -212,6 +215,7 @@ const ru: Strings = {
   modelInterpretation: "Интерпретация модели ⚠",
   source: "источник",
   groupHeadline: (target, count) => `${target}: ${count} изменений`,
+  marketSection: "В твоей стране и нише",
   selfGroupHeadline: (count) =>
     `О тебе: ${count} упоминани${count === 1 ? "е" : count < 5 ? "я" : "й"}`,
   more: (count) => `и ещё ${count}`,

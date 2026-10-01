@@ -25,7 +25,17 @@ export interface RenderOptions {
 export function renderDigest(digest: DigestView, options: RenderOptions): OutgoingMessage[] {
   const strings = stringsFor(digest.language);
   const header = renderHeader(digest, strings, options);
-  const cards = digest.cards.map((card) => renderCard(card, strings, options));
+  const cards: OutgoingMessage[] = [];
+  let isMarketStarted = false;
+  for (const card of digest.cards) {
+    // One heading message before the first card of the market section, so a
+    // law or platform rule is never read as news about a competitor.
+    if (card.section === "market" && !isMarketStarted) {
+      isMarketStarted = true;
+      cards.push({ text: `<b>${escapeHtml(strings.marketSection)}</b>` });
+    }
+    cards.push(renderCard(card, strings, options));
+  }
   return [header, ...cards];
 }
 

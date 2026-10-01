@@ -20,13 +20,38 @@ import { z } from "zod";
 import type { ProfileContext } from "../profile.js";
 import { describeBusiness } from "../profile.js";
 
-export const PROMPT_VERSION = "selection-2026-09-30";
+export const PROMPT_VERSION = "selection-2026-10-01";
+
+export const RELEVANCE_SCOPES = [
+  "competitor",
+  "platform",
+  "market_rule",
+  "market_news",
+  "other",
+] as const;
+
+export type RelevanceScope = (typeof RELEVANCE_SCOPES)[number];
 
 export const relevanceSchema = z.object({
   relevant: z.boolean(),
   /** One of the listed target ids, or null. Checked against the list in code. */
   targetId: z.string().nullable(),
   reason: z.string().min(1).max(400),
+  /** What the material is about: a competitor, a platform, a law or rule, market news. */
+  scope: z.enum(RELEVANCE_SCOPES),
+  /**
+   * The country the material is about, when it says so: ISO 3166-1 alpha-2.
+   * Checked in code against the profile's countries for laws and market news.
+   */
+  geo: z
+    .string()
+    .regex(/^[A-Z]{2}$/)
+    .nullable(),
+  /** When a rule takes effect, YYYY-MM-DD, when the material states it. */
+  effectiveDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable(),
 });
 
 export type RelevanceAnswer = z.infer<typeof relevanceSchema>;
@@ -70,6 +95,18 @@ export function buildRelevancePrompt(context: ProfileContext): string {
     '- "targetId": the id of the target the material is about, copied exactly from the list,',
     "  or null when it is about none of them.",
     '- "reason": one sentence a person can check, saying why it is or is not relevant.',
+    '- "scope": what the material is about — competitor, platform (a marketplace, app store,',
+    "  payment or ad platform the business uses), market_rule (a law, tax, regulator decision",
+    "  or a platform's binding rules), market_news (other news about the business's market),",
+    "  or other.",
+    '- "geo": the two-letter country code the material is about when it names one country,',
+    "  otherwise null. A rule that applies in every country (App Store rules worldwide) is null.",
+    '- "effectiveDate": the date a rule takes effect as YYYY-MM-DD, when the material states it,',
+    "  otherwise null.",
+    "",
+    "A law, tax, regulator decision or platform rule is relevant only if it applies where this",
+    "business sells or is based, and touches its niche or a platform it uses. A change that",
+    "applies worldwide is relevant when it touches a platform it uses.",
     "",
     hasSelfTarget && selfTarget
       ? `Special rule for the "self" target (id=${selfTarget.id}): "relevant" is true ONLY when the material mentions this specific product or brand by name. A passing reference to a common word that happens to be the name (e.g., "linear" as a math term when the product is Linear) is NOT relevant. The mention must be about the product itself — a review, announcement, comparison, or discussion of it.`

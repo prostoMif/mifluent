@@ -29,6 +29,8 @@ export interface DigestCardView {
   readonly isUrgent: boolean;
   readonly blocks: readonly DigestBlockView[];
   readonly targetKind: "competitor" | "platform" | "condition" | "self" | null;
+  /** `market`: shown under "your market & rules", after the profile's own news. */
+  readonly section: "main" | "market";
 }
 
 export interface DigestView {
@@ -142,6 +144,7 @@ async function withCards(db: Queryable, row: DigestRow): Promise<DigestView> {
       moreCount: schema.digestCards.moreCount,
       isUrgent: schema.events.isUrgent,
       targetKind: schema.watchTargets.kind,
+      packKey: schema.events.packKey,
     })
     .from(schema.digestCards)
     .innerJoin(schema.events, eq(schema.events.id, schema.digestCards.eventId))
@@ -196,6 +199,9 @@ async function withCards(db: Queryable, row: DigestRow): Promise<DigestView> {
       targetId: card.targetId ?? null,
       kind: card.kind === "group" ? "group" : "event",
       targetKind: card.targetKind ?? null,
+      // Derived, not stored: a card is in the market section exactly when its
+      // event came from a source pack.
+      section: card.packKey === null ? "main" : "market",
       blocks: blocks
         .filter((block) => block.cardId === card.id)
         .map(({ kind, content, quote, sourceUrl }) => ({ kind, content, quote, sourceUrl })),

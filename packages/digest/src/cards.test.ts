@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleCards, type EventForCard, linkToQuote } from "./cards.js";
+import { assembleCards, type EventForCard, linkToQuote, MARKET_SECTION_LIMIT } from "./cards.js";
 
 const PERIOD_END = new Date("2026-09-28T08:00:00Z");
 
@@ -18,6 +18,8 @@ function event(overrides: Partial<EventForCard> = {}): EventForCard {
     targetKind: null,
     sourceUrl: "https://usefathom.com/pricing",
     facts: [{ statement: "Business is now $99", quote: "Business plan: $99 per month" }],
+    kind: "price",
+    packKey: null,
     ...overrides,
   };
 }
@@ -142,5 +144,63 @@ describe("linkToQuote", () => {
     const link = linkToQuote("javascript:alert(1)", "Business plan: $99 per month");
 
     expect(link).toBeNull();
+  });
+});
+
+describe("the market & rules section", () => {
+  function packEvent(id: string, kind: string, day: number): EventForCard {
+    return event({
+      id,
+      kind,
+      packKey: "ru.regulators.fns",
+      occurredAt: new Date(`2026-09-${String(day).padStart(2, "0")}T08:00:00Z`),
+    });
+  }
+
+  it("puts pack material after the profile's own cards, never mixed in", () => {
+    const cards = assembleCards(
+      [packEvent("rule", "market_rule", 20), event({ id: "own-1" }), event({ id: "own-2" })],
+      PERIOD_END,
+    );
+
+    expect(cards.map((card) => card.section)).toEqual(["main", "main", "market"]);
+  });
+
+  it("keeps the section to its limit, rules first and the freshest first within a kind", () => {
+    const own = [event({ id: "own-1" }), event({ id: "own-2" }), event({ id: "own-3" })];
+    const pack = [
+      packEvent("news-old", "market_news", 10),
+      packEvent("news-new", "market_news", 24),
+      packEvent("platform-1", "platform", 15),
+      packEvent("rule-old", "market_rule", 11),
+      packEvent("rule-new", "market_rule", 23),
+      packEvent("platform-2", "platform", 22),
+      packEvent("news-mid", "market_news", 18),
+      packEvent("news-x", "market_news", 12),
+    ];
+
+    const market = assembleCards([...own, ...pack], PERIOD_END).filter(
+      (card) => card.section === "market",
+    );
+
+    expect(market).toHaveLength(MARKET_SECTION_LIMIT);
+    expect(market.map((card) => card.eventId)).toEqual([
+      "rule-new",
+      "rule-old",
+      "platform-2",
+      "platform-1",
+      "news-new",
+      "news-mid",
+    ]);
+  });
+
+  it("does not fold pack material into a group card", () => {
+    const pack = Array.from({ length: 9 }, (_, index) =>
+      packEvent(`rule-${index}`, "market_rule", 10 + index),
+    );
+
+    const cards = assembleCards(pack, PERIOD_END);
+
+    expect(cards.every((card) => card.kind === "event")).toBe(true);
   });
 });

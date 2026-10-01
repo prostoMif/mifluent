@@ -95,10 +95,26 @@ describe("model answers", () => {
       relevant: true,
       targetId: null,
       reason: "about a competitor",
+      scope: "competitor",
+      geo: null,
+      effectiveDate: null,
       link: "https://evil.example",
     });
 
     expect(answer).not.toHaveProperty("link");
+  });
+
+  it("refuse a country that is not a two-letter code", () => {
+    const result = relevanceSchema.safeParse({
+      relevant: true,
+      targetId: null,
+      reason: "a tax change",
+      scope: "market_rule",
+      geo: "Germany",
+      effectiveDate: null,
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it("refuse an extraction with no facts", () => {

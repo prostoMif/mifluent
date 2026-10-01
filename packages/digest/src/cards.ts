@@ -26,6 +26,10 @@ export interface EventForCard {
   readonly targetKind: "competitor" | "platform" | "condition" | "self" | null;
   readonly sourceUrl: string | null;
   readonly facts: readonly { readonly statement: string; readonly quote: string }[];
+  /** price, plan, policy, market_rule, market_news, platform, news… */
+  readonly kind: string | null;
+  /** Set when the material came from a shared source pack, not the profile's own sources. */
+  readonly packKey: string | null;
 }
 
 export type BlockKind = "fact" | "implication" | "model_interpretation";
@@ -47,10 +51,29 @@ export interface CardDraft {
   readonly isUrgent: boolean;
   readonly blocks: readonly BlockDraft[];
   readonly targetKind: "competitor" | "platform" | "condition" | "self" | null;
+  /** `market`: the "your market & rules" section at the end of the digest. */
+  readonly section: "main" | "market";
 }
 
 /** Past this many events a weekly digest stops being read; related ones are folded. */
 export const GROUPING_THRESHOLD = 7;
+
+/**
+ * Cards in the "your market & rules" section. Laws and platform rules are
+ * context, not the reason someone opened the digest; more than this crowds out
+ * their competitors.
+ */
+export const MARKET_SECTION_LIMIT = 6;
+
+/** Rules first: a law or a platform's binding rule costs money if missed. */
+const MARKET_RANK: Readonly<Record<string, number>> = {
+  market_rule: 0,
+  policy: 0,
+  price: 1,
+  plan: 1,
+  platform: 2,
+  market_news: 3,
+};
 
 /** How many facts a folded card shows before "N more". */
 const GROUP_FACTS_SHOWN = 3;
@@ -64,6 +87,12 @@ const FRAGMENT_MAX_LENGTH = 60;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function assembleCards(events: readonly EventForCard[], periodEnd: Date): CardDraft[] {
+  const own = events.filter((event) => event.packKey === null);
+  const market = events.filter((event) => event.packKey !== null);
+  return [...mainCards(own, periodEnd), ...marketCards(market, periodEnd)];
+}
+
+function mainCards(events: readonly EventForCard[], periodEnd: Date): CardDraft[] {
   const ordered = [...events].sort(byImportance);
 
   if (ordered.length <= GROUPING_THRESHOLD) {
@@ -71,6 +100,30 @@ export function assembleCards(events: readonly EventForCard[], periodEnd: Date):
   }
 
   return foldByTarget(ordered, periodEnd);
+}
+
+/**
+ * The market section: never folded (each rule is its own thing), ordered by
+ * kind and then by freshness, cut at the section limit. An urgent rule is not
+ * here — it already went out on its own the day it was found.
+ */
+function marketCards(events: readonly EventForCard[], periodEnd: Date): CardDraft[] {
+  return [...events]
+    .sort((left, right) => {
+      const rank = marketRank(left) - marketRank(right);
+      if (rank !== 0) return rank;
+      return happenedAt(right) - happenedAt(left);
+    })
+    .slice(0, MARKET_SECTION_LIMIT)
+    .map((event) => ({ ...eventCard(event, periodEnd), section: "market" as const }));
+}
+
+function marketRank(event: EventForCard): number {
+  return MARKET_RANK[event.kind ?? ""] ?? 4;
+}
+
+function happenedAt(event: EventForCard): number {
+  return (event.occurredAt ?? event.createdAt).getTime();
 }
 
 /**
@@ -151,6 +204,7 @@ function eventCard(event: EventForCard, periodEnd: Date): CardDraft {
     isUrgent: event.isUrgent,
     blocks,
     targetKind: event.targetKind,
+    section: "main",
   };
 }
 
@@ -177,6 +231,7 @@ function groupCard(members: readonly EventForCard[], periodEnd: Date): CardDraft
     isUrgent: false,
     blocks: facts.slice(0, GROUP_FACTS_SHOWN),
     targetKind: first.targetKind,
+    section: "main",
   };
 }
 

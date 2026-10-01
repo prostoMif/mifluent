@@ -40,6 +40,7 @@ const card = {
   moreCount: 0,
   isUrgent: false,
   targetKind: null,
+  section: "main" as const,
   blocks: [
     {
       kind: "fact" as const,
@@ -126,5 +127,40 @@ describe("renderDigest", () => {
     const [header] = renderDigest(digest({ notices: [{ code: "cost_cap_reached" }] }), options);
 
     expect(header?.text).toContain("Processing is paused until tomorrow");
+  });
+});
+
+describe("the market & rules section", () => {
+  const ruleCard = {
+    ...card,
+    id: "c-rule",
+    headline: "ФНС меняет порог УСН",
+    section: "market" as const,
+  };
+
+  it("puts one heading before the first pack card, in the reader's language", () => {
+    const messages = renderDigest(
+      digest({ language: "ru", cards: [card, ruleCard, ruleCard] }),
+      options,
+    );
+
+    const positions = messages.flatMap((message, index) =>
+      message.text === "<b>В твоей стране и нише</b>" ? [index] : [],
+    );
+    expect(positions).toEqual([2]);
+  });
+
+  it("titles the section in English for an English profile", () => {
+    const messages = renderDigest(digest({ cards: [ruleCard] }), options);
+
+    expect(messages.some((message) => message.text === "<b>Your market &amp; rules</b>")).toBe(
+      true,
+    );
+  });
+
+  it("adds no heading when there is no pack material", () => {
+    const messages = renderDigest(digest({ cards: [card] }), options);
+
+    expect(messages.some((message) => message.text.includes("Your market"))).toBe(false);
   });
 });
