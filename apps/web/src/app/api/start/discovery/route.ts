@@ -11,17 +11,13 @@
 import { getConfig, parseOrThrow } from "@mifluent/core";
 import { schema } from "@mifluent/db";
 import { QUEUES } from "@mifluent/domain/jobs/queues";
-import {
-  generatePendingToken,
-  hashIp,
-  serializePendingCookie,
-  startAnonDiscovery,
-} from "@mifluent/domain/onboarding/pending";
+import { hashIp, startAnonDiscovery } from "@mifluent/domain/onboarding/pending";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { readJsonBody, route } from "@/lib/api";
 import { assertSameOrigin } from "@/lib/csrf";
 import { getDatabase } from "@/lib/db";
+import { PENDING_COOKIE } from "@/lib/pending-cookie";
 import { sendInteractiveJob } from "@/lib/queue";
 
 const startSchema = z.object({
@@ -73,22 +69,16 @@ export async function POST(request: Request): Promise<Response> {
         .where(eq(schema.pendingOnboardings.id, pendingId));
     }
 
-    // Set pending cookie
-    const token = generatePendingToken();
-    serializePendingCookie({
-      token,
-      isProduction: config.isProduction,
-    });
+    // The cookie binds this sign-up to this browser; every later step
+    // checks it (see lib/pending-cookie.ts).
+    const pendingCookie = `${PENDING_COOKIE}=${pendingId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400${config.isProduction ? "; Secure" : ""}`;
 
-    // Store token -> pendingId mapping in a simple way
-    // For now, we'll use the pendingId as the cookie value directly
-    // In production, you might want to use a signed cookie or session store
-    const pendingCookie = `mifluent.pending=${pendingId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400${config.isProduction ? "; Secure" : ""}`;
-
-    const headers = new Headers();
+    const headers = new Headers({ "Content-Type": "application/json; charset=utf-8" });
     headers.set("Set-Cookie", pendingCookie);
 
-    return new Response(JSON.stringify({ runId, pendingId }), {
+    // The same envelope every API answer has, or the browser's client
+    // rejects it as malformed — which is what it did.
+    return new Response(JSON.stringify({ ok: true, data: { runId, pendingId } }), {
       status: 202,
       headers,
     });
