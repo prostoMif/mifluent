@@ -46,6 +46,9 @@ export async function route<T>(options: RouteOptions, handle: () => Promise<T>):
     const data = await handle();
 
     logger.info(options.event, { durationMs: Date.now() - startedAt });
+    // A redirect or a page answer is already a response: wrapping it in the
+    // JSON envelope would drop its status and Location header.
+    if (data instanceof Response) return data;
     return json(ok(data), options.status ?? 200);
   } catch (thrown) {
     const error = toAppError(thrown);

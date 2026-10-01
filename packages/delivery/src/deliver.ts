@@ -19,7 +19,10 @@ import {
 } from "@mifluent/digest";
 import { and, eq, sql } from "drizzle-orm";
 import {
+  createActionToken,
+  createUnsubscribeToken,
   type EmailRenderOptions,
+  emailLinkSecret,
   renderEmailDigest,
   renderMonthlyReportEmail,
   sendDigestEmail,
@@ -247,13 +250,12 @@ async function deliverEmail(options: DeliverOptions, digest: DigestView): Promis
     return { status: "failed", retryAfterMinutes: undefined };
   }
 
-  const emailRenderOptions: EmailRenderOptions = {
+  const emailRenderOptions = signedEmailOptions(config, {
     appUrl,
     timezone,
-    actionBaseUrl: `${appUrl.replace(/\/+$/, "")}/a`,
-    unsubscribeUrl: `${appUrl.replace(/\/+$/, "")}/unsubscribe/`, // token will be appended
     feedbackEmail,
-  };
+    profileId: digest.profileId,
+  });
 
   const rendered = renderEmailDigest(digest, emailRenderOptions);
 
@@ -262,6 +264,7 @@ async function deliverEmail(options: DeliverOptions, digest: DigestView): Promis
       to: ownerEmail,
       rendered,
       feedbackEmail,
+      unsubscribeUrl: emailRenderOptions.unsubscribeUrl,
     });
   } catch (thrown) {
     const error = toAppError(thrown);
@@ -271,6 +274,31 @@ async function deliverEmail(options: DeliverOptions, digest: DigestView): Promis
   await markDigestDelivered(db, ref, currentTime);
   logger.info("digest.delivered", { ...ref, cardCount: digest.cards.length, channel: "email" });
   return { status: "delivered", retryAfterMinutes: undefined };
+}
+
+/**
+ * Render options whose links carry signed tokens: the card buttons open
+ * `/a/<token>`, the footer opens `/unsubscribe/<token>`. The token is the only
+ * authorisation those pages have — an email client has no session cookie.
+ */
+function signedEmailOptions(
+  config: { readonly EMAIL_LINK_SECRET?: string | undefined; readonly BETTER_AUTH_SECRET: string },
+  input: {
+    readonly appUrl: string;
+    readonly timezone: string;
+    readonly feedbackEmail: string;
+    readonly profileId: string;
+  },
+): EmailRenderOptions {
+  const secret = emailLinkSecret(config);
+  const base = input.appUrl.replace(/\/+$/, "");
+  return {
+    appUrl: input.appUrl,
+    timezone: input.timezone,
+    feedbackEmail: input.feedbackEmail,
+    actionUrl: (cardId, action) => `${base}/a/${createActionToken(secret, cardId, action)}`,
+    unsubscribeUrl: `${base}/unsubscribe/${createUnsubscribeToken(secret, input.profileId)}`,
+  };
 }
 
 /** Extract monthly report data from the digest's special card block. */
@@ -555,13 +583,12 @@ async function deliverMonthlyReportEmail(
     return { status: "failed", retryAfterMinutes: undefined };
   }
 
-  const emailRenderOptions: EmailRenderOptions = {
+  const emailRenderOptions = signedEmailOptions(config, {
     appUrl,
     timezone,
-    actionBaseUrl: `${appUrl.replace(/\/+$/, "")}/a`,
-    unsubscribeUrl: `${appUrl.replace(/\/+$/, "")}/unsubscribe/`,
     feedbackEmail,
-  };
+    profileId: digest.profileId,
+  });
 
   // Convert report data to email format
   const emailData = {
@@ -614,6 +641,7 @@ async function deliverMonthlyReportEmail(
       to: ownerEmail,
       rendered,
       feedbackEmail,
+      unsubscribeUrl: emailRenderOptions.unsubscribeUrl,
     });
   } catch (thrown) {
     const error = toAppError(thrown);

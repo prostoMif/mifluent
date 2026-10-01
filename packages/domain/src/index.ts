@@ -16,6 +16,13 @@ export {
   recordCardAction,
   recordClickAction,
 } from "./actions/card-actions.js";
+export {
+  type EmailCardSummary,
+  findEmailCard,
+  pauseEmailDelivery,
+  recordEmailCardAction,
+  resumeEmailDelivery,
+} from "./actions/email-links.js";
 export * from "./billing/index.js";
 export {
   type CostCapState,

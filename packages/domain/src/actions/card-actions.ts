@@ -21,7 +21,7 @@ export interface CardActionInput {
   readonly tenantId: string;
   readonly cardId: string;
   readonly action: CardAction;
-  readonly surface: "web" | "telegram";
+  readonly surface: "web" | "telegram" | "email";
   /** The signed-in person on the web; unknown for a Telegram press. */
   readonly userId?: string | undefined;
 }

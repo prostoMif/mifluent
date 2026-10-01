@@ -34,6 +34,11 @@ export interface SendDigestEmailOptions {
   readonly to: string;
   readonly rendered: RenderedEmail;
   readonly feedbackEmail: string;
+  /**
+   * The signed one-click address (RFC 8058). The mail provider POSTs
+   * `List-Unsubscribe=One-Click` to it, so it is the API route, not the page.
+   */
+  readonly unsubscribeUrl: string;
 }
 
 export async function sendDigestEmail(options: SendDigestEmailOptions): Promise<void> {
@@ -47,7 +52,7 @@ export async function sendDigestEmail(options: SendDigestEmailOptions): Promise<
     text: options.rendered.text,
     html: options.rendered.html,
     headers: {
-      "List-Unsubscribe": `<${options.feedbackEmail}>, <${config.APP_URL}/unsubscribe/>`,
+      "List-Unsubscribe": `<mailto:${options.feedbackEmail}?subject=unsubscribe>, <${oneClickUrl(options.unsubscribeUrl)}>`,
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
       "Reply-To": options.feedbackEmail,
     },
@@ -56,6 +61,13 @@ export async function sendDigestEmail(options: SendDigestEmailOptions): Promise<
   await transport.sendMail(mailOptions);
 
   logger.info("email.digest_sent", { to: options.to, subject: options.rendered.subject });
+}
+
+/** `/unsubscribe/<token>` (the page a person opens) → `/api/unsubscribe/<token>` (the POST target). */
+function oneClickUrl(pageUrl: string): string {
+  const url = new URL(pageUrl);
+  url.pathname = url.pathname.replace(/^\/unsubscribe\//, "/api/unsubscribe/");
+  return url.toString();
 }
 
 export async function verifyEmailConnection(): Promise<boolean> {

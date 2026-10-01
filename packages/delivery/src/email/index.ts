@@ -10,6 +10,7 @@ export {
   type ActionTokenPayload,
   createActionToken,
   createUnsubscribeToken,
+  emailLinkSecret,
   parseActionToken,
   parseUnsubscribeToken,
   type UnsubscribeTokenPayload,

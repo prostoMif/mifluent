@@ -16,10 +16,21 @@ import { formatPeriod, type Language, type Strings, stringsFor } from "../string
 export interface EmailRenderOptions {
   readonly appUrl: string;
   readonly timezone: string;
-  readonly actionBaseUrl: string;
+  /** A signed link to the confirmation page for one button under one card. */
+  readonly actionUrl: (cardId: string, action: EmailCardAction) => string;
+  /** A signed link that stops email delivery for the digest's profile. */
   readonly unsubscribeUrl: string;
   readonly feedbackEmail: string;
 }
+
+const EMAIL_CARD_ACTIONS = [
+  "not_following_target",
+  "not_important",
+  "saved",
+  "influenced",
+] as const;
+
+export type EmailCardAction = (typeof EMAIL_CARD_ACTIONS)[number];
 
 export interface RenderedEmail {
   readonly subject: string;
@@ -210,10 +221,8 @@ function renderHtmlCard(
 
   // Action buttons as links
   html += `<div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee;">`;
-  const actions = ["not_following_target", "not_important", "saved", "influenced"] as const;
-  for (const action of actions) {
-    const token = `${card.id}|${action}|${Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60}`; // placeholder, real token generated in deliver
-    const actionUrl = `${options.actionBaseUrl}/${token}`;
+  for (const action of EMAIL_CARD_ACTIONS) {
+    const actionUrl = options.actionUrl(card.id, action);
     html += `
       <a href="${escapeHtml(actionUrl)}" style="display: inline-block; margin: 4px 8px 4px 0; padding: 8px 16px; background: #f0f0f0; border-radius: 4px; color: #1a1a1a; text-decoration: none; font-size: 14px;">
         ${escapeHtml(actionLabel(action, language))}
@@ -335,10 +344,8 @@ function renderTextCard(
 
   // Action links
   text += "\nActions:\n";
-  const actions = ["not_following_target", "not_important", "saved", "influenced"] as const;
-  for (const action of actions) {
-    const token = `${card.id}|${action}|${Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60}`; // placeholder
-    const actionUrl = `${options.actionBaseUrl}/${token}`;
+  for (const action of EMAIL_CARD_ACTIONS) {
+    const actionUrl = options.actionUrl(card.id, action);
     text += `  ${actionLabel(action, language)}: ${actionUrl}\n`;
   }
 

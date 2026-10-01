@@ -42,6 +42,22 @@ function verifySignature(secret: string, payload: string, signature: string): bo
   return timingSafeEqual(expectedBuf, actualBuf);
 }
 
+/**
+ * The key email links are signed with. `EMAIL_LINK_SECRET` when it is set;
+ * otherwise one derived from the auth secret, so a self-hosted instance that
+ * never set it still sends working, unforgeable links. The derivation is
+ * one-way: a leaked link secret does not reveal the auth secret.
+ */
+export function emailLinkSecret(config: {
+  readonly EMAIL_LINK_SECRET?: string | undefined;
+  readonly BETTER_AUTH_SECRET: string;
+}): string {
+  if (config.EMAIL_LINK_SECRET !== undefined) return config.EMAIL_LINK_SECRET;
+  return createHmac("sha256", config.BETTER_AUTH_SECRET)
+    .update("mifluent:email-links")
+    .digest("hex");
+}
+
 export function createActionToken(secret: string, cardId: string, action: string): string {
   const exp = Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS;
   const payload = `${cardId}|${action}|${exp}`;
