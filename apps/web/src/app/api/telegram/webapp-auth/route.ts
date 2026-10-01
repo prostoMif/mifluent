@@ -11,6 +11,7 @@
  * // TODO: security review — authentication
  */
 
+import { createHmac } from "node:crypto";
 import { AppError, getConfig } from "@mifluent/core";
 import { readJsonBody, route } from "@/lib/api";
 import { logger } from "@/lib/logger";
@@ -67,9 +68,16 @@ export async function POST(request: Request): Promise<Response> {
     const cookieName = `${cookiePrefix}better-auth.session_token`;
     const maxAge = 30 * 24 * 60 * 60; // 30 days, matching Better Auth's session expiry
 
+    // Better Auth only accepts a signed session cookie: the token, a dot, and
+    // the base64 HMAC-SHA256 of the token under the auth secret. An unsigned
+    // token reads as "no session", which is how the Mini App behaved before.
+    const signature = createHmac("sha256", config.BETTER_AUTH_SECRET)
+      .update(sessionToken)
+      .digest("base64");
+    const cookieValue = encodeURIComponent(`${sessionToken}.${signature}`);
     response.headers.append(
       "Set-Cookie",
-      `${cookieName}=${sessionToken}; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=${maxAge}`,
+      `${cookieName}=${cookieValue}; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=${maxAge}`,
     );
 
     // Also set the dont_remember token to false (not needed for Mini App, but for consistency)

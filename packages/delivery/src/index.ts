@@ -8,6 +8,7 @@ export {
   pruneExpiredBindings,
   unbindTelegram,
 } from "./bind.js";
+export { type Enqueue, sendSignupFailure, sendSignupListing } from "./bot-signup.js";
 export { type DeliverOptions, type DeliveryOutcome, deliverDigest } from "./deliver.js";
 export * as email from "./email/index.js";
 export { escapeHtml } from "./html.js";

@@ -9,6 +9,7 @@
  */
 
 import { toAppError } from "@mifluent/core";
+import { sendSignupFailure, sendSignupListing } from "@mifluent/delivery";
 import { createProber, discover, findTargetSurfaces } from "@mifluent/discovery";
 import {
   assertCanRunDiscovery,
@@ -17,6 +18,7 @@ import {
   ensureAnonTenant,
   type FirstRunJob,
   firstRunJobSchema,
+  getPendingOnboarding,
   listProfilePollableSources,
   listTargetsWithoutSources,
   recordPendingDiscoveryFailure,
@@ -30,6 +32,7 @@ import {
   createPipelineLlm,
   getDatabase,
   getRsshubHostname,
+  getTelegramApi,
   logger,
   USER_AGENT,
 } from "../runtime.js";
@@ -70,6 +73,7 @@ export async function registerOnboardingJobs(boss: PgBoss): Promise<void> {
       });
       if (data.pendingId !== undefined) {
         await updatePendingDiscoveryResult(db, data.pendingId, result);
+        await tellTelegramSignup(data.pendingId, undefined);
       }
       return { status: "completed", result };
     } catch (thrown) {
@@ -81,6 +85,7 @@ export async function registerOnboardingJobs(boss: PgBoss): Promise<void> {
       });
       if (data.pendingId !== undefined) {
         await recordPendingDiscoveryFailure(db, data.pendingId, error.message);
+        await tellTelegramSignup(data.pendingId, error.message);
       }
       return failure(error.code, error.message);
     }
@@ -180,4 +185,27 @@ function failure(
   message: string,
 ): { status: "failed"; error: { code: string; message: string } } {
   return { status: "failed", error: { code, message } };
+}
+
+/**
+ * A sign-up running in Telegram hears about its discovery in the chat: the
+ * listing with its "Go" button, or why the site could not be read. A sign-up
+ * from the site has no chat yet and reads it on the progress page instead.
+ */
+async function tellTelegramSignup(pendingId: string, failureReason: string | undefined) {
+  const telegram = getTelegramApi();
+  if (telegram === undefined) return;
+  const db = getDatabase();
+  try {
+    if (failureReason === undefined) {
+      await sendSignupListing(db, telegram, pendingId);
+      return;
+    }
+    const pending = await getPendingOnboarding(db, pendingId);
+    if (pending?.telegramChatId != null) {
+      await sendSignupFailure(telegram, pending.telegramChatId, pending.language, failureReason);
+    }
+  } catch (error) {
+    logger.warn("telegram.signup_message_failed", { pendingId, cause: error });
+  }
 }

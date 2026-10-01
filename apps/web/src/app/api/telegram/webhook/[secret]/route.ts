@@ -14,6 +14,7 @@ import { createTelegramApi, handleTelegramUpdate } from "@mifluent/delivery";
 import { readJsonBody, route } from "@/lib/api";
 import { getDatabase } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { sendInteractiveJob } from "@/lib/queue";
 import { isSameSecret } from "@/lib/secrets";
 
 interface RouteContext {
@@ -41,6 +42,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       api: createTelegramApi({ token: config.TELEGRAM_BOT_TOKEN }),
       logger,
       update: await readJsonBody(request),
+      enqueue: sendInteractiveJob,
     });
     return { received: true };
   });

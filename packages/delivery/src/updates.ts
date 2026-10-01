@@ -14,13 +14,15 @@
 
 import type { Logger } from "@mifluent/core";
 import { getConfig, uuidv7 } from "@mifluent/core";
-import type { Queryable } from "@mifluent/db";
+import type { Database, Queryable } from "@mifluent/db";
 import { schema, scoped } from "@mifluent/db";
 import {
   assertCanWatchPage,
   createSource,
   findCardOwner,
+  hasTelegramAccount,
   isCardAction,
+  linkOwnerTelegram,
   readWatchedPagesAllowance,
   recordCardAction,
   recordPageBaseline,
@@ -29,12 +31,27 @@ import { htmlToText, safeFetch } from "@mifluent/sources";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { consumeBindingCode, deliverFirstDigestOnBind } from "./bind.js";
+import {
+  askForSite,
+  type Enqueue,
+  handleSignupButton,
+  handleSignupInput,
+  handleSiteHandoff,
+  isSignupButton,
+  type SignupContext,
+} from "./bot-signup.js";
 import { escapeHtml } from "./html.js";
 import { handleRadarButton, isRadarButton } from "./radar-telegram.js";
 import { stringsFor } from "./strings.js";
 import type { TelegramApi } from "./telegram-api.js";
 
-const chatSchema = z.object({ id: z.number() });
+const chatSchema = z.object({ id: z.number(), type: z.string().optional() });
+
+const fromSchema = z.object({
+  id: z.number().optional(),
+  first_name: z.string().optional(),
+  language_code: z.string().optional(),
+});
 
 export const telegramUpdateSchema = z.object({
   update_id: z.number(),
@@ -42,7 +59,7 @@ export const telegramUpdateSchema = z.object({
     .object({
       chat: chatSchema,
       text: z.string().max(4_096).optional(),
-      from: z.object({ language_code: z.string().optional() }).optional(),
+      from: fromSchema.optional(),
       reply_to_message: z
         .object({
           text: z.string().optional(),
@@ -57,7 +74,7 @@ export const telegramUpdateSchema = z.object({
       id: z.string(),
       data: z.string().max(64).optional(),
       message: z.object({ chat: chatSchema }).optional(),
-      from: z.object({ language_code: z.string().optional() }).optional(),
+      from: fromSchema.optional(),
     })
     .optional(),
 });
@@ -69,6 +86,8 @@ export interface HandleUpdateOptions {
   readonly api: TelegramApi;
   readonly logger: Logger;
   readonly update: unknown;
+  /** Queues sign-up jobs (discovery, first run); without it the bot cannot sign anyone up. */
+  readonly enqueue?: Enqueue | undefined;
 }
 
 const START_COMMAND = /^\/start(?:@\w+)?(?:\s+([A-Za-z0-9]{4,32}))?\s*$/;
@@ -163,21 +182,14 @@ async function handleMessage(
     return;
   }
 
-  // Nobody can be signed up from inside the bot yet, so the code is carried
-  // to the site, where the sign-up remembers it.
-  const linkMatch = START_LINK_COMMAND.exec(text);
-  if (linkMatch !== null) {
-    const kind = linkMatch[1] === "ref" ? "ref" : "promo";
-    const url = `${getConfig().APP_URL}/r/${kind}/${encodeURIComponent(linkMatch[2] ?? "")}`;
-    await options.api.sendMessage(chatId, { text: strings.startFromLink(kind, url) });
-    return;
-  }
+  if (await handleStartLink(options, chatId, strings, text)) return;
 
-  const match = START_COMMAND.exec(text);
-  const code = match?.[1];
-
+  const signup = signupContext(options, message);
+  const code = START_COMMAND.exec(text)?.[1];
   if (code === undefined) {
-    await options.api.sendMessage(chatId, { text: strings.binding.help });
+    if (!(await handleSignupMessage(options, signup, text))) {
+      await options.api.sendMessage(chatId, { text: strings.binding.help });
+    }
     return;
   }
 
@@ -188,6 +200,9 @@ async function handleMessage(
     return;
   }
 
+  if (signup !== undefined) {
+    await linkOwnerTelegram(options.db, bound.tenantId, signup.telegramUserId);
+  }
   options.logger.info("telegram.bound", { tenantId: bound.tenantId, profileId: bound.profileId });
   await options.api.sendMessage(chatId, {
     text: stringsFor(bound.language).binding.bound(bound.profileName),
@@ -328,15 +343,9 @@ async function handleButton(
   const strings = stringsFor(query.from?.language_code?.startsWith("ru") === true ? "ru" : "en");
   const chatId = query.message === undefined ? undefined : String(query.message.chat.id);
 
-  if (isRadarButton(query.data ?? "")) {
-    const answer = await handleRadarButton({
-      db: options.db,
-      api: options.api,
-      logger: options.logger,
-      chatId,
-      data: query.data ?? "",
-    });
-    await options.api.answerCallbackQuery(query.id, answer);
+  const special = await handleSpecialButton(options, query, chatId);
+  if (special !== undefined) {
+    await options.api.answerCallbackQuery(query.id, special.slice(0, 190));
     return;
   }
 
@@ -481,4 +490,96 @@ async function handleWatchCommand(
     options.logger.error("telegram.watch_failed", { url, error: String(error) });
     await options.api.sendMessage(chatId, { text: strings.watch.cannotRead });
   }
+}
+
+/**
+ * `/start ref_…` or `/start promo_…`. The bonus is remembered by the site's
+ * sign-up (a cookie), so the code is carried there; a sign-up made inside
+ * the bot does not pick it up yet.
+ */
+async function handleStartLink(
+  options: HandleUpdateOptions,
+  chatId: string,
+  strings: ReturnType<typeof stringsFor>,
+  text: string,
+): Promise<boolean> {
+  const linkMatch = START_LINK_COMMAND.exec(text);
+  if (linkMatch === null) return false;
+  const kind = linkMatch[1] === "ref" ? "ref" : "promo";
+  const url = `${getConfig().APP_URL}/r/${kind}/${encodeURIComponent(linkMatch[2] ?? "")}`;
+  await options.api.sendMessage(chatId, { text: strings.startFromLink(kind, url) });
+  return true;
+}
+
+/** Sign-up and radar buttons; undefined for a card button. */
+async function handleSpecialButton(
+  options: HandleUpdateOptions,
+  query: NonNullable<TelegramUpdate["callback_query"]>,
+  chatId: string | undefined,
+): Promise<string | undefined> {
+  const data = query.data ?? "";
+  if (isSignupButton(data)) {
+    const signup =
+      chatId === undefined
+        ? undefined
+        : signupContext(options, {
+            chat: { id: Number(chatId), type: "private" },
+            from: query.from,
+          });
+    return signup === undefined ? "Not available." : handleSignupButton(signup, data);
+  }
+  if (isRadarButton(data)) {
+    return handleRadarButton({
+      db: options.db,
+      api: options.api,
+      logger: options.logger,
+      chatId,
+      data,
+    });
+  }
+  return undefined;
+}
+
+/**
+ * A message that is not a binding code: the site's hand-off (`/start w_…`),
+ * or — from someone without an account — the sign-up dialogue. False when
+ * it is neither, so the caller shows the usual help.
+ */
+async function handleSignupMessage(
+  options: HandleUpdateOptions,
+  signup: SignupContext | undefined,
+  text: string,
+): Promise<boolean> {
+  if (signup === undefined) return false;
+  const startParam = /^\/start(?:@\w+)?\s+(w_[0-9a-f]{32})\s*$/.exec(text)?.[1];
+  if (startParam !== undefined) return handleSiteHandoff(signup, startParam);
+  if (await hasTelegramAccount(options.db, signup.telegramUserId)) return false;
+  if (text.startsWith("/")) await askForSite(signup);
+  else await handleSignupInput(signup, text);
+  return true;
+}
+
+/**
+ * Who is signing up, when it is a person in a private chat. Group chats are
+ * only ever bound to an existing profile by code.
+ */
+function signupContext(
+  options: HandleUpdateOptions,
+  message: {
+    readonly chat: { readonly id: number; readonly type?: string | undefined };
+    readonly from?: z.infer<typeof fromSchema> | undefined;
+  },
+): SignupContext | undefined {
+  const from = message.from;
+  if (from?.id === undefined || message.chat.type !== "private") return undefined;
+  return {
+    db: options.db as Database,
+    api: options.api,
+    logger: options.logger,
+    enqueue: options.enqueue,
+    chatId: String(message.chat.id),
+    telegramUserId: String(from.id),
+    name: from.first_name ?? "",
+    language: from.language_code?.startsWith("ru") === true ? "ru" : "en",
+  };
 }

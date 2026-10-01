@@ -7,7 +7,7 @@
  */
 
 import { toAppError } from "@mifluent/core";
-import { handleTelegramUpdate, type TelegramApi } from "@mifluent/delivery";
+import { type Enqueue, handleTelegramUpdate, type TelegramApi } from "@mifluent/delivery";
 import { z } from "zod";
 import { getDatabase, logger } from "./runtime.js";
 
@@ -19,7 +19,7 @@ const RETRY_DELAY_MS = 5_000;
 
 const updateIdSchema = z.object({ update_id: z.number() });
 
-export function startTelegramPolling(api: TelegramApi): () => void {
+export function startTelegramPolling(api: TelegramApi, enqueue: Enqueue): () => void {
   let isRunning = true;
   let offset: number | undefined;
 
@@ -30,7 +30,7 @@ export function startTelegramPolling(api: TelegramApi): () => void {
         for (const update of updates) {
           const parsed = updateIdSchema.safeParse(update);
           if (parsed.success) offset = parsed.data.update_id + 1;
-          await handleTelegramUpdate({ db: getDatabase(), api, logger, update });
+          await handleTelegramUpdate({ db: getDatabase(), api, logger, update, enqueue });
         }
       } catch (thrown) {
         logger.warn("telegram.polling_failed", { code: toAppError(thrown).code });

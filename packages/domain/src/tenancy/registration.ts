@@ -5,6 +5,7 @@
  * sight. This file only answers the one question that needs one.
  */
 
+import { getConfig } from "@mifluent/core";
 import { type Queryable, schema } from "@mifluent/db";
 
 /**
@@ -17,4 +18,13 @@ import { type Queryable, schema } from "@mifluent/db";
 export async function hasAnyAccount(db: Queryable): Promise<boolean> {
   const rows = await db.select({ id: schema.user.id }).from(schema.user).limit(1);
   return rows.length > 0;
+}
+
+/**
+ * Whether a new person may sign up here: on an instance nobody has claimed
+ * yet, or where the owner opened registration. The same rule for the
+ * password form, magic links and the Telegram bot.
+ */
+export async function isRegistrationOpenFor(db: Queryable): Promise<boolean> {
+  return getConfig().REGISTRATION_OPEN || !(await hasAnyAccount(db));
 }

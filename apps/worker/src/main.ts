@@ -14,7 +14,7 @@
  */
 
 import { getConfig } from "@mifluent/core";
-import { listActiveSources } from "@mifluent/domain";
+import { INTERACTIVE_PRIORITY, listActiveSources } from "@mifluent/domain";
 import { isDueForPoll } from "@mifluent/sources";
 import type { PgBoss } from "pg-boss";
 import { startHeartbeat } from "./heartbeat.js";
@@ -99,7 +99,9 @@ async function runForever(): Promise<void> {
   const telegram = getTelegramApi();
   const stopPolling =
     config.TELEGRAM_POLLING && telegram !== undefined
-      ? startTelegramPolling(telegram)
+      ? startTelegramPolling(telegram, async (queue, data) =>
+          boss.send(queue, data, { priority: INTERACTIVE_PRIORITY }),
+        )
       : () => undefined;
 
   logger.info("worker.started", { features: config.features });

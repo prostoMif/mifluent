@@ -71,6 +71,17 @@ export {
   updatePendingChannel,
   updatePendingDiscoveryResult,
 } from "./onboarding/pending.js";
+export {
+  claimPendingForTelegram,
+  completeTelegramSignup,
+  ensureTelegramUser,
+  findRunningTelegramSignup,
+  hasTelegramAccount,
+  linkOwnerTelegram,
+  pendingIdToStartParam,
+  startParamToPendingId,
+  startTelegramSignup,
+} from "./onboarding/telegram.js";
 export * from "./packs/index.js";
 export {
   assertCanRunDiscovery,
@@ -160,5 +171,5 @@ export {
   type Membership,
   requireMembership,
 } from "./tenancy/membership.js";
-export { hasAnyAccount } from "./tenancy/registration.js";
+export { hasAnyAccount, isRegistrationOpenFor } from "./tenancy/registration.js";
 export { findTenant, type Tenant, updateTenantSettings } from "./tenancy/tenant.js";

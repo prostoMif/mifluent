@@ -133,6 +133,12 @@ export const pendingOnboardings = pgTable(
     reviewed: jsonb("reviewed"),
     /** Why discovery failed, in words for the person; null while it runs or once it succeeded. */
     discoveryError: text("discovery_error"),
+    /**
+     * Set when the sign-up runs in Telegram — started in the bot, or carried
+     * there from the site: where to report discovery and who may confirm.
+     */
+    telegramChatId: text("telegram_chat_id"),
+    telegramUserId: text("telegram_user_id"),
     /** Original input: URL or business description. */
     input: text("input").notNull(),
     /** Language of the digest (en/ru). */
@@ -156,6 +162,7 @@ export const pendingOnboardings = pgTable(
     index("pending_onboardings_ip_hash_idx").on(table.ipHash),
     index("pending_onboardings_expires_at_idx").on(table.expiresAt),
     index("pending_onboardings_consumed_at_idx").on(table.consumedAt),
+    index("pending_onboardings_telegram_user_idx").on(table.telegramUserId),
   ],
 );
 
@@ -167,6 +174,8 @@ export interface PendingOnboarding {
   readonly result: DiscoveryResult | null;
   readonly reviewed: unknown;
   readonly discoveryError: string | null;
+  readonly telegramChatId: string | null;
+  readonly telegramUserId: string | null;
   readonly input: string;
   readonly language: string;
   readonly timezone: string | null;
