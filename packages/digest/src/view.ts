@@ -31,6 +31,8 @@ export interface DigestCardView {
   readonly targetKind: "competitor" | "platform" | "condition" | "self" | null;
   /** `market`: shown under "your market & rules", after the profile's own news. */
   readonly section: "main" | "market";
+  /** What changed: price, plan, policy, feature, market_rule… Null when unknown. */
+  readonly eventKind: string | null;
 }
 
 export interface DigestView {
@@ -145,6 +147,7 @@ async function withCards(db: Queryable, row: DigestRow): Promise<DigestView> {
       isUrgent: schema.events.isUrgent,
       targetKind: schema.watchTargets.kind,
       packKey: schema.events.packKey,
+      eventKind: schema.events.kind,
     })
     .from(schema.digestCards)
     .innerJoin(schema.events, eq(schema.events.id, schema.digestCards.eventId))

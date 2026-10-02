@@ -184,11 +184,16 @@ async function handleMessage(
 
   if (await handleStartLink(options, chatId, strings, text)) return;
 
+  if (/^\/help(?:@\w+)?\s*$/.test(text)) {
+    await options.api.sendMessage(chatId, { text: strings.help });
+    return;
+  }
+
   const signup = signupContext(options, message);
   const code = START_COMMAND.exec(text)?.[1];
   if (code === undefined) {
     if (!(await handleSignupMessage(options, signup, text))) {
-      await options.api.sendMessage(chatId, { text: strings.binding.help });
+      await options.api.sendMessage(chatId, { text: strings.help });
     }
     return;
   }

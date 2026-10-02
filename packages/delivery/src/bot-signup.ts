@@ -45,8 +45,17 @@ const MAX_LISTED_TARGETS = 12;
 
 const TEXT = {
   en: {
-    askSite:
-      "Hi! I watch your competitors and market and send a short morning brief.\n\nSend me your website address, or one sentence about your business.",
+    askSite: [
+      "Hi! Every morning I send a short brief: what your competitors, platforms and the rules of your market changed — with a quote from the source.",
+      "",
+      "It looks like this:",
+      "💰 Northwind CRM · yesterday",
+      "Team plan up from $29 to $39 per seat.",
+      "«Team is now $39 per seat per month.» — source",
+      "Why it matters: you are now $10 cheaper.",
+      "",
+      "Send me your website address — or one sentence about your business — and I'll find who to watch.",
+    ].join("\n"),
     closed: "Sign-up is closed on this instance for now.",
     reading: "Reading your site… this takes a minute or two.",
     stillReading: "Still reading your site — I'll write as soon as I'm done.",
@@ -62,8 +71,17 @@ const TEXT = {
     notYours: "This sign-up belongs to someone else.",
   },
   ru: {
-    askSite:
-      "Привет! Я слежу за конкурентами и рынком и присылаю короткую утреннюю сводку.\n\nПришли адрес своего сайта или одно предложение о бизнесе.",
+    askSite: [
+      "Привет! Каждое утро присылаю короткую сводку: что поменяли конкуренты, площадки и правила твоего рынка — с цитатой из источника.",
+      "",
+      "Выглядит так:",
+      "💰 Конкурент · вчера",
+      "Поднял тариф «Команда» с 2 990 до 3 490 ₽.",
+      "«Тариф Команда — 3 490 ₽ в месяц.» — источник",
+      "Почему касается: ты теперь дешевле на 500 ₽.",
+      "",
+      "Пришли адрес своего сайта — или одно предложение о бизнесе, — и я найду, за кем следить.",
+    ].join("\n"),
     closed: "Регистрация здесь пока закрыта.",
     reading: "Читаю сайт… это займёт минуту-две.",
     stillReading: "Ещё читаю сайт — напишу, как закончу.",

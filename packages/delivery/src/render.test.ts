@@ -41,6 +41,7 @@ const card = {
   isUrgent: false,
   targetKind: null,
   section: "main" as const,
+  eventKind: "price" as string | null,
   blocks: [
     {
       kind: "fact" as const,
@@ -95,7 +96,8 @@ describe("renderDigest", () => {
   it("writes the Russian frame for a Russian profile", () => {
     const [header] = renderDigest(digest({ language: "ru" }), options);
 
-    expect(header?.text).toContain("Ничего, что тебя касается");
+    expect(header?.text).toContain("Тихо за");
+    expect(header?.text).toContain("Проверено 12 источников, 214 материалов.");
   });
 
   it("keeps an oversized card under Telegram's limit", () => {
@@ -127,6 +129,56 @@ describe("renderDigest", () => {
     const [header] = renderDigest(digest({ notices: [{ code: "cost_cap_reached" }] }), options);
 
     expect(header?.text).toContain("Processing is paused until tomorrow");
+  });
+});
+
+describe("the brief's frame", () => {
+  it("links the near misses instead of printing their markup", () => {
+    const [header] = renderDigest(
+      digest({
+        profileCreatedAt: new Date("2026-01-01T00:00:00Z"),
+        nearMisses: [{ title: "Fees", url: "https://stripe.com/blog", reason: "below_cosine" }],
+      }),
+      options,
+    );
+
+    expect(header?.text).toContain('<a href="https://stripe.com/blog">Fees</a>');
+    expect(header?.text).not.toContain("&lt;a");
+  });
+
+  it("sums the day up under the title", () => {
+    const rule = { ...card, id: "c2", section: "market" as const, eventKind: "market_rule" };
+    const [en] = renderDigest(digest({ cards: [card, rule] }), options);
+    const [ru] = renderDigest(digest({ language: "ru", cards: [card, card, rule] }), options);
+
+    expect(en?.text).toContain("1 change at 1 company · 1 about your market &amp; rules");
+    expect(ru?.text).toContain("2 изменения у 1 компании · 1 по рынку и правилам");
+  });
+
+  it("marks the kind of change and keeps the history link in one footer line", () => {
+    const [, rendered] = renderDigest(digest({ cards: [card] }), options);
+
+    expect(
+      rendered?.text.startsWith("💰 <b>Fathom raised Business to $99</b> · <i>3 days ago</i>"),
+    ).toBe(true);
+    expect(rendered?.text).toContain('href="https://mifluent.example/targets/t1">history</a>');
+  });
+
+  it("matches the English and Russian layouts", () => {
+    expect(renderDigest(digest({ cards: [card] }), options)).toMatchSnapshot();
+    expect(renderDigest(digest({ language: "ru", cards: [card] }), options)).toMatchSnapshot();
+    expect(renderDigest(digest({ isUrgent: true, cards: [card] }), options)).toMatchSnapshot();
+    expect(renderDigest(digest({ language: "ru" }), options)).toMatchSnapshot();
+  });
+
+  it("keeps every button's data within Telegram's 64 bytes", () => {
+    const uuidCard = { ...card, id: "0192f0c4-1234-7abc-8def-0123456789ab" };
+    const [, rendered] = renderDigest(digest({ cards: [uuidCard] }), options);
+    for (const button of rendered?.buttons ?? []) {
+      if (button.type === "callback") {
+        expect(Buffer.byteLength(button.callbackData)).toBeLessThanOrEqual(64);
+      }
+    }
   });
 });
 

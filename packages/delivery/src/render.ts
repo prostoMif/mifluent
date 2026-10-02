@@ -118,7 +118,7 @@ function buildMonthlyReportLines(
     lines.push("", `<b>${escapeHtml(strings.monthly.topEvents)}</b>`);
     for (const event of report.topEvents.slice(0, 3)) {
       const target = event.targetName ?? strings.monthly.perTarget;
-      const kind = event.kind ?? "other";
+      const kind = strings.kindLabel(event.kind ?? "other");
       lines.push(
         `• <b>${escapeHtml(target)}</b> (${escapeHtml(kind)}): ${escapeHtml(event.summary)}`,
       );
@@ -145,18 +145,16 @@ function buildMonthlyReportLines(
   return lines;
 }
 
-function buildStatsParts(report: MonthlyReportData, _strings: Strings): string[] {
-  const parts: string[] = [];
-  if (report.targetSummaries.length > 0) {
-    const quietCount = report.targetSummaries.filter((t) => t.isQuiet).length;
-    const activeCount = report.targetSummaries.length - quietCount;
-    parts.push(`${activeCount} active, ${quietCount} quiet`);
-  }
-  if (report.priceChangesCount > 0) parts.push(`${report.priceChangesCount} price changes`);
-  if (report.hiringCount > 0) parts.push(`${report.hiringCount} hiring`);
-  if (report.decisionsCount > 0) parts.push(`${report.decisionsCount} decisions`);
-  if (report.driftedCount > 0) parts.push(`${report.driftedCount} to review`);
-  return parts;
+function buildStatsParts(report: MonthlyReportData, strings: Strings): string[] {
+  const quiet = report.targetSummaries.filter((target) => target.isQuiet).length;
+  return strings.monthly.stats({
+    active: report.targetSummaries.length - quiet,
+    quiet,
+    prices: report.priceChangesCount,
+    hiring: report.hiringCount,
+    decisions: report.decisionsCount,
+    drifted: report.driftedCount,
+  });
 }
 
 function buildMonthlyReportButtons(
@@ -207,6 +205,8 @@ function renderHeader(
     : strings.digestTitle(digest.profileName, period);
 
   const lines = [`<b>${escapeHtml(title)}</b>`];
+  const summary = summarise(digest, strings);
+  if (summary !== "") lines.push(escapeHtml(summary));
 
   for (const notice of digest.notices) {
     lines.push("", escapeHtml(noticeText(notice, strings)));
@@ -224,23 +224,28 @@ function renderHeader(
   return { text: fitToLimit(lines), buttons };
 }
 
+/**
+ * A quiet week in two lines, no apology. The links of the near misses are
+ * HTML already; only the text around them is escaped.
+ */
 function renderEmptyDigest(digest: DigestView, strings: Strings, period: string): string {
   const isFirstWeek = Date.now() - digest.profileCreatedAt.getTime() < 7 * 24 * 60 * 60 * 1000;
-  if (isFirstWeek && digest.nearMisses.length > 0) {
-    const closest = digest.nearMisses.at(0);
-    if (!closest) {
-      // This should never happen because we checked length > 0
-      return escapeHtml(strings.emptyDigest(period, digest.sourcesChecked, digest.itemsConsidered));
-    }
-    const closestTitle = escapeHtml(closest.title === "" ? "—" : closest.title);
+  const closest = digest.nearMisses.at(0);
+  if (isFirstWeek && closest !== undefined) {
     return escapeHtml(
-      strings.emptyDigestFirstWeek(digest.sourcesChecked, digest.itemsConsidered, closestTitle),
+      strings.emptyDigestFirstWeek(
+        digest.sourcesChecked,
+        digest.itemsConsidered,
+        closest.title === "" ? "—" : closest.title,
+      ),
     );
   }
 
-  const lines = [strings.emptyDigest(period, digest.sourcesChecked, digest.itemsConsidered)];
+  const lines = [
+    escapeHtml(strings.emptyDigest(period, digest.sourcesChecked, digest.itemsConsidered)),
+  ];
   if (digest.nearMisses.length > 0) {
-    lines.push("", strings.closest);
+    lines.push("", escapeHtml(strings.closest));
     for (const miss of digest.nearMisses) {
       const title = link(miss.url, miss.title === "" ? "—" : miss.title);
       lines.push(
@@ -248,7 +253,38 @@ function renderEmptyDigest(digest: DigestView, strings: Strings, period: string)
       );
     }
   }
-  return escapeHtml(lines.join("\n"));
+  return lines.join("\n");
+}
+
+/** "3 changes at 2 companies · 1 about your market", from the cards themselves. */
+function summarise(digest: DigestView, strings: Strings): string {
+  if (digest.isUrgent || digest.cards.length === 0) return "";
+  const main = digest.cards.filter((card) => card.section === "main");
+  const market = digest.cards.length - main.length;
+  const changes = main.reduce(
+    (sum, card) =>
+      sum + Math.max(1, card.blocks.filter((b) => b.kind === "fact").length) + card.moreCount,
+    0,
+  );
+  const targets = new Set(main.map((card) => card.targetId ?? card.id)).size;
+  return strings.summary(changes, targets, market);
+}
+
+/** A type marker, not decoration: what kind of change this is, at a glance. */
+function marker(card: DigestCardView): string {
+  if (card.targetKind === "self") return "👀 ";
+  switch (card.eventKind) {
+    case "price":
+    case "plan":
+      return "💰 ";
+    case "policy":
+    case "market_rule":
+      return "📜 ";
+    case "feature":
+      return "🚀 ";
+    default:
+      return "";
+  }
 }
 
 function renderCard(
@@ -263,25 +299,21 @@ function renderCard(
         ? strings.selfGroupHeadline(card.blocks.length + card.moreCount)
         : strings.groupHeadline(card.headline, card.blocks.length + card.moreCount)
       : card.headline;
-  const age = card.ageDays === null ? "" : ` <i>(${escapeHtml(strings.age(card.ageDays))})</i>`;
+  const age = card.ageDays === null ? "" : ` · <i>${escapeHtml(strings.age(card.ageDays))}</i>`;
 
-  const lines = [`<b>${escapeHtml(headline)}</b>${age}`];
-
-  // Add target link if available
-  if (card.targetId !== null && card.targetId !== undefined) {
-    const targetUrl = `${options.appUrl.replace(/\/+$/, "")}/targets/${card.targetId}`;
-    lines.push("", link(targetUrl, strings.buttons.openTarget));
-  }
-
+  const lines = [`${marker(card)}<b>${escapeHtml(headline)}</b>${age}`];
   for (const block of card.blocks) {
-    lines.push("", renderBlock(block, strings));
+    lines.push(renderBlock(block, strings));
   }
-  if (card.moreCount > 0) {
-    lines.push(
-      "",
-      link(`${options.appUrl.replace(/\/+$/, "")}/today`, strings.more(card.moreCount)),
-    );
+
+  // One footer line: more of the same, and the target's history.
+  const base = options.appUrl.replace(/\/+$/, "");
+  const footer: string[] = [];
+  if (card.moreCount > 0) footer.push(link(`${base}/today`, strings.more(card.moreCount)));
+  if (card.targetId !== null && card.targetKind !== "self") {
+    footer.push(link(`${base}/targets/${card.targetId}`, strings.buttons.openTarget));
   }
+  if (footer.length > 0) lines.push(footer.join(" · "));
 
   return {
     text: fitToLimit(lines),
@@ -306,7 +338,7 @@ function renderBlock(block: DigestBlockView, strings: Strings): string {
   switch (block.kind) {
     case "fact": {
       const quote = block.quote === null ? "" : `\n<i>«${escapeHtml(block.quote)}»</i>`;
-      const source = block.sourceUrl === null ? "" : ` ${link(block.sourceUrl, strings.source)}`;
+      const source = block.sourceUrl === null ? "" : ` — ${link(block.sourceUrl, strings.source)}`;
       return `${escapeHtml(block.content)}${quote}${source}`;
     }
     case "implication":

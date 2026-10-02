@@ -1,0 +1,129 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the brief's frame > matches the English and Russian layouts 1`] = `
+[
+  {
+    "buttons": undefined,
+    "text": "<b>Analytics SaaS — 21 Sept — 28 Sept 2026</b>
+1 change at 1 company",
+  },
+  {
+    "buttons": [
+      {
+        "callbackData": "not_following_target:c1",
+        "text": "Unfollow",
+        "type": "callback",
+      },
+      {
+        "callbackData": "not_important:c1",
+        "text": "Not important",
+        "type": "callback",
+      },
+      {
+        "callbackData": "saved:c1",
+        "text": "Save",
+        "type": "callback",
+      },
+      {
+        "callbackData": "influenced:c1",
+        "text": "Changed a decision",
+        "type": "callback",
+      },
+    ],
+    "text": "💰 <b>Fathom raised Business to $99</b> · <i>3 days ago</i>
+Business is now $99 a month
+<i>«Business plan: $99 per month»</i> — <a href="https://usefathom.com/pricing#:~:text=Business">source</a>
+<b>Why it matters:</b> You are now $20 cheaper.
+<a href="https://mifluent.example/targets/t1">history</a>",
+  },
+]
+`;
+
+exports[`the brief's frame > matches the English and Russian layouts 2`] = `
+[
+  {
+    "buttons": undefined,
+    "text": "<b>Analytics SaaS — 21 сент. — 28 сент. 2026 г.</b>
+1 изменение у 1 компании",
+  },
+  {
+    "buttons": [
+      {
+        "callbackData": "not_following_target:c1",
+        "text": "Не следить",
+        "type": "callback",
+      },
+      {
+        "callbackData": "not_important:c1",
+        "text": "Не важно",
+        "type": "callback",
+      },
+      {
+        "callbackData": "saved:c1",
+        "text": "Сохранить",
+        "type": "callback",
+      },
+      {
+        "callbackData": "influenced:c1",
+        "text": "Повлияло",
+        "type": "callback",
+      },
+    ],
+    "text": "💰 <b>Fathom raised Business to $99</b> · <i>3 дн. назад</i>
+Business is now $99 a month
+<i>«Business plan: $99 per month»</i> — <a href="https://usefathom.com/pricing#:~:text=Business">источник</a>
+<b>Почему касается:</b> You are now $20 cheaper.
+<a href="https://mifluent.example/targets/t1">история</a>",
+  },
+]
+`;
+
+exports[`the brief's frame > matches the English and Russian layouts 3`] = `
+[
+  {
+    "buttons": undefined,
+    "text": "<b>Urgent — Analytics SaaS</b>",
+  },
+  {
+    "buttons": [
+      {
+        "callbackData": "not_following_target:c1",
+        "text": "Unfollow",
+        "type": "callback",
+      },
+      {
+        "callbackData": "not_important:c1",
+        "text": "Not important",
+        "type": "callback",
+      },
+      {
+        "callbackData": "saved:c1",
+        "text": "Save",
+        "type": "callback",
+      },
+      {
+        "callbackData": "influenced:c1",
+        "text": "Changed a decision",
+        "type": "callback",
+      },
+    ],
+    "text": "💰 <b>Fathom raised Business to $99</b> · <i>3 days ago</i>
+Business is now $99 a month
+<i>«Business plan: $99 per month»</i> — <a href="https://usefathom.com/pricing#:~:text=Business">source</a>
+<b>Why it matters:</b> You are now $20 cheaper.
+<a href="https://mifluent.example/targets/t1">history</a>",
+  },
+]
+`;
+
+exports[`the brief's frame > matches the English and Russian layouts 4`] = `
+[
+  {
+    "buttons": undefined,
+    "text": "<b>Analytics SaaS — 21 сент. — 28 сент. 2026 г.</b>
+
+Тихо за 21 сент. — 28 сент. 2026 г.: ничего, что тебя касается.
+Проверено 12 источников, 214 материалов.",
+  },
+]
+`;

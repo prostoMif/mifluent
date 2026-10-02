@@ -11,7 +11,7 @@
 
 import type { DigestView } from "@mifluent/digest";
 import { escapeHtml } from "../html.js";
-import { formatPeriod, type Language, type Strings, stringsFor } from "../strings.js";
+import { formatPeriod, type Language, ruPlural, type Strings, stringsFor } from "../strings.js";
 
 export interface EmailRenderOptions {
   readonly appUrl: string;
@@ -93,27 +93,49 @@ function actionLabel(action: string, language: Language): string {
   return ACTION_LABELS[action]?.[language] ?? action;
 }
 
+/**
+ * The subject says what happened, not that an email arrived: the top change
+ * and how many more, a quiet week in its own words, an urgent change first.
+ */
 function renderSubject(digest: DigestView): string {
-  const period = formatPeriod(digest.periodStart, digest.periodEnd, digest.language, "UTC");
-
-  if (digest.cards.length === 0) {
-    return `Mifluent: quiet week, ${digest.sourcesChecked} sources checked`;
+  const ru = digest.language === "ru";
+  const first = digest.cards.at(0);
+  if (first === undefined) {
+    return ru
+      ? `Тихо: проверено ${digest.sourcesChecked} ${ruPlural(digest.sourcesChecked, "источник", "источника", "источников")} — ${digest.profileName}`
+      : `Quiet: ${digest.sourcesChecked} sources checked — ${digest.profileName}`;
   }
-
-  const count = digest.cards.length;
-  const profile = digest.profileName;
-  return `Mifluent: ${count} change${count === 1 ? "" : "s"} at ${profile} — week of ${period.split(" — ")[1] ?? period}`;
+  if (digest.isUrgent) return `${ru ? "Срочно" : "Urgent"}: ${first.headline}`;
+  const more = digest.cards.length - 1;
+  const tail = more === 0 ? "" : ru ? ` и ещё ${more}` : ` + ${more} more`;
+  return `${first.headline}${tail} — ${digest.profileName}`;
 }
 
-function renderHtmlHeader(digest: DigestView, strings: ReturnType<typeof stringsFor>): string {
-  const period = formatPeriod(digest.periodStart, digest.periodEnd, digest.language, "UTC");
+/** The opening of the document: dark-mode aware, with a hidden preview line. */
+function renderHtmlHeader(
+  digest: DigestView,
+  strings: ReturnType<typeof stringsFor>,
+  timezone: string,
+): string {
+  const period = formatPeriod(digest.periodStart, digest.periodEnd, digest.language, timezone);
   const title = digest.isUrgent
     ? strings.urgentTitle(digest.profileName)
     : strings.digestTitle(digest.profileName, period);
+  const preview = digest.cards.map((card) => card.headline).join(" · ");
 
-  return `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 640px; margin: 0 auto; padding: 24px;">
-      <h1 style="font-size: 22px; font-weight: 600; margin: 0 0 16px; color: #1a1a1a;">${escapeHtml(title)}</h1>
+  return `<!doctype html>
+<html lang="${digest.language}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>${escapeHtml(title)}</title>
+</head>
+<body style="margin: 0; padding: 0; background: #ffffff;">
+  <div style="display: none; max-height: 0; overflow: hidden;">${escapeHtml(preview.slice(0, 140))}</div>
+  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 640px; margin: 0 auto; padding: 24px;">
+    <h1 style="font-size: 22px; font-weight: 600; margin: 0 0 16px; color: #1a1a1a;">${escapeHtml(title)}</h1>
   `;
 }
 
@@ -234,20 +256,22 @@ function renderHtmlCard(
   return html;
 }
 
-function renderHtmlFooter(options: EmailRenderOptions, _language: Language): string {
+function renderHtmlFooter(options: EmailRenderOptions, language: Language): string {
+  const ru = language === "ru";
   return `
-    <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;">
-    <p style="font-size: 12px; color: #888; margin: 0 0 8px;">
-      Summaries are AI-generated from the linked sources.
+    <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 32px 0;">
+    <p style="font-size: 12px; color: #777; margin: 0 0 8px;">
+      ${ru ? "Каждая строка — по ссылке на источник, с дословной цитатой." : "Every line comes from the linked source, quoted word for word."}
     </p>
-    <p style="font-size: 12px; color: #888; margin: 0 0 8px;">
-      <a href="${escapeHtml(options.unsubscribeUrl)}" style="color: #888;">Unsubscribe</a>
+    <p style="font-size: 12px; color: #777; margin: 0 0 8px;">
+      ${ru ? "Ответь на это письмо — оно придёт прямо основателю." : "Reply to this email — it goes straight to the founder."}
     </p>
-    <p style="font-size: 12px; color: #888; margin: 16px 0 0;">
-      Reply to this email — it goes straight to the founder.
+    <p style="font-size: 12px; color: #777; margin: 16px 0 0;">
+      <a href="${escapeHtml(options.unsubscribeUrl)}" style="color: #777;">${ru ? "Отписаться" : "Unsubscribe"}</a>
     </p>
   </div>
-  `;
+</body>
+</html>`;
 }
 
 function renderTextHeader(digest: DigestView, strings: ReturnType<typeof stringsFor>): string {
@@ -352,12 +376,13 @@ function renderTextCard(
   return `${text}\n`;
 }
 
-function renderTextFooter(options: EmailRenderOptions, _language: Language): string {
+function renderTextFooter(options: EmailRenderOptions, language: Language): string {
+  const ru = language === "ru";
   return `
 -------------------------------
-Summaries are AI-generated from the linked sources.
-Unsubscribe: ${options.unsubscribeUrl}
-Reply to this email — it goes straight to the founder.
+${ru ? "Каждая строка — по ссылке на источник, с дословной цитатой." : "Every line comes from the linked source, quoted word for word."}
+${ru ? "Ответь на это письмо — оно придёт прямо основателю." : "Reply to this email — it goes straight to the founder."}
+${ru ? "Отписаться" : "Unsubscribe"}: ${options.unsubscribeUrl}
 `;
 }
 
@@ -653,9 +678,17 @@ function renderHtmlMonthlyReport(
     ? strings.monthly.title(report.profileName, monthLabel)
     : strings.monthly.shortTitle(report.profileName, monthLabel);
 
-  let html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 640px; margin: 0 auto; padding: 24px;">
-      <h1 style="font-size: 22px; font-weight: 600; margin: 0 0 16px; color: #1a1a1a;">${escapeHtml(title)}</h1>
+  let html = `<!doctype html>
+<html lang="${report.language}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>${escapeHtml(title)}</title>
+</head>
+<body style="margin: 0; padding: 0; background: #ffffff;">
+  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 640px; margin: 0 auto; padding: 24px;">
+    <h1 style="font-size: 22px; font-weight: 600; margin: 0 0 16px; color: #1a1a1a;">${escapeHtml(title)}</h1>
   `;
 
   html += renderHtmlIntro(report, strings);
@@ -702,16 +735,23 @@ function renderTextMonthlyReport(
 /** Render monthly report subject line. */
 function renderMonthlySubject(report: MonthlyReportEmailData): string {
   const monthLabel = formatMonthLabel(report.month, report.language);
-  return `Mifluent: Monthly report — ${report.profileName} — ${monthLabel}`;
+  return report.language === "ru"
+    ? `Итоги месяца: ${report.profileName}, ${monthLabel}`
+    : `Your month in review: ${report.profileName}, ${monthLabel}`;
 }
 
 export function renderEmailDigest(digest: DigestView, options: EmailRenderOptions): RenderedEmail {
   const strings = stringsFor(digest.language);
-  const period = formatPeriod(digest.periodStart, digest.periodEnd, digest.language, "UTC");
+  const period = formatPeriod(
+    digest.periodStart,
+    digest.periodEnd,
+    digest.language,
+    options.timezone,
+  );
   const subject = renderSubject(digest);
 
   // HTML version
-  let html = renderHtmlHeader(digest, strings);
+  let html = renderHtmlHeader(digest, strings, options.timezone);
 
   for (const notice of digest.notices) {
     html += renderHtmlNotice(notice, strings);

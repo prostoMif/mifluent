@@ -25,6 +25,11 @@ export interface Strings {
   /** `/start ref_…` or `/start promo_…`: where to sign up with the bonus kept. */
   readonly startFromLink: (kind: "ref" | "promo", url: string) => string;
   readonly more: (count: number) => string;
+  /** One line under the title: "3 changes at 2 competitors · 1 about your market". */
+  readonly summary: (changes: number, targets: number, market: number) => string;
+  /** Russian plurals and English -s, in one place. */
+  readonly kindLabel: (kind: string) => string;
+  readonly help: string;
   readonly emptyDigest: (period: string, sources: number, items: number) => string;
   readonly emptyDigestFirstWeek: (sources: number, items: number, closestTitle: string) => string;
   readonly closest: string;
@@ -84,6 +89,14 @@ export interface Strings {
     readonly limitReached: (limit: number) => string;
   };
   readonly monthly: {
+    readonly stats: (parts: {
+      readonly active: number;
+      readonly quiet: number;
+      readonly prices: number;
+      readonly hiring: number;
+      readonly decisions: number;
+      readonly drifted: number;
+    }) => string[];
     readonly title: (profile: string, month: string) => string;
     readonly shortTitle: (profile: string, month: string) => string;
     readonly proOnly: string;
@@ -131,10 +144,31 @@ const en: Strings = {
       ? `Hi! Set up Mifluent through this link — your friend's bonus (28 days of Pro free) is applied on its own: ${url}`
       : `Hi! Your code is saved. Set up Mifluent through this link and it is applied at checkout: ${url}`,
   more: (count) => `and ${count} more`,
+  summary: (changes, targets, market) =>
+    [
+      changes > 0
+        ? `${changes} change${changes === 1 ? "" : "s"} at ${targets} ${targets === 1 ? "company" : "companies"}`
+        : "",
+      market > 0 ? `${market} about your market & rules` : "",
+    ]
+      .filter((part) => part !== "")
+      .join(" · "),
+  kindLabel: (kind) =>
+    ({
+      price: "price",
+      plan: "plan",
+      feature: "feature",
+      policy: "rule",
+      market_rule: "rule",
+      hiring: "hiring",
+      incident: "incident",
+      news: "news",
+    })[kind] ?? "change",
+  help: "Your brief arrives here every morning.\n\n/watch <link> — watch a page for changes\n/start <code> — send another profile's brief to this chat\n\nEverything else — in the app: archive, targets, settings.",
   emptyDigest: (period, sources, items) =>
-    `Nothing that concerns you for ${period}. Checked ${sources} sources, ${items} items.`,
+    `Quiet for ${period}: nothing that concerns you.\nChecked ${sources} sources, ${items} items.`,
   emptyDigestFirstWeek: (sources, items, closestTitle) =>
-    `Checked ${sources} sources, ${items} items — nothing significant. Closest: ${closestTitle}.`,
+    `First week: nothing important yet. Checked ${sources} sources, ${items} items.\nClosest: ${closestTitle}.`,
   closest: "Closest:",
   rejectedBecause: "rejected:",
   rejectionReason: (code) =>
@@ -151,12 +185,12 @@ const en: Strings = {
     targetQuiet: (target) => `${target} has been quieter than usual.`,
   },
   buttons: {
-    notFollowing: "Not following this",
+    notFollowing: "Unfollow",
     notImportant: "Not important",
     save: "Save",
-    influenced: "It changed a decision",
+    influenced: "Changed a decision",
     openMiniApp: "Archive & settings",
-    openTarget: "Open target page",
+    openTarget: "history",
     fullReport: "Full report",
   },
   callback: {
@@ -170,7 +204,7 @@ const en: Strings = {
   binding: {
     bound: (profile) => `Done. Digests for “${profile}” will arrive here.`,
     invalidCode: "That code is not valid or has expired. Get a new one in Mifluent.",
-    help: "Send /start followed by the code shown in Mifluent to receive digests here.",
+    help: "Send /start followed by the code from the app to get the brief in this chat.",
     firstDigestCollecting: "Collecting your first digest. It will arrive in a few minutes.",
   },
   onboarding: {
@@ -201,7 +235,15 @@ const en: Strings = {
       `You've reached the limit of ${limit} watched pages for your plan. Remove one or upgrade to watch more.`,
   },
   monthly: {
-    title: (profile, month) => `${profile} — Monthly Report: ${month}`,
+    stats: (p) =>
+      [
+        p.active + p.quiet > 0 ? `${p.active} active, ${p.quiet} quiet` : "",
+        p.prices > 0 ? `${p.prices} price change${p.prices === 1 ? "" : "s"}` : "",
+        p.hiring > 0 ? `${p.hiring} hiring` : "",
+        p.decisions > 0 ? `${p.decisions} decision${p.decisions === 1 ? "" : "s"}` : "",
+        p.drifted > 0 ? `${p.drifted} to review` : "",
+      ].filter((part) => part !== ""),
+    title: (profile, month) => `${profile} — month in review, ${month}`,
     shortTitle: (profile, month) => `${profile} — ${month} summary`,
     proOnly: "Full monthly report is a Pro feature.",
     topEvents: "Top events of the month",
@@ -230,14 +272,15 @@ const ru: Strings = {
   whyItMatters: "Почему касается:",
   modelInterpretation: "Интерпретация модели ⚠",
   source: "источник",
-  groupHeadline: (target, count) => `${target}: ${count} изменений`,
+  groupHeadline: (target, count) =>
+    `${target}: ${count} ${ruPlural(count, "изменение", "изменения", "изменений")}`,
   marketSection: "В твоей стране и нише",
   trialEnding: (daysLeft, pricingUrl) =>
     daysLeft <= 1
       ? `Бесплатный Pro заканчивается сегодня. Дальше — 3 цели и сводка раз в неделю, ничего не удаляется. Тарифы: ${pricingUrl}`
-      : `Бесплатный Pro закончится через ${daysLeft} дня. Дальше — 3 цели и сводка раз в неделю, ничего не удаляется. Тарифы: ${pricingUrl}`,
+      : `Бесплатный Pro закончится через ${daysLeft} ${ruPlural(daysLeft, "день", "дня", "дней")}. Дальше — 3 цели и сводка раз в неделю, ничего не удаляется. Тарифы: ${pricingUrl}`,
   winback: (code, pricingUrl) =>
-    `Месяц назад закончился ваш тариф Mifluent. Если захотите вернуться: промокод ${code} — минус 40% на два месяца, действует 7 дней. ${pricingUrl}?code=${code}`,
+    `Месяц назад закончился твой тариф Mifluent. Если захочешь вернуться: промокод ${code} — минус 40% на два месяца, действует 7 дней. ${pricingUrl}?code=${code}`,
   startFromLink: (kind, url) =>
     kind === "ref"
       ? `Привет! Настрой Mifluent по этой ссылке — бонус от друга (28 дней Pro бесплатно) применится сам: ${url}`
@@ -245,10 +288,31 @@ const ru: Strings = {
   selfGroupHeadline: (count) =>
     `О тебе: ${count} упоминани${count === 1 ? "е" : count < 5 ? "я" : "й"}`,
   more: (count) => `и ещё ${count}`,
+  summary: (changes, targets, market) =>
+    [
+      changes > 0
+        ? `${changes} ${ruPlural(changes, "изменение", "изменения", "изменений")} у ${targets} ${ruPlural(targets, "компании", "компаний", "компаний")}`
+        : "",
+      market > 0 ? `${market} по рынку и правилам` : "",
+    ]
+      .filter((part) => part !== "")
+      .join(" · "),
+  kindLabel: (kind) =>
+    ({
+      price: "цена",
+      plan: "тариф",
+      feature: "функция",
+      policy: "правило",
+      market_rule: "правило",
+      hiring: "найм",
+      incident: "сбой",
+      news: "новость",
+    })[kind] ?? "изменение",
+  help: "Сводка приходит сюда каждое утро.\n\n/watch <ссылка> — следить за страницей\n/start <код> — присылать сюда сводку другого профиля\n\nОстальное — в приложении: архив, цели, настройки.",
   emptyDigest: (period, sources, items) =>
-    `Ничего, что тебя касается, за ${period}. Проверено ${sources} источников, ${items} материалов.`,
+    `Тихо за ${period}: ничего, что тебя касается.\nПроверено ${sources} ${ruPlural(sources, "источник", "источника", "источников")}, ${items} ${ruPlural(items, "материал", "материала", "материалов")}.`,
   emptyDigestFirstWeek: (sources, items, closestTitle) =>
-    `Проверено ${sources} источников, ${items} материалов — существенного нет. Ближе всего: ${closestTitle}.`,
+    `Первая неделя: пока ничего важного. Проверено ${sources} ${ruPlural(sources, "источник", "источника", "источников")}, ${items} ${ruPlural(items, "материал", "материала", "материалов")}.\nБлиже всего: ${closestTitle}.`,
   closest: "Ближе всего:",
   rejectedBecause: "отклонено:",
   rejectionReason: (code) =>
@@ -261,16 +325,16 @@ const ru: Strings = {
     baselineRecorded:
       "Цены, changelog и вакансии зафиксированы, изменения пойдут со следующего опроса.",
     costCapReached:
-      "Обработка приостановлена до завтра — лимит бюджета инстанса. Можно вставить свой ключ в настройках.",
+      "Обработка на паузе до завтра: исчерпан дневной бюджет. Свой ключ модели можно указать в настройках.",
     targetQuiet: (target) => `У ${target} тише обычного.`,
   },
   buttons: {
-    notFollowing: "Не слежу за этим",
+    notFollowing: "Не следить",
     notImportant: "Не важно",
     save: "Сохранить",
     influenced: "Повлияло",
     openMiniApp: "Архив и настройки",
-    openTarget: "Открыть страницу цели",
+    openTarget: "история",
     fullReport: "Полный отчёт",
   },
   callback: {
@@ -283,9 +347,9 @@ const ru: Strings = {
   },
   binding: {
     bound: (profile) => `Готово. Сводки по «${profile}» будут приходить сюда.`,
-    invalidCode: "Код неверный или истёк. Получите новый в Mifluent.",
-    help: "Отправьте /start и код из Mifluent, чтобы получать сводки здесь.",
-    firstDigestCollecting: "Собираю вашу первую сводку. Придёт через несколько минут.",
+    invalidCode: "Код неверный или истёк. Возьми новый в приложении.",
+    help: "Отправь /start и код из приложения — и сводка будет приходить в этот чат.",
+    firstDigestCollecting: "Собираю первую сводку — придёт через несколько минут.",
   },
   onboarding: {
     closedRegistration: "Бот пока по приглашениям. Есть код приглашения?",
@@ -315,7 +379,19 @@ const ru: Strings = {
       `Лимит отслеживаемых страниц для твоего тарифа — ${limit}. Удали одну или смени тариф, чтобы добавить больше.`,
   },
   monthly: {
-    title: (profile, month) => `${profile} — Ежемесячный отчёт: ${month}`,
+    stats: (p) =>
+      [
+        p.active + p.quiet > 0 ? `${p.active} активны, ${p.quiet} тихо` : "",
+        p.prices > 0
+          ? `${p.prices} ${ruPlural(p.prices, "изменение цены", "изменения цен", "изменений цен")}`
+          : "",
+        p.hiring > 0 ? `найм: ${p.hiring}` : "",
+        p.decisions > 0
+          ? `${p.decisions} ${ruPlural(p.decisions, "решение", "решения", "решений")}`
+          : "",
+        p.drifted > 0 ? `${p.drifted} проверить` : "",
+      ].filter((part) => part !== ""),
+    title: (profile, month) => `${profile} — итоги месяца, ${month}`,
     shortTitle: (profile, month) => `${profile} — итоги ${month}`,
     proOnly: "Полный ежемесячный отчёт — в Pro.",
     topEvents: "Главные события месяца",
@@ -338,19 +414,38 @@ const ru: Strings = {
   },
 };
 
+/** 1 источник, 2 источника, 5 источников. */
+export function ruPlural(count: number, one: string, few: string, many: string): string {
+  const tens = count % 100;
+  const units = count % 10;
+  if (tens >= 11 && tens <= 14) return many;
+  if (units === 1) return one;
+  if (units >= 2 && units <= 4) return few;
+  return many;
+}
+
 export function stringsFor(language: Language): Strings {
   return language === "ru" ? ru : en;
 }
 
-/** "21–28 Sep 2026", in the reader's language and zone. */
+/** "21 Sep — 28 Sep 2026", in the reader's language and zone; the year once. */
 export function formatPeriod(start: Date, end: Date, language: Language, timezone: string): string {
-  const format = new Intl.DateTimeFormat(language === "ru" ? "ru-RU" : "en-GB", {
+  const locale = language === "ru" ? "ru-RU" : "en-GB";
+  const full = new Intl.DateTimeFormat(locale, {
     day: "numeric",
     month: "short",
     year: "numeric",
     timeZone: timezone,
   });
-  const from = format.format(start);
-  const to = format.format(end);
-  return from === to ? to : `${from} — ${to}`;
+  const to = full.format(end);
+  const from = full.format(start);
+  if (from === to) return to;
+  const year = (date: Date) =>
+    new Intl.DateTimeFormat("en", { year: "numeric", timeZone: timezone }).format(date);
+  const short = new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+    timeZone: timezone,
+  });
+  return `${year(start) === year(end) ? short.format(start) : from} — ${to}`;
 }
