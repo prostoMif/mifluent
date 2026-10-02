@@ -15,6 +15,25 @@ export const metadata: Metadata = { title: "Today" };
 
 export const dynamic = "force-dynamic";
 
+const TEXT = {
+  en: {
+    title: "Today",
+    lead: (name: string) => `What changed around ${name}.`,
+    edit: "Edit what is watched",
+    noneTitle: "No digest yet",
+    noneBody:
+      "The first one is built once the sources have been read — usually within an hour. It appears here, and in Telegram if you link it below.",
+  },
+  ru: {
+    title: "Сегодня",
+    lead: (name: string) => `Что изменилось вокруг «${name}».`,
+    edit: "Изменить, за чем следим",
+    noneTitle: "Сводки пока нет",
+    noneBody:
+      "Первая появится, когда источники прочитаются — обычно в течение часа. Она будет здесь и в Telegram.",
+  },
+} as const;
+
 /** Urgent digests stay at the top of the page for a week. */
 const URGENT_SHOWN_DAYS = 7;
 
@@ -60,13 +79,14 @@ export default async function TodayPage({ searchParams }: PageProps) {
   ]);
   const config = getConfig();
   const canEdit = can(session.role, "profile:write");
+  const timezone = delivery?.timezone ?? "UTC";
+  const text = TEXT[digest?.language ?? urgent[0]?.language ?? "en"];
 
   return (
     <>
-      <h1 className={appStyles["pageTitle"]}>Today</h1>
+      <h1 className={appStyles["pageTitle"]}>{text.title}</h1>
       <p className={appStyles["pageLead"]}>
-        What changed around {profile.name}.{" "}
-        <Link href={`/watching/${profile.id}`}>Edit what is watched</Link>
+        {text.lead(profile.name)} <Link href={`/watching/${profile.id}`}>{text.edit}</Link>
       </p>
 
       {profiles.length > 1 ? (
@@ -94,19 +114,16 @@ export default async function TodayPage({ searchParams }: PageProps) {
       )}
 
       {urgent.map((view) => (
-        <DigestCards canAct={canEdit} digest={view} key={view.id} />
+        <DigestCards canAct={canEdit} digest={view} key={view.id} timezone={timezone} />
       ))}
 
       {digest === undefined ? (
         <section className={appStyles["empty"]}>
-          <h2 className={appStyles["emptyTitle"]}>No digest yet</h2>
-          <p className={appStyles["emptyBody"]}>
-            The first one is built once the sources have been read. It appears here, and in Telegram
-            if you link it below.
-          </p>
+          <h2 className={appStyles["emptyTitle"]}>{text.noneTitle}</h2>
+          <p className={appStyles["emptyBody"]}>{text.noneBody}</p>
         </section>
       ) : (
-        <DigestCards canAct={canEdit} digest={digest} />
+        <DigestCards canAct={canEdit} digest={digest} timezone={timezone} />
       )}
 
       {canEdit && delivery?.telegramChatId === undefined ? (

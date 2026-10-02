@@ -13,21 +13,26 @@ import { sendRequest } from "@/lib/api-client";
 import { toDisplayMessage } from "@/lib/error-message";
 import styles from "./today.module.css";
 
-const LABELS: Readonly<Record<CardAction, string>> = {
-  not_following_target: "Not following this",
-  not_important: "Not important",
-  saved: "Save",
-  influenced: "It changed a decision",
-};
+/** The labels in the reader's language; the server component passes them in. */
+export interface CardActionLabels {
+  readonly buttons: Readonly<Record<CardAction, string>>;
+  readonly done: string;
+}
 
-const CONFIRMATIONS: Readonly<Record<CardAction, string>> = {
-  not_following_target: "Paused. You will not get cards about this any more.",
-  not_important: "Noted.",
-  saved: "Saved.",
-  influenced: "Recorded. I'll show it in the history.",
-};
+const ACTIONS: readonly CardAction[] = [
+  "not_following_target",
+  "not_important",
+  "saved",
+  "influenced",
+];
 
-export function CardActions({ cardId }: { readonly cardId: string }) {
+export function CardActions({
+  cardId,
+  labels,
+}: {
+  readonly cardId: string;
+  readonly labels: CardActionLabels;
+}) {
   const [done, setDone] = useState<CardAction | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isPending, setIsPending] = useState(false);
@@ -46,12 +51,12 @@ export function CardActions({ cardId }: { readonly cardId: string }) {
   }
 
   if (done !== undefined) {
-    return <Notice tone="success">{CONFIRMATIONS[done]}</Notice>;
+    return <Notice tone="success">{labels.done}</Notice>;
   }
 
   return (
     <div className={styles["actions"]}>
-      {(Object.keys(LABELS) as CardAction[]).map((action) => (
+      {ACTIONS.map((action) => (
         <button
           className={styles["actionButton"]}
           disabled={isPending}
@@ -61,7 +66,7 @@ export function CardActions({ cardId }: { readonly cardId: string }) {
           }}
           type="button"
         >
-          {LABELS[action]}
+          {labels.buttons[action]}
         </button>
       ))}
       {error === undefined ? null : <Notice tone="error">{error}</Notice>}

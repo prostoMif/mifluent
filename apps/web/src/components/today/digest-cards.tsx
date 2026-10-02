@@ -1,42 +1,42 @@
 /**
- * A built digest, as the web shows it — the same cards Telegram gets.
+ * A built digest, as the web and the Mini App show it — the same cards
+ * Telegram gets, in the profile's language, grouped the same way: the
+ * profile's own news first, then "your market & rules".
  *
  * Everything shown came from someone else's page or from a model; React
  * escapes it, and links are rendered only from addresses the digest builder
  * already checked, with `rel="noopener noreferrer nofollow"` (docs/security.md).
  */
 
+import { formatPeriod, stringsFor } from "@mifluent/delivery";
 import type { DigestBlockView, DigestCardView, DigestView } from "@mifluent/digest";
 import Link from "next/link";
-import { CardActions } from "./card-actions";
+import { type CardActionLabels, CardActions } from "./card-actions";
 import styles from "./today.module.css";
 
-const NOTICE_TEXT = {
-  baseline_recorded:
-    "Prices, changelogs and job boards are now recorded; changes will show up from the next check.",
-  cost_cap_reached:
-    "Processing is paused until tomorrow — this instance reached its daily budget. You can add your own model key in settings.",
-} as const;
-
-const REJECTION_TEXT: Readonly<Record<string, string>> = {
-  below_cosine: "too far from what you watch",
-  model_rejected: "judged not relevant",
-  no_verified_quote: "no quote could be verified",
-};
+type Strings = ReturnType<typeof stringsFor>;
 
 export interface DigestCardsProps {
   readonly digest: DigestView;
   readonly canAct: boolean;
+  readonly timezone: string;
 }
 
-export function DigestCards({ digest, canAct }: DigestCardsProps) {
+export function DigestCards({ digest, canAct, timezone }: DigestCardsProps) {
+  const strings = stringsFor(digest.language);
+  const main = digest.cards.filter((card) => card.section === "main");
+  const market = digest.cards.filter((card) => card.section === "market");
+  const labels = actionLabels(strings);
+  const summary = summarise(digest, strings);
+
   return (
-    <section aria-label={digest.isUrgent ? "Urgent" : "Digest"}>
+    <section aria-label={digest.isUrgent ? strings.urgentTitle(digest.profileName) : "Digest"}>
       <header className={styles["digestHeader"]}>
         <p className={styles["period"]}>
-          {digest.isUrgent ? "Urgent · " : ""}
-          {formatPeriod(digest)}
+          {digest.isUrgent ? `${strings.urgentTitle("").replace(/\s—\s$/, "")} · ` : ""}
+          {formatPeriod(digest.periodStart, digest.periodEnd, digest.language, timezone)}
         </p>
+        {summary === "" ? null : <p className={styles["summary"]}>{summary}</p>}
       </header>
 
       {digest.notices.map((notice) => (
@@ -45,77 +45,137 @@ export function DigestCards({ digest, canAct }: DigestCardsProps) {
           key={notice.code === "target_quiet" ? notice.targetName : notice.code}
         >
           {notice.code === "target_quiet"
-            ? `${notice.targetName} has been quieter than usual.`
-            : NOTICE_TEXT[notice.code]}
+            ? strings.notices.targetQuiet(notice.targetName)
+            : notice.code === "cost_cap_reached"
+              ? strings.notices.costCapReached
+              : strings.notices.baselineRecorded}
         </p>
       ))}
 
       {digest.cards.length === 0 ? (
-        <EmptyDigest digest={digest} />
+        <EmptyDigest digest={digest} strings={strings} timezone={timezone} />
       ) : (
-        <ol className={styles["cards"]}>
-          {digest.cards.map((card) => (
-            <DigestCard card={card} canAct={canAct} key={card.id} />
-          ))}
-        </ol>
+        <>
+          <CardList cards={main} canAct={canAct} strings={strings} labels={labels} />
+          {market.length === 0 ? null : (
+            <>
+              <h2 className={styles["sectionTitle"]}>{strings.marketSection}</h2>
+              <CardList cards={market} canAct={canAct} strings={strings} labels={labels} />
+            </>
+          )}
+        </>
       )}
     </section>
   );
 }
 
-function DigestCard({ card, canAct }: { readonly card: DigestCardView; readonly canAct: boolean }) {
+function CardList(props: {
+  readonly cards: readonly DigestCardView[];
+  readonly canAct: boolean;
+  readonly strings: Strings;
+  readonly labels: CardActionLabels;
+}) {
+  if (props.cards.length === 0) return null;
   return (
-    <li className={`${styles["card"]} ${card.isUrgent ? styles["cardUrgent"] : ""}`}>
-      <h2 className={styles["headline"]}>
-        {card.kind === "group"
-          ? `${card.headline}: ${card.blocks.length + card.moreCount} changes`
-          : card.headline}{" "}
-        {card.ageDays === null ? null : (
-          <span className={styles["age"]}>({formatAge(card.ageDays)})</span>
-        )}
-        {card.targetId !== null && card.targetId !== undefined ? (
-          <Link
-            href={`/targets/${card.targetId}`}
-            className={styles["targetLink"]}
-            aria-label="View target history"
-          >
-            →
-          </Link>
-        ) : null}
-      </h2>
-      {card.blocks.map((block, index) => (
-        <Block block={block} key={`${card.id}-${index}`} />
+    <ol className={styles["cards"]}>
+      {props.cards.map((card) => (
+        <DigestCard
+          card={card}
+          canAct={props.canAct}
+          key={card.id}
+          strings={props.strings}
+          labels={props.labels}
+        />
       ))}
-      {card.moreCount > 0 ? <p className={styles["period"]}>and {card.moreCount} more</p> : null}
-      {canAct ? <CardActions cardId={card.id} /> : null}
+    </ol>
+  );
+}
+
+const KIND_CLASS: Readonly<Record<string, string>> = {
+  price: "kindPrice",
+  plan: "kindPrice",
+  policy: "kindRule",
+  market_rule: "kindRule",
+  feature: "kindFeature",
+};
+
+function DigestCard(props: {
+  readonly card: DigestCardView;
+  readonly canAct: boolean;
+  readonly strings: Strings;
+  readonly labels: CardActionLabels;
+}) {
+  const { card, strings } = props;
+  const kindClass =
+    card.targetKind === "self" ? "kindMention" : (KIND_CLASS[card.eventKind ?? ""] ?? "");
+  const headline =
+    card.kind === "group"
+      ? card.targetKind === "self"
+        ? strings.selfGroupHeadline(card.blocks.length + card.moreCount)
+        : strings.groupHeadline(card.headline, card.blocks.length + card.moreCount)
+      : card.headline;
+
+  return (
+    <li
+      className={`${styles["card"]} ${kindClass === "" ? "" : styles[kindClass]} ${card.isUrgent ? styles["cardUrgent"] : ""}`}
+    >
+      <div className={styles["cardHead"]}>
+        <h3 className={styles["headline"]}>{headline}</h3>
+        {card.eventKind === null ? null : (
+          <span className={styles["badge"]}>{strings.kindLabel(card.eventKind)}</span>
+        )}
+      </div>
+      {card.blocks.map((block, index) => (
+        <Block block={block} key={`${card.id}-${index}`} strings={strings} />
+      ))}
+      <p className={styles["cardFoot"]}>
+        {card.ageDays === null ? null : <span>{strings.age(card.ageDays)}</span>}
+        {card.moreCount > 0 ? <span>{strings.more(card.moreCount)}</span> : null}
+        {card.targetId !== null && card.targetKind !== "self" ? (
+          <Link href={`/targets/${card.targetId}`}>{strings.buttons.openTarget}</Link>
+        ) : null}
+      </p>
+      {props.canAct ? <CardActions cardId={card.id} labels={props.labels} /> : null}
     </li>
   );
 }
 
-function Block({ block }: { readonly block: DigestBlockView }) {
+function Block({ block, strings }: { readonly block: DigestBlockView; readonly strings: Strings }) {
   switch (block.kind) {
     case "fact":
       return (
-        <p className={styles["fact"]}>
-          {block.content}{" "}
-          {block.sourceUrl === null ? null : (
-            <a href={block.sourceUrl} rel="noopener noreferrer nofollow" target="_blank">
-              source
-            </a>
+        <div className={styles["fact"]}>
+          <p>{block.content}</p>
+          {block.quote === null ? null : (
+            <blockquote className={styles["quote"]}>
+              {block.quote}
+              {block.sourceUrl === null ? null : (
+                <>
+                  {" "}
+                  <a href={block.sourceUrl} rel="noopener noreferrer nofollow" target="_blank">
+                    {strings.source}
+                  </a>
+                </>
+              )}
+            </blockquote>
           )}
-          {block.quote === null ? null : <q className={styles["quote"]}>{block.quote}</q>}
-        </p>
+          {block.quote === null && block.sourceUrl !== null ? (
+            <a href={block.sourceUrl} rel="noopener noreferrer nofollow" target="_blank">
+              {strings.source}
+            </a>
+          ) : null}
+        </div>
       );
     case "implication":
       return (
         <p className={styles["implication"]}>
-          <strong>Why it matters:</strong> {block.content}
+          <strong>{strings.whyItMatters}</strong> {block.content}
         </p>
       );
     case "model_interpretation":
       return (
         <p className={styles["interpretation"]}>
-          <strong>Model's interpretation ⚠</strong> {block.content}
+          <strong>{strings.modelInterpretation}:</strong> {block.content}
         </p>
       );
     case "analyst_opinion":
@@ -123,17 +183,27 @@ function Block({ block }: { readonly block: DigestBlockView }) {
   }
 }
 
-function EmptyDigest({ digest }: { readonly digest: DigestView }) {
+function EmptyDigest(props: {
+  readonly digest: DigestView;
+  readonly strings: Strings;
+  readonly timezone: string;
+}) {
+  const { digest, strings } = props;
+  const period = formatPeriod(
+    digest.periodStart,
+    digest.periodEnd,
+    digest.language,
+    props.timezone,
+  );
   return (
-    <div className={styles["misses"]}>
-      <p>
-        Nothing that concerns you in this period. Checked {digest.sourcesChecked} sources,{" "}
-        {digest.itemsConsidered} items.
+    <div className={styles["empty"]}>
+      <p className={styles["emptyText"]}>
+        {strings.emptyDigest(period, digest.sourcesChecked, digest.itemsConsidered)}
       </p>
       {digest.nearMisses.length === 0 ? null : (
         <>
-          <p>Closest:</p>
-          <ul>
+          <p className={styles["period"]}>{strings.closest}</p>
+          <ul className={styles["misses"]}>
             {digest.nearMisses.map((miss) => (
               <li key={`${miss.title}-${miss.reason}`}>
                 {miss.url === null ? (
@@ -143,7 +213,7 @@ function EmptyDigest({ digest }: { readonly digest: DigestView }) {
                     {miss.title || "—"}
                   </a>
                 )}{" "}
-                — rejected: {REJECTION_TEXT[miss.reason] ?? miss.reason}
+                — {strings.rejectedBecause} {strings.rejectionReason(miss.reason)}
               </li>
             ))}
           </ul>
@@ -153,20 +223,26 @@ function EmptyDigest({ digest }: { readonly digest: DigestView }) {
   );
 }
 
-function formatAge(days: number): string {
-  if (days === 0) return "today";
-  if (days === 1) return "yesterday";
-  return `${days} days ago`;
+function summarise(digest: DigestView, strings: Strings): string {
+  if (digest.isUrgent || digest.cards.length === 0) return "";
+  const main = digest.cards.filter((card) => card.section === "main");
+  const changes = main.reduce(
+    (sum, card) =>
+      sum + Math.max(1, card.blocks.filter((b) => b.kind === "fact").length) + card.moreCount,
+    0,
+  );
+  const targets = new Set(main.map((card) => card.targetId ?? card.id)).size;
+  return strings.summary(changes, targets, digest.cards.length - main.length);
 }
 
-function formatPeriod(digest: DigestView): string {
-  const format = new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-  const from = format.format(digest.periodStart);
-  const to = format.format(digest.periodEnd);
-  return from === to ? to : `${from} — ${to}`;
+function actionLabels(strings: Strings): CardActionLabels {
+  return {
+    buttons: {
+      not_following_target: strings.buttons.notFollowing,
+      not_important: strings.buttons.notImportant,
+      saved: strings.buttons.save,
+      influenced: strings.buttons.influenced,
+    },
+    done: strings.callback.recorded,
+  };
 }

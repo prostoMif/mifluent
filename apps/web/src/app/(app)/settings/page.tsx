@@ -6,7 +6,9 @@ import {
   getBillingStatus,
   getReferralStats,
   listInvitations,
+  listWatchProfiles,
   readCostCap,
+  readDeliverySettings,
   readDiscoveryAllowance,
   readTargetAllowance,
   summariseSpend,
@@ -14,6 +16,7 @@ import {
 import type { Metadata } from "next";
 import { BillingPanel } from "@/components/billing/billing-panel";
 import { ReferralPanel } from "@/components/billing/referral-panel";
+import { DeliverySettingsForm } from "@/components/settings/delivery-settings-form";
 import { InstanceSettingsForm } from "@/components/settings/instance-settings-form";
 import { InvitationsPanel } from "@/components/settings/invitations-panel";
 import { SpendSummaryPanel } from "@/components/settings/spend-summary";
@@ -53,6 +56,10 @@ export default async function SettingsPage() {
         </dl>
       </section>
 
+      {can(session.role, "profile:write")
+        ? await renderDeliverySettings(session.tenantId, config.DEFAULT_TIMEZONE)
+        : null}
+
       <section aria-labelledby="instance-heading">
         <h2 id="instance-heading">This instance</h2>
 
@@ -77,7 +84,66 @@ export default async function SettingsPage() {
       {spendData === undefined ? null : <SpendSummaryPanel {...spendData} />}
 
       {canManagePeople ? <InvitationsPanel invitations={invitations} /> : null}
+
+      {canSeeSpend ? (
+        <section aria-labelledby="data-heading">
+          <h2 id="data-heading">Your data · Данные</h2>
+          <p className={styles["pageLead"]}>
+            Download everything — profiles, targets, every change with its quotes, your decisions.
+            Скачать всё одним файлом.
+          </p>
+          <p>
+            <a href="/api/export" download>
+              Download JSON · Скачать
+            </a>
+          </p>
+          <p className={styles["pageLead"]}>
+            To delete the account and everything in it, write to{" "}
+            {config.FEEDBACK_EMAIL === undefined ? (
+              "the owner of this instance"
+            ) : (
+              <a href={`mailto:${config.FEEDBACK_EMAIL}?subject=Delete my account`}>
+                {config.FEEDBACK_EMAIL}
+              </a>
+            )}{" "}
+            — it is done within three days.
+          </p>
+        </section>
+      ) : null}
     </>
+  );
+}
+
+/** "Your brief": when, where and in which language, per profile. */
+async function renderDeliverySettings(tenantId: string, defaultTimezone: string) {
+  const db = getDatabase();
+  const [profiles, plan] = await Promise.all([
+    listWatchProfiles(db, tenantId),
+    findTenantPlan(db, tenantId),
+  ]);
+  const forms = await Promise.all(
+    profiles.map(async (profile) => ({
+      profile,
+      settings: await readDeliverySettings(db, tenantId, profile.id, defaultTimezone),
+    })),
+  );
+  if (forms.length === 0) return null;
+  return (
+    <section aria-labelledby="brief-heading">
+      <h2 id="brief-heading">Your brief · Сводка</h2>
+      {forms.map(({ profile, settings }) =>
+        settings === undefined ? null : (
+          <div key={profile.id}>
+            {forms.length > 1 ? <h3>{profile.name}</h3> : null}
+            <DeliverySettingsForm
+              profileId={profile.id}
+              initial={settings}
+              isDailyAllowed={plan.limits.dailyDigest}
+            />
+          </div>
+        ),
+      )}
+    </section>
   );
 }
 

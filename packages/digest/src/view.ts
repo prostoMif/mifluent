@@ -211,3 +211,49 @@ async function withCards(db: Queryable, row: DigestRow): Promise<DigestView> {
     })),
   };
 }
+
+export interface ArchivedDigest {
+  readonly id: string;
+  readonly periodStart: Date;
+  readonly periodEnd: Date;
+  readonly isUrgent: boolean;
+  readonly language: "en" | "ru";
+  readonly headlines: readonly string[];
+}
+
+/** A profile's past digests, newest first, with their card headlines — for the archive. */
+export async function listDigestArchive(
+  db: Queryable,
+  tenantId: string,
+  profileId: string,
+  limit = 120,
+): Promise<ArchivedDigest[]> {
+  const rows = await selectDigests(db, tenantId, eq(schema.digests.profileId, profileId))
+    .orderBy(desc(schema.digests.periodEnd))
+    .limit(limit);
+  if (rows.length === 0) return [];
+
+  const cards = await db
+    .select({ digestId: schema.digestCards.digestId, headline: schema.digestCards.headline })
+    .from(schema.digestCards)
+    .where(
+      scoped(
+        schema.digestCards,
+        tenantId,
+        inArray(
+          schema.digestCards.digestId,
+          rows.map((row) => row.id),
+        ),
+      ),
+    )
+    .orderBy(asc(schema.digestCards.position));
+
+  return rows.map((row) => ({
+    id: row.id,
+    periodStart: row.periodStart,
+    periodEnd: row.periodEnd,
+    isUrgent: row.periodStart.getTime() === row.periodEnd.getTime(),
+    language: languageSchema.parse(row.facts).language,
+    headlines: cards.filter((card) => card.digestId === row.id).map((card) => card.headline),
+  }));
+}

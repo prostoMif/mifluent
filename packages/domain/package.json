@@ -33,6 +33,10 @@
     "./billing/pricing": {
       "types": "./dist/billing/pricing.d.ts",
       "default": "./dist/billing/pricing.js"
+    },
+    "./profiles/delivery-types": {
+      "types": "./dist/profiles/delivery-types.d.ts",
+      "default": "./dist/profiles/delivery-types.js"
     }
   },
   "main": "./dist/index.js",

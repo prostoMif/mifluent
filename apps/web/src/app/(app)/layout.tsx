@@ -9,12 +9,15 @@
  */
 
 import { getConfig } from "@mifluent/core";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { MainNav } from "@/components/app/main-nav";
 import { ReportProblem } from "@/components/app/report-problem";
 import { SignOutButton } from "@/components/app/sign-out-button";
+import { TabBar } from "@/components/app/tab-bar";
+import { TelegramChrome } from "@/components/app/telegram-chrome";
 import { getSessionContext } from "@/lib/session";
 import packageJson from "../../../package.json";
 import styles from "./app.module.css";
@@ -28,9 +31,13 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   if (session === undefined) {
     redirect("/sign-in");
   }
+  const language = ((await headers()).get("accept-language") ?? "").toLowerCase().startsWith("ru")
+    ? "ru"
+    : "en";
 
   return (
     <div className={styles["shell"]}>
+      <TelegramChrome />
       <header className={styles["header"]}>
         <div className={styles["headerInner"]}>
           <Link className={styles["brand"]} href="/today">
@@ -54,6 +61,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <ReportProblem issueTrackerUrl={config.ISSUE_TRACKER_URL} version={packageJson.version} />
         </footer>
       </div>
+      <TabBar language={language} />
     </div>
   );
 }

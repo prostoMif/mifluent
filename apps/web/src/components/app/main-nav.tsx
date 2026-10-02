@@ -11,6 +11,7 @@ interface NavItem {
 
 const NAV_ITEMS: readonly NavItem[] = [
   { href: "/today", label: "Today" },
+  { href: "/archive", label: "Archive" },
   { href: "/watching", label: "Watching" },
   { href: "/settings", label: "Settings" },
 ];

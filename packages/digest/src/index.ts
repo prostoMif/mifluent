@@ -55,9 +55,11 @@ export {
   markDigestFailed,
 } from "./state.js";
 export {
+  type ArchivedDigest,
   type DigestBlockView,
   type DigestCardView,
   type DigestView,
+  listDigestArchive,
   listRecentUrgentDigests,
   loadDigestView,
   loadLatestDigestView,

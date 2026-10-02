@@ -98,6 +98,12 @@ export {
   type WatchedPagesAllowance,
 } from "./plans/limits.js";
 export {
+  type DeliverySettings,
+  deliverySettingsSchema,
+  readDeliverySettings,
+  updateDeliverySettings,
+} from "./profiles/delivery.js";
+export {
   type CreateFromDiscoveryOptions,
   createProfileFromDiscovery,
 } from "./profiles/from-discovery.js";
@@ -151,6 +157,7 @@ export {
   type TimelineEntry,
   type Vacancy,
 } from "./targets/history.js";
+export { exportTenantData } from "./tenancy/export.js";
 export {
   type CreatedInvitation,
   type CreateInvitationOptions,
