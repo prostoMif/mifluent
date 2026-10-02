@@ -127,3 +127,28 @@ export async function packCandidates(
   }
   return candidates;
 }
+
+/**
+ * How many sources of the packs a profile follows were read since `since`:
+ * the "about your country and niche" part of "checked N sources". Counts the
+ * service tenant's sources only — never another customer's.
+ */
+export async function countPackSourcesChecked(
+  db: Queryable,
+  packKeys: readonly string[],
+  since: Date,
+): Promise<number> {
+  if (packKeys.length === 0) return 0;
+  const [row] = await db
+    .select({ total: sql<number>`count(distinct ${schema.sources.id})::int` })
+    .from(schema.packSources)
+    .innerJoin(schema.sources, eq(schema.sources.id, schema.packSources.sourceId))
+    .where(
+      and(
+        eq(schema.sources.tenantId, PACKS_TENANT_ID),
+        inArray(schema.packSources.packKey, [...packKeys]),
+        gte(schema.sources.lastPolledAt, since),
+      ),
+    );
+  return row?.total ?? 0;
+}

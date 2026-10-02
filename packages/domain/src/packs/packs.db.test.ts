@@ -3,7 +3,7 @@ import { type Database, schema } from "@mifluent/db";
 import { createTestDatabase, type TestDatabase } from "@mifluent/db/testing";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { loadPackCatalogue, packCandidates } from "./candidates.js";
+import { countPackSourcesChecked, loadPackCatalogue, packCandidates } from "./candidates.js";
 import type { PackFile } from "./schema.js";
 import { syncPacks } from "./sync.js";
 import { PACKS_PROFILE_ID, PACKS_TENANT_ID } from "./tenant.js";
@@ -240,6 +240,30 @@ describe("source packs against a real database", () => {
         .where(eq(schema.watchProfiles.id, PACKS_PROFILE_ID));
 
       expect(profile?.versionId).toBeNull();
+    },
+    DATABASE_TIMEOUT,
+  );
+
+  it(
+    "counts the read sources of the packs a profile follows, and only those",
+    async () => {
+      const { db } = database;
+      await syncPacks(db, [
+        packFile("ru.platforms.wildberries", [
+          "https://example.com/wb.rss",
+          "https://example.com/wb2.rss",
+        ]),
+        packFile("ru.platforms.ozon", ["https://example.com/ozon.rss"]),
+      ]);
+      await db.update(schema.sources).set({ lastPolledAt: new Date() });
+      const stale = await packSourceId(db, "https://example.com/wb2.rss");
+      await db
+        .update(schema.sources)
+        .set({ lastPolledAt: new Date(SINCE.getTime() - 60_000) })
+        .where(eq(schema.sources.id, stale));
+
+      expect(await countPackSourcesChecked(db, ["ru.platforms.wildberries"], SINCE)).toBe(1);
+      expect(await countPackSourcesChecked(db, [], SINCE)).toBe(0);
     },
     DATABASE_TIMEOUT,
   );

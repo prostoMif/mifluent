@@ -1,4 +1,5 @@
 export {
+  countPackSourcesChecked,
   loadPackCatalogue,
   type PackCandidate,
   type PackCandidateQuery,

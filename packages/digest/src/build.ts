@@ -13,7 +13,14 @@
 import { AppError, toSafeLink, uuidv7 } from "@mifluent/core";
 import { type Queryable, schema, scoped, scopedAlive } from "@mifluent/db";
 import type { DigestNotice } from "@mifluent/db/schema";
-import { findTenantPlan } from "@mifluent/domain";
+import {
+  countPackSourcesChecked,
+  findTenantPlan,
+  loadPackCatalogue,
+  matchPacks,
+  NICHES,
+  profileForPacks,
+} from "@mifluent/domain";
 import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import { assembleCards, type CardDraft, type EventForCard } from "./cards.js";
 import {
@@ -351,6 +358,36 @@ async function loadEventsForCards(
   }));
 }
 
+/**
+ * Sources about the reader's country and niche (the packs their profile
+ * follows) count as checked too: a quiet week has looked at them as well.
+ */
+async function countFollowedPackSources(context: BuildContext, since: Date): Promise<number> {
+  const [profile] = await context.db
+    .select({
+      facts: schema.watchProfiles.facts,
+      description: schema.watchProfiles.businessDescription,
+    })
+    .from(schema.watchProfiles)
+    .where(
+      scoped(
+        schema.watchProfiles,
+        context.tenantId,
+        eq(schema.watchProfiles.id, context.profileId),
+      ),
+    )
+    .limit(1);
+  if (profile === undefined) return 0;
+  const forPacks = profileForPacks(profile.facts, profile.description ?? "", NICHES);
+  if (forPacks === undefined) return 0;
+  const packs = matchPacks(await loadPackCatalogue(context.db), forPacks);
+  return countPackSourcesChecked(
+    context.db,
+    packs.map((pack) => pack.key),
+    since,
+  );
+}
+
 interface DigestStats {
   readonly sourcesChecked: number;
   readonly itemsConsidered: number;
@@ -409,8 +446,10 @@ async function collectStats(context: BuildContext, window: Window): Promise<Dige
     .orderBy(desc(schema.rejections.score))
     .limit(NEAR_MISSES_SHOWN);
 
+  const packSources = await countFollowedPackSources(context, window.start);
+
   return {
-    sourcesChecked: sources?.total ?? 0,
+    sourcesChecked: (sources?.total ?? 0) + packSources,
     itemsConsidered: items?.total ?? 0,
     nearMisses: misses.map((miss) => ({
       title: miss.title ?? "",
