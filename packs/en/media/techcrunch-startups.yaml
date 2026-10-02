@@ -1,0 +1,15 @@
+# TechCrunch startups.
+key: en.media.techcrunch_startups
+title:
+  ru: "TechCrunch — стартапы"
+  en: "TechCrunch startups"
+market: en
+countries: ["*"]
+kind: media
+niches: [saas, mobile_app, fintech]
+sources:
+  - label: "TechCrunch — startups"
+    type: feed
+    url: "https://techcrunch.com/category/startups/feed/"
+    interval_minutes: 180
+max_cards_per_digest: 1

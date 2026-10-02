@@ -1,0 +1,15 @@
+# Минфин: налоговая политика для малого бизнеса.
+key: ru.regulators.minfin
+title:
+  ru: "Минфин — налоги для бизнеса"
+  en: "Russian Ministry of Finance — taxes"
+market: ru
+countries: [RU]
+applies_to: home
+kind: regulator
+sources:
+  - label: "Налоги для малого бизнеса"
+    type: query
+    url: "https://news.google.com/rss/search?q=%D0%9C%D0%B8%D0%BD%D1%84%D0%B8%D0%BD%20%D0%BD%D0%B0%D0%BB%D0%BE%D0%B3%20%D0%98%D0%9F%20OR%20%D1%81%D0%B0%D0%BC%D0%BE%D0%B7%D0%B0%D0%BD%D1%8F%D1%82%D1%8B%D0%B5%20OR%20%D0%A3%D0%A1%D0%9D%20OR%20%D0%9D%D0%94%D0%A1%20%D0%BC%D0%B0%D0%BB%D1%8B%D0%B9%20%D0%B1%D0%B8%D0%B7%D0%BD%D0%B5%D1%81&hl=ru&gl=RU&ceid=RU:ru"
+    interval_minutes: 360
+max_cards_per_digest: 2

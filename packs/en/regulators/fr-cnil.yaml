@@ -1,0 +1,15 @@
+# CNIL (France) data protection news.
+key: en.regulators.fr_cnil
+title:
+  ru: "CNIL (Франция) — защита данных"
+  en: "CNIL — French data protection"
+market: en
+countries: [FR]
+applies_to: sales
+kind: regulator
+sources:
+  - label: "CNIL actualités"
+    type: feed
+    url: "https://www.cnil.fr/fr/rss.xml"
+    interval_minutes: 720
+max_cards_per_digest: 1

@@ -1,0 +1,18 @@
+# TikTok Shop seller updates.
+key: en.platforms.tiktok_shop
+title:
+  ru: "TikTok Shop — правила для продавцов"
+  en: "TikTok Shop — seller updates"
+market: en
+countries: ["*"]
+applies_to: sales
+kind: platform
+applies_when:
+  platforms_any: ["tiktok shop", "tiktok"]
+  niches_any: []
+sources:
+  - label: "Seller news"
+    type: query
+    url: "https://news.google.com/rss/search?q=%22TikTok%20Shop%22%20sellers%20fees%20OR%20policy%20OR%20changes&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 240
+max_cards_per_digest: 1

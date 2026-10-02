@@ -1,0 +1,18 @@
+# eBay seller fee and policy changes.
+key: en.platforms.ebay
+title:
+  ru: "eBay — правила для продавцов"
+  en: "eBay — seller fees and policy"
+market: en
+countries: ["*"]
+applies_to: sales
+kind: platform
+applies_when:
+  platforms_any: ["ebay"]
+  niches_any: []
+sources:
+  - label: "Seller news"
+    type: query
+    url: "https://news.google.com/rss/search?q=eBay%20sellers%20fees%20OR%20policy%20OR%20changes&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 240
+max_cards_per_digest: 1

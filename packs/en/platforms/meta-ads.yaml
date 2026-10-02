@@ -1,0 +1,18 @@
+# Meta ads policy and product changes.
+key: en.platforms.meta_ads
+title:
+  ru: "Meta Ads — изменения"
+  en: "Meta Ads — changes"
+market: en
+countries: ["*"]
+applies_to: sales
+kind: platform
+applies_when:
+  platforms_any: ["facebook ads", "meta ads", "instagram ads", "facebook", "instagram"]
+  niches_any: [agency]
+sources:
+  - label: "Meta ads news"
+    type: query
+    url: "https://news.google.com/rss/search?q=%22Meta%20ads%22%20OR%20%22Facebook%20ads%22%20advertisers%20policy%20OR%20update&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 240
+max_cards_per_digest: 2

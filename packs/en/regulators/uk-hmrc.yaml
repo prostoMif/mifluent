@@ -1,0 +1,15 @@
+# HMRC announcements.
+key: en.regulators.uk_hmrc
+title:
+  ru: "HMRC (Великобритания) — налоги"
+  en: "HMRC — tax announcements"
+market: en
+countries: [GB]
+applies_to: home
+kind: regulator
+sources:
+  - label: "HMRC on GOV.UK"
+    type: feed
+    url: "https://www.gov.uk/government/organisations/hm-revenue-customs.atom"
+    interval_minutes: 360
+max_cards_per_digest: 2

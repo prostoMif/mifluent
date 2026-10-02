@@ -1,0 +1,17 @@
+# AI model pricing and policy changes.
+key: en.platforms.ai_models
+title:
+  ru: "Цены и правила AI-моделей"
+  en: "AI model pricing and policy"
+market: en
+countries: ["*"]
+kind: platform
+applies_when:
+  platforms_any: ["openai", "anthropic", "claude", "gpt", "chatgpt"]
+  niches_any: [saas]
+sources:
+  - label: "AI model pricing"
+    type: query
+    url: "https://news.google.com/rss/search?q=OpenAI%20OR%20Anthropic%20API%20pricing%20OR%20%22rate%20limits%22%20OR%20deprecation&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 360
+max_cards_per_digest: 1

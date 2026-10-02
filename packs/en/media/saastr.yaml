@@ -1,0 +1,15 @@
+# SaaStr — SaaS business.
+key: en.media.saastr
+title:
+  ru: "SaaStr — SaaS-бизнес"
+  en: "SaaStr"
+market: en
+countries: ["*"]
+kind: niche_media
+niches: [saas]
+sources:
+  - label: "SaaStr"
+    type: feed
+    url: "https://www.saastr.com/feed/"
+    interval_minutes: 360
+max_cards_per_digest: 1

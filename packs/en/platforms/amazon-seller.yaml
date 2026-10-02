@@ -1,0 +1,18 @@
+# Amazon seller fee and policy changes.
+key: en.platforms.amazon_seller
+title:
+  ru: "Amazon — правила для продавцов"
+  en: "Amazon — seller fees and policy"
+market: en
+countries: ["*"]
+applies_to: sales
+kind: platform
+applies_when:
+  platforms_any: ["amazon", "amazon seller", "fba"]
+  niches_any: []
+sources:
+  - label: "Seller news"
+    type: query
+    url: "https://news.google.com/rss/search?q=%22Amazon%20sellers%22%20fees%20OR%20policy%20OR%20%22seller%20central%22&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 240
+max_cards_per_digest: 2

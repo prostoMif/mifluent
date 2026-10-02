@@ -1,0 +1,15 @@
+# CMA consumer and competition news.
+key: en.regulators.uk_cma
+title:
+  ru: "CMA (Великобритания) — конкуренция и потребители"
+  en: "UK CMA — competition and consumers"
+market: en
+countries: [GB]
+applies_to: sales
+kind: regulator
+sources:
+  - label: "CMA on GOV.UK"
+    type: feed
+    url: "https://www.gov.uk/government/organisations/competition-and-markets-authority.atom"
+    interval_minutes: 360
+max_cards_per_digest: 1

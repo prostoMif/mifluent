@@ -1,0 +1,18 @@
+# Google Ads policy and product changes.
+key: en.platforms.google_ads
+title:
+  ru: "Google Ads — изменения"
+  en: "Google Ads — changes"
+market: en
+countries: ["*"]
+applies_to: sales
+kind: platform
+applies_when:
+  platforms_any: ["google ads", "adwords"]
+  niches_any: [agency]
+sources:
+  - label: "Google Ads news"
+    type: query
+    url: "https://news.google.com/rss/search?q=%22Google%20Ads%22%20policy%20OR%20update%20OR%20change%20advertisers&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 240
+max_cards_per_digest: 2

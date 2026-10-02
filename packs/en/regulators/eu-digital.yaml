@@ -1,0 +1,15 @@
+# EU digital rules: DSA, DMA, AI Act.
+key: en.regulators.eu_digital
+title:
+  ru: "ЕС — цифровые правила"
+  en: "EU digital rules"
+market: en
+countries: [AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE]
+applies_to: sales
+kind: regulator
+sources:
+  - label: "EU digital rules"
+    type: query
+    url: "https://news.google.com/rss/search?q=%22European%20Commission%22%20%22Digital%20Services%20Act%22%20OR%20%22Digital%20Markets%20Act%22%20OR%20%22AI%20Act%22&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 360
+max_cards_per_digest: 2

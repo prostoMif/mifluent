@@ -1,0 +1,17 @@
+# PayPal business fee and policy changes.
+key: en.platforms.paypal
+title:
+  ru: "PayPal — тарифы для бизнеса"
+  en: "PayPal — business fees"
+market: en
+countries: ["*"]
+kind: platform
+applies_when:
+  platforms_any: ["paypal"]
+  niches_any: []
+sources:
+  - label: "PayPal business"
+    type: query
+    url: "https://news.google.com/rss/search?q=PayPal%20merchants%20fees%20OR%20policy%20OR%20changes&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 240
+max_cards_per_digest: 1

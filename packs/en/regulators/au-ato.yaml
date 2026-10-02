@@ -1,0 +1,15 @@
+# Australian Taxation Office small business news.
+key: en.regulators.au_ato
+title:
+  ru: "ATO (Австралия) — налоги"
+  en: "Australian Taxation Office"
+market: en
+countries: [AU]
+applies_to: home
+kind: regulator
+sources:
+  - label: "ATO small business"
+    type: query
+    url: "https://news.google.com/rss/search?q=%22Australian%20Taxation%20Office%22%20OR%20ATO%20small%20business%20GST%20change&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 720
+max_cards_per_digest: 1

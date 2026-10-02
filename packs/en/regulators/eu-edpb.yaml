@@ -1,0 +1,15 @@
+# EDPB: GDPR guidance and decisions.
+key: en.regulators.eu_edpb
+title:
+  ru: "EDPB (ЕС) — GDPR"
+  en: "EDPB — GDPR guidance"
+market: en
+countries: [AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE]
+applies_to: sales
+kind: regulator
+sources:
+  - label: "EDPB news"
+    type: feed
+    url: "https://www.edpb.europa.eu/feed/news_en"
+    interval_minutes: 720
+max_cards_per_digest: 1

@@ -1,0 +1,15 @@
+# vc.ru — бизнес и сервисы.
+key: ru.media.vc
+title:
+  ru: "vc.ru — бизнес и сервисы"
+  en: "vc.ru — business and services"
+market: ru
+countries: [RU]
+kind: media
+niches: [saas, ecommerce, agency, marketplace_seller]
+sources:
+  - label: "vc.ru — все материалы"
+    type: feed
+    url: "https://vc.ru/rss/all"
+    interval_minutes: 120
+max_cards_per_digest: 1

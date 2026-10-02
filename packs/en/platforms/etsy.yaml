@@ -1,0 +1,18 @@
+# Etsy seller fee and policy changes.
+key: en.platforms.etsy
+title:
+  ru: "Etsy — правила для продавцов"
+  en: "Etsy — seller fees and policy"
+market: en
+countries: ["*"]
+applies_to: sales
+kind: platform
+applies_when:
+  platforms_any: ["etsy"]
+  niches_any: []
+sources:
+  - label: "Seller news"
+    type: query
+    url: "https://news.google.com/rss/search?q=Etsy%20sellers%20fees%20OR%20policy%20OR%20changes&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 240
+max_cards_per_digest: 2

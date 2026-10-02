@@ -1,0 +1,15 @@
+# UK Department for Business and Trade.
+key: en.regulators.uk_dbt
+title:
+  ru: "DBT (Великобритания) — бизнес и торговля"
+  en: "UK Department for Business and Trade"
+market: en
+countries: [GB]
+applies_to: home
+kind: regulator
+sources:
+  - label: "DBT on GOV.UK"
+    type: feed
+    url: "https://www.gov.uk/government/organisations/department-for-business-and-trade.atom"
+    interval_minutes: 720
+max_cards_per_digest: 1

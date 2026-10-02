@@ -1,0 +1,15 @@
+# India GST and digital business rules.
+key: en.regulators.in_gst
+title:
+  ru: "Индия — GST и цифровой бизнес"
+  en: "India — GST and digital rules"
+market: en
+countries: [IN]
+applies_to: home
+kind: regulator
+sources:
+  - label: "India GST"
+    type: query
+    url: "https://news.google.com/rss/search?q=India%20GST%20council%20e-commerce%20OR%20%22online%20sellers%22%20OR%20startups&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 720
+max_cards_per_digest: 1

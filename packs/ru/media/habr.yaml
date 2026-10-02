@@ -1,0 +1,15 @@
+# Хабр — новости IT.
+key: ru.media.habr
+title:
+  ru: "Хабр — новости IT"
+  en: "Habr — IT news"
+market: ru
+countries: [RU]
+kind: media
+niches: [saas, mobile_app]
+sources:
+  - label: "Хабр — новости"
+    type: feed
+    url: "https://habr.com/ru/rss/news/"
+    interval_minutes: 120
+max_cards_per_digest: 1

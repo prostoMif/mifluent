@@ -1,0 +1,15 @@
+# IRS news for small businesses.
+key: en.regulators.irs_small_business
+title:
+  ru: "IRS (США) — налоги для малого бизнеса"
+  en: "IRS — small business tax news"
+market: en
+countries: [US]
+applies_to: home
+kind: regulator
+sources:
+  - label: "IRS small business"
+    type: query
+    url: "https://news.google.com/rss/search?q=IRS%20%22small%20business%22%20OR%20%22self-employed%22%20tax%20change&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 720
+max_cards_per_digest: 1

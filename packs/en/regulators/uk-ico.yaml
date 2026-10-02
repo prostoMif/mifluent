@@ -1,0 +1,15 @@
+# UK ICO data protection news.
+key: en.regulators.uk_ico
+title:
+  ru: "ICO (Великобритания) — защита данных"
+  en: "UK ICO — data protection"
+market: en
+countries: [GB]
+applies_to: sales
+kind: regulator
+sources:
+  - label: "ICO news"
+    type: query
+    url: "https://news.google.com/rss/search?q=%22Information%20Commissioner%22%20ICO%20data%20protection%20fine%20OR%20guidance&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 720
+max_cards_per_digest: 1

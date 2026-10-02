@@ -19,7 +19,17 @@ export const NICHES: NicheDictionary = {
   },
   marketplace_seller: {
     aliases: {
-      ru: ["селлер", "продавец", "маркетплейс", "маркетплейсы", "wildberries", "ozon", "вб"],
+      ru: [
+        "селлер",
+        "продавец",
+        "маркетплейс",
+        "маркетплейсы",
+        "маркетплейсах",
+        "маркетплейсе",
+        "wildberries",
+        "ozon",
+        "вб",
+      ],
       en: ["seller", "marketplace", "amazon seller", "etsy shop", "fba"],
     },
   },

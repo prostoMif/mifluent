@@ -1,0 +1,17 @@
+# Chrome extension and web platform policy news.
+key: en.platforms.chrome_web_store
+title:
+  ru: "Chrome — платформа и политика расширений"
+  en: "Chrome — platform and extension policy"
+market: en
+countries: ["*"]
+kind: platform
+applies_when:
+  platforms_any: ["chrome", "chrome web store", "chrome extension"]
+  niches_any: []
+sources:
+  - label: "Chrome for Developers blog"
+    type: feed
+    url: "https://developer.chrome.com/static/blog/feed.xml"
+    interval_minutes: 720
+max_cards_per_digest: 1

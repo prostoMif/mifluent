@@ -1,0 +1,17 @@
+# Paddle and merchant-of-record changes.
+key: en.platforms.paddle
+title:
+  ru: "Paddle — изменения"
+  en: "Paddle — changes"
+market: en
+countries: ["*"]
+kind: platform
+applies_when:
+  platforms_any: ["paddle", "lemon squeezy", "lemonsqueezy"]
+  niches_any: [saas]
+sources:
+  - label: "Paddle news"
+    type: query
+    url: "https://news.google.com/rss/search?q=Paddle%20%22merchant%20of%20record%22%20OR%20pricing%20OR%20fees&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 240
+max_cards_per_digest: 1

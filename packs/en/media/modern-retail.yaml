@@ -1,0 +1,15 @@
+# Modern Retail — e-commerce.
+key: en.media.modern_retail
+title:
+  ru: "Modern Retail — e-commerce"
+  en: "Modern Retail"
+market: en
+countries: ["*"]
+kind: niche_media
+niches: [ecommerce, marketplace_seller]
+sources:
+  - label: "Modern Retail"
+    type: feed
+    url: "https://www.modernretail.co/feed/"
+    interval_minutes: 360
+max_cards_per_digest: 1

@@ -1,0 +1,17 @@
+# Изменения Prodamus.
+key: ru.platforms.prodamus
+title:
+  ru: "Prodamus — изменения"
+  en: "Prodamus — changes"
+market: ru
+countries: [RU]
+kind: platform
+applies_when:
+  platforms_any: ["prodamus", "продамус"]
+  niches_any: [edtech]
+sources:
+  - label: "Новости Prodamus"
+    type: query
+    url: "https://news.google.com/rss/search?q=Prodamus%20OR%20%D0%9F%D1%80%D0%BE%D0%B4%D0%B0%D0%BC%D1%83%D1%81%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B%20OR%20%D0%BA%D0%BE%D0%BC%D0%B8%D1%81%D1%81%D0%B8%D1%8F&hl=ru&gl=RU&ceid=RU:ru"
+    interval_minutes: 240
+max_cards_per_digest: 1

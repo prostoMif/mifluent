@@ -1,0 +1,15 @@
+# US FTC press releases.
+key: en.regulators.ftc
+title:
+  ru: "FTC (США) — пресс-релизы"
+  en: "US FTC — press releases"
+market: en
+countries: [US]
+applies_to: sales
+kind: regulator
+sources:
+  - label: "FTC news (ftc.gov refuses automated readers)"
+    type: query
+    url: "https://news.google.com/rss/search?q=FTC%20%22Federal%20Trade%20Commission%22%20rule%20OR%20settlement%20OR%20guidance%20business&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 360
+max_cards_per_digest: 2

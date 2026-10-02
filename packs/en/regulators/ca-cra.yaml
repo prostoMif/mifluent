@@ -1,0 +1,15 @@
+# Canada Revenue Agency small business news.
+key: en.regulators.ca_cra
+title:
+  ru: "CRA (Канада) — налоги"
+  en: "Canada Revenue Agency — taxes"
+market: en
+countries: [CA]
+applies_to: home
+kind: regulator
+sources:
+  - label: "CRA small business"
+    type: query
+    url: "https://news.google.com/rss/search?q=%22Canada%20Revenue%20Agency%22%20small%20business%20OR%20GST%20OR%20HST%20change&hl=en-US&gl=US&ceid=US:en"
+    interval_minutes: 720
+max_cards_per_digest: 1

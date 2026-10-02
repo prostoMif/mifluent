@@ -1,0 +1,15 @@
+# Bundesnetzagentur news.
+key: en.regulators.de_bnetza
+title:
+  ru: "Bundesnetzagentur (Германия)"
+  en: "German Federal Network Agency"
+market: en
+countries: [DE]
+applies_to: home
+kind: regulator
+sources:
+  - label: "Bundesnetzagentur — Aktuelles"
+    type: feed
+    url: "https://www.bundesnetzagentur.de/SiteGlobals/Functions/RSSFeed/DE/RSSNewsfeed/RSSNewsfeed_Aktuelles.xml"
+    interval_minutes: 720
+max_cards_per_digest: 1
