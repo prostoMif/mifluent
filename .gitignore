@@ -73,3 +73,8 @@ desktop.ini
 # must stay in the repository despite the pattern above.
 !.env.example
 !.env.production.example
+
+# Owner outreach output (contacts of real businesses)
+leads-out/
+demo-briefs/
+*.2gis.csv
