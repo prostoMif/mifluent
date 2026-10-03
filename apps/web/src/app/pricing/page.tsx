@@ -51,8 +51,8 @@ export default async function PricingPage({ searchParams }: PageProps) {
       <h1 className={styles["pageTitle"]}>{language === "ru" ? "Тарифы" : "Pricing"}</h1>
       <p className={styles["pageLead"]}>
         {language === "ru"
-          ? "14 дней Pro бесплатно, без карты. Бесплатный тариф — 3 цели и сводка раз в неделю, навсегда."
-          : "14 days of Pro free, no card. The free plan — 3 targets and a weekly digest — is free for good."}
+          ? "Бесплатный тариф — 3 цели и сводка раз в неделю, навсегда и без карты."
+          : "The free plan — 3 targets and a weekly digest — is free for good, no card."}
       </p>
       <PlanPicker
         language={language}

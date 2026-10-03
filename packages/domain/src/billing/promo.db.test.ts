@@ -245,6 +245,11 @@ describe("promo codes, referrals and partners against a real database", () => {
     async () => {
       const { db } = database;
       const inviter = await createTenant(db);
+      // New accounts start with no trial; this inviter has one from a promo code.
+      await db
+        .update(schema.tenants)
+        .set({ trialEndsAt: new Date(NOW.getTime() + 14 * DAY_MS) })
+        .where(eq(schema.tenants.id, inviter.tenantId));
       const code = await getReferralCode(db, inviter.tenantId);
       const friend = await createTenant(db);
       await recordAcquisition(

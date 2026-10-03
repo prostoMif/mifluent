@@ -48,12 +48,11 @@ export const tenants = pgTable(
      */
     plan: text("plan").notNull().default("free"),
     /**
-     * Until when a new account gets Pro without paying. Set by the database on
-     * insert, so every way a tenant is created gets the same trial.
+     * Until when this account gets Pro without paying. A new account starts
+     * with none (decision 2026-10-03: no free trial, the Free plan is the way
+     * in); a promo code or a friend's link moves it forward.
      */
-    trialEndsAt: timestamp("trial_ends_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now() + interval '14 days'`),
+    trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }).notNull().default(sql`now()`),
     /**
      * Where this customer came from: "organic", "code" (a promo or partner
      * code) or "referral" (a friend's link). Set once, at sign-up; the

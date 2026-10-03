@@ -67,7 +67,7 @@ const TEXT = {
     early: (left: number) => `Early price for the first 100 Pro accounts — ${left} left`,
     buy: "Choose",
     start: "Start free",
-    notYet: "Payments open soon. Everyone gets 14 days of Pro free.",
+    notYet: "Payments open soon. The free plan works now.",
     campaign: (percent: number, until: string) => `−${percent}% on a year, until ${until}`,
     codeLabel: "Promo code",
     apply: "Apply",
@@ -107,7 +107,8 @@ const TEXT = {
     early: (left: number) => `Ранняя цена для первых 100 на Pro — осталось ${left}`,
     buy: "Выбрать",
     start: "Начать бесплатно",
-    notYet: "Оплата откроется скоро. Всем — 14 дней Pro бесплатно.",
+    notYet:
+      "Оплата картой — по ссылке: напиши владельцу в Telegram. Бесплатный тариф работает уже сейчас.",
     campaign: (percent: number, until: string) => `−${percent}% на год до ${until}`,
     codeLabel: "Промокод",
     apply: "Применить",

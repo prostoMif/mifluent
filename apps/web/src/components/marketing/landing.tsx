@@ -63,7 +63,7 @@ export function Landing({ botUsername, githubStars, earlySeatsLeft, contactEmail
             </button>
           </form>
           <p className={styles["small"]}>
-            14 days of Pro free, no card. By email, Telegram or in the app.
+            Free plan, no card. By email, Telegram or in the app.
             {botUsername === undefined ? null : (
               <>
                 {" "}

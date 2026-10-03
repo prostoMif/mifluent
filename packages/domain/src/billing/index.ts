@@ -6,6 +6,7 @@ export {
   partnersReport,
   recordPartnerEarning,
 } from "./affiliate.js";
+export { type CustomerRow, findCustomers } from "./customers.js";
 export {
   addMonths,
   applyPaymentNotification,
@@ -17,6 +18,7 @@ export {
   createOrder,
   expirePaidPlans,
   getBillingStatus,
+  grantManualPayment,
   isEarlyEligible,
   listTrialReminders,
   type NotificationOutcome,

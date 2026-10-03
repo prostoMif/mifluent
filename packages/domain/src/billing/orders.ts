@@ -154,6 +154,8 @@ export interface PaymentNotification {
   /** What the provider says was paid, in minor units. */
   readonly paidAmountMinor: number;
   readonly payload: Record<string, unknown>;
+  /** Who sent it; "prodamus" when not given. */
+  readonly provider?: string | undefined;
 }
 
 /**
@@ -183,7 +185,7 @@ export async function applyPaymentNotification(
       .insert(schema.billingEvents)
       .values({
         id: uuidv7(),
-        provider: "prodamus",
+        provider: notification.provider ?? "prodamus",
         providerEventKey: notification.eventKey,
         orderId: order?.id ?? null,
         payload: notification.payload,
@@ -228,6 +230,56 @@ export async function applyPaymentNotification(
     await recordPartnerEarning(transaction, order, now);
     return "applied";
   });
+}
+
+/**
+ * A payment the owner took outside the site — a ЮKassa payment link, a bank
+ * transfer — recorded as a real paid order. Going through the same
+ * notification path means paid time, renewals, expiry back to Free, the
+ * early-seat count and referral rewards all behave exactly as for a payment
+ * made on the site.
+ */
+export async function grantManualPayment(
+  db: Queryable,
+  input: {
+    readonly tenantId: string;
+    readonly plan: PaidPlan;
+    readonly months: TermMonths;
+    /** What the person actually paid, in kopecks or cents. */
+    readonly amountMinor: number;
+    readonly currency: Currency;
+    readonly isEarly?: boolean | undefined;
+    readonly now?: Date | undefined;
+  },
+): Promise<string> {
+  const now = input.now ?? new Date();
+  const orderId = uuidv7();
+  await db.insert(schema.paymentOrders).values({
+    id: orderId,
+    tenantId: input.tenantId,
+    plan: input.plan,
+    months: input.months,
+    amountMinor: input.amountMinor,
+    currency: input.currency,
+    isEarly: input.isEarly ?? false,
+    provider: "manual",
+  });
+  const outcome = await applyPaymentNotification(
+    db,
+    {
+      provider: "manual",
+      eventKey: `manual:${orderId}`,
+      orderId,
+      isPaid: true,
+      paidAmountMinor: input.amountMinor,
+      payload: { source: "owner" },
+    },
+    now,
+  );
+  if (outcome !== "applied") {
+    throw new AppError("internal_error", `Manual payment was not applied: ${outcome}.`);
+  }
+  return orderId;
 }
 
 /**

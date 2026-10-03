@@ -11,6 +11,7 @@ import {
   confirmRefund,
   createOrder,
   expirePaidPlans,
+  grantManualPayment,
   listTrialReminders,
   requestRefund,
 } from "./orders.js";
@@ -332,4 +333,59 @@ describe("effectivePlan", () => {
       effectivePlan({ plan: "starter", trialEndsAt: new Date(NOW.getTime() + DAY_MS) }, NOW),
     ).toBe("starter");
   });
+});
+
+describe("payments taken by hand", () => {
+  let database: TestDatabase;
+
+  beforeEach(async () => {
+    database = await createTestDatabase();
+  }, DATABASE_TIMEOUT);
+
+  afterEach(async () => {
+    await database.close();
+  });
+
+  it(
+    "starts a new account on Free, with no trial",
+    async () => {
+      const { db } = database;
+      const { tenantId } = await createTenant(db);
+      const [row] = await db
+        .select({ plan: schema.tenants.plan, trialEndsAt: schema.tenants.trialEndsAt })
+        .from(schema.tenants)
+        .where(eq(schema.tenants.id, tenantId));
+
+      expect(effectivePlan(row, new Date(Date.now() + 1000))).toBe("free");
+    },
+    DATABASE_TIMEOUT,
+  );
+
+  it(
+    "records the amount actually paid and switches the plan on for the term",
+    async () => {
+      const { db } = database;
+      const { tenantId } = await createTenant(db);
+
+      const orderId = await grantManualPayment(db, {
+        tenantId,
+        plan: "pro",
+        months: 12,
+        amountMinor: 199_000,
+        currency: "RUB",
+        now: NOW,
+      });
+
+      const [order] = await db
+        .select()
+        .from(schema.paymentOrders)
+        .where(eq(schema.paymentOrders.id, orderId));
+      expect(order?.provider).toBe("manual");
+      expect(order?.status).toBe("paid");
+      expect(order?.amountMinor).toBe(199_000);
+      expect(order?.periodEnd?.toISOString()).toBe(addMonths(NOW, 12).toISOString());
+      expect(await tenantPlan(db, tenantId)).toBe("pro");
+    },
+    DATABASE_TIMEOUT,
+  );
 });
