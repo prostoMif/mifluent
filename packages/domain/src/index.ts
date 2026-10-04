@@ -98,6 +98,11 @@ export {
   type WatchedPagesAllowance,
 } from "./plans/limits.js";
 export {
+  type AddCompetitorsOptions,
+  addCompetitors,
+  type NewCompetitor,
+} from "./profiles/add-competitors.js";
+export {
   type DeliverySettings,
   deliverySettingsSchema,
   readDeliverySettings,

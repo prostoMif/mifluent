@@ -15,13 +15,14 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getConfig } from "@mifluent/core";
 import { createLlmClient } from "@mifluent/llm";
+import { fromCallerDir } from "./leads/caller-path.js";
 import { competitorPages } from "./leads/competitor-pages.js";
 import { pickFindings, renderMessage, renderOfferMessage } from "./leads/outreach.js";
 import { renderSendPage, type SendCard } from "./leads/send-page.js";
 import { competitorsFor, readTwoGisCsv } from "./leads/two-gis-csv.js";
 import { logger } from "./runtime.js";
 
-const OUT_DIR = "leads-out";
+const OUT_DIR = fromCallerDir("leads-out");
 
 interface Options {
   readonly file: string;
@@ -93,7 +94,7 @@ async function main(): Promise<void> {
     },
   });
 
-  const all = readTwoGisCsv(readFileSync(options.file, "utf8"));
+  const all = readTwoGisCsv(readFileSync(fromCallerDir(options.file), "utf8"));
   const leads = all
     .filter((lead) => lead.whatsapp !== null || lead.phone !== null || lead.email !== null)
     .slice(0, options.limit);

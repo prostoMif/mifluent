@@ -10,21 +10,18 @@
 
 import { toAppError } from "@mifluent/core";
 import { sendSignupFailure, sendSignupListing } from "@mifluent/delivery";
-import { createProber, discover, findTargetSurfaces } from "@mifluent/discovery";
+import { discover } from "@mifluent/discovery";
 import {
   assertCanRunDiscovery,
-  createSource,
   discoveryJobSchema,
   ensureAnonTenant,
   type FirstRunJob,
   firstRunJobSchema,
   getPendingOnboarding,
   listProfilePollableSources,
-  listTargetsWithoutSources,
   recordPendingDiscoveryFailure,
   updatePendingDiscoveryResult,
 } from "@mifluent/domain";
-import { loadProfileContext } from "@mifluent/pipeline";
 import type { PgBoss } from "pg-boss";
 import { pollSource } from "../poll-source.js";
 import { QUEUES, queueDelivery } from "../queue.js";
@@ -37,6 +34,7 @@ import {
   USER_AGENT,
 } from "../runtime.js";
 import { buildDigestNow, embedTenant, extractProfile, selectProfile } from "../steps.js";
+import { findSourcesForManualTargets } from "./manual-target-sources.js";
 
 export async function registerOnboardingJobs(boss: PgBoss): Promise<void> {
   await boss.work(QUEUES.discoveryRun, async ([job]) => {
@@ -137,49 +135,6 @@ async function runFirstRun(
     cards: digest.cardCount,
   });
   return { status: "completed", digestId: digest.digestId };
-}
-
-/**
- * A competitor added by hand has a site and nothing else. The same heuristics
- * discovery uses find where to watch it, and every verified surface becomes a
- * source before the first poll.
- */
-async function findSourcesForManualTargets(ref: FirstRunJob): Promise<void> {
-  const db = getDatabase();
-  const targets = await listTargetsWithoutSources(db, ref.tenantId, ref.profileId);
-  if (targets.length === 0) return;
-
-  const context = await loadProfileContext(db, ref.tenantId, ref.profileId);
-  const prober = createProber({
-    userAgent: USER_AGENT,
-    logger,
-    allowedInternalHost: getRsshubHostname(),
-  });
-
-  for (const target of targets) {
-    const surfaces = await findTargetSurfaces(target, {
-      prober,
-      language: context?.language ?? "en",
-    });
-    for (const surface of surfaces.filter((candidate) => candidate.verified)) {
-      await createSource({
-        db,
-        tenantId: ref.tenantId,
-        profileId: ref.profileId,
-        targetId: target.id,
-        input: {
-          kind: surface.type === "diff" ? "diff" : surface.type === "json" ? "json" : "rss",
-          label: `${target.name} — ${surface.label}`.slice(0, 120),
-          locator: surface.url,
-          pollIntervalMinutes: surface.pollIntervalMinutes,
-        },
-      }).catch((thrown: unknown) => {
-        // A duplicate of a source the profile already has is fine to skip;
-        // anything else is logged and the run goes on with what it has.
-        logger.warn("profile.surface_skipped", { ...ref, code: toAppError(thrown).code });
-      });
-    }
-  }
 }
 
 function failure(

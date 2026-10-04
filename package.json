@@ -42,6 +42,7 @@
     "packs:verify": "npm run build && npm run packs:verify --workspace @mifluent/worker",
     "billing:refund": "npm run build && npm run billing:refund --workspace @mifluent/worker --",
     "leads:brief": "npm run build && npm run leads:brief --workspace @mifluent/worker --",
+    "leads:competitors": "npm run build && npm run leads:competitors --workspace @mifluent/worker --",
     "billing:grant": "npm run build && npm run billing:grant --workspace @mifluent/worker --",
     "partners:report": "npm run build && npm run partners:report --workspace @mifluent/worker --",
     "partners:add": "npm run build && npm run partners:add --workspace @mifluent/worker --",

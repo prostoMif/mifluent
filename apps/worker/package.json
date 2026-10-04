@@ -20,6 +20,7 @@
     "packs:verify": "node --env-file-if-exists=../../.env --import tsx src/packs-verify.ts",
     "billing:refund": "node --env-file-if-exists=../../.env --import tsx src/billing-refund.ts",
     "leads:brief": "node --env-file-if-exists=../../.env --import tsx src/leads-brief.ts",
+    "leads:competitors": "node --env-file-if-exists=../../.env --import tsx src/leads-competitors.ts",
     "demo:brief": "node --env-file-if-exists=../../.env --import tsx src/demo-brief.ts",
     "billing:grant": "node --env-file-if-exists=../../.env --import tsx src/billing-grant.ts",
     "partners:report": "node --env-file-if-exists=../../.env --import tsx src/partners.ts report",

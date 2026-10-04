@@ -27,6 +27,8 @@ first, in plain language.
 
 ### Fixed
 
+- `leads:brief` reads the export and writes `leads-out/` relative to the
+  folder the command was typed in, not `apps/worker/`.
 - **Mini App sign-in is a Better Auth endpoint** (`/api/auth/telegram-webapp/sign-in`)
   instead of a route that wrote Better Auth's session cookie by hand; the
   cookie name, prefix and signature now come from the library and survive its
@@ -58,8 +60,12 @@ first, in plain language.
 
 - `npm run account:delete` — erase a customer's business and data on request,
   as the privacy policy promises.
-- Every ЮKassa payment sends the owner a Telegram reminder to file the receipt
-  in «Мой налог».
+- Every ЮKassa payment sends the owner a Telegram message; ЮKassa files the
+  receipt in «Мой налог».
+- `npm run leads:competitors -- <export.csv> "<customer>" <tenantId>` — adds a
+  customer's competitors from a 2GIS export (parser-2gis): same city and
+  category, with a site. The plan's limit holds, and their sites are probed for
+  sources at once. `--dry-run` shows the list without writing.
 - `leads:brief` writes a first message without a price (a sales offer sent
   without consent is advertising under 38-ФЗ) and the offer for those who
   reply, in `leads-out/reply-to-yes.txt`.
