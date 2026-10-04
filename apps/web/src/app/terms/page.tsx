@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { getOperator, legalLanguage } from "@/lib/legal";
 
+// The operator's details come from the environment of the running server, not
+// from the build.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = { title: "Оферта / Terms" };
 
 const EDITION = "4 октября 2026 г.";
