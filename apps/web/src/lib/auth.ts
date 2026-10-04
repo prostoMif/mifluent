@@ -21,6 +21,7 @@
  */
 
 import { getConfig } from "@mifluent/core";
+import { schema } from "@mifluent/db";
 import {
   assertRegistrationAllowed,
   attachUserToInstance,
@@ -34,11 +35,13 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { magicLink } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
 import { PROMO_COOKIE_NAME, REFERRAL_COOKIE_NAME } from "./acquisition-cookie";
 import { getDatabase } from "./db";
 import { INVITE_COOKIE_NAME } from "./invitation-cookie";
 import { logger } from "./logger";
 import { isEmailConfigured, sendEmail } from "./mailer";
+import { telegramWebApp } from "./telegram-webapp-plugin";
 
 const HOUR_IN_SECONDS = 60 * 60;
 const DAY_IN_SECONDS = 24 * HOUR_IN_SECONDS;
@@ -90,6 +93,7 @@ export const authOptions = {
       "/sign-up/email": { window: 3600, max: 5 },
       "/request-password-reset": { window: 3600, max: 3 },
       "/reset-password": { window: 3600, max: 5 },
+      "/telegram-webapp/sign-in": { window: 60, max: 10 },
     },
   },
 } as const;
@@ -116,6 +120,7 @@ function createAuth() {
     trustedOrigins: [config.APP_URL],
 
     plugins: [
+      telegramWebApp({ findUserIdByTelegram }),
       magicLink({
         sendMagicLink: async ({ email, url }) => {
           if (!isEmailConfigured()) {
@@ -416,4 +421,14 @@ let instance: ReturnType<typeof createAuth> | undefined;
 export function getAuth(): ReturnType<typeof createAuth> {
   instance ??= createAuth();
   return instance;
+}
+
+/** The account the bot linked to this Telegram user, if any. */
+async function findUserIdByTelegram(telegramUserId: number): Promise<string | undefined> {
+  const [user] = await getDatabase()
+    .select({ id: schema.user.id })
+    .from(schema.user)
+    .where(eq(schema.user.telegramUserId, String(telegramUserId)))
+    .limit(1);
+  return user?.id;
 }

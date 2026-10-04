@@ -27,6 +27,13 @@ first, in plain language.
 
 ### Fixed
 
+- **Mini App sign-in is a Better Auth endpoint** (`/api/auth/telegram-webapp/sign-in`)
+  instead of a route that wrote Better Auth's session cookie by hand; the
+  cookie name, prefix and signature now come from the library and survive its
+  upgrades. Rate-limited to 10 a minute.
+- `drizzle-orm` 0.45.3 (SQL injection through unescaped identifiers,
+  GHSA-gpj5-g38j-94v9) and `sharp` 0.35.5 (libvips/libheif advisories).
+- The RSSHub image is pinned by date and digest instead of `latest`.
 - A clean checkout now builds: `@mifluent/domain` no longer imports
   `@mifluent/digest` (the time-zone check moved to `@mifluent/core`), and
   `digest` and `delivery` declare the packages they use. Before, `tsc --build`

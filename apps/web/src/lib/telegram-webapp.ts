@@ -20,7 +20,6 @@
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { AppError, getConfig } from "@mifluent/core";
-import { eq } from "drizzle-orm";
 
 export interface TelegramWebAppUser {
   readonly id: number;
@@ -143,50 +142,4 @@ export async function verifyInitData(initData: string): Promise<TelegramWebAppIn
   }
 
   return parsed;
-}
-
-/**
- * Find or create a user by Telegram user ID and create a session for them.
- *
- * This is called after successful initData verification. It looks up the user
- * by `telegram_user_id` in the database. If found, it creates a Better Auth
- * session and returns the session token. If not found, it throws an error
- * indicating the user must start with the bot first.
- */
-export async function createSessionFromTelegramUser(
-  telegramUserId: number,
-): Promise<{ sessionToken: string; userId: string }> {
-  const { getDatabase } = await import("@/lib/db");
-  const { getAuth } = await import("@/lib/auth");
-  const { schema } = await import("@mifluent/db");
-
-  const db = getDatabase();
-
-  // Find user by telegram_user_id
-  const [user] = await db
-    .select({ id: schema.user.id })
-    .from(schema.user)
-    .where(eq(schema.user.telegramUserId, String(telegramUserId)))
-    .limit(1);
-
-  if (!user) {
-    throw new AppError(
-      "unauthorized",
-      "No account linked to this Telegram user. Start with the bot first.",
-      {
-        code: "no_account",
-      },
-    );
-  }
-
-  // Create a session using Better Auth's internal adapter
-  const auth = getAuth();
-  const authContext = await auth.$context;
-  const session = await authContext.internalAdapter.createSession(user.id, false);
-
-  if (!session?.token) {
-    throw new AppError("internal_error", "Failed to create session.");
-  }
-
-  return { sessionToken: session.token, userId: user.id };
 }

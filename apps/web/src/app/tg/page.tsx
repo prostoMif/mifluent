@@ -99,7 +99,7 @@ async function authenticateWithServer(
 ): Promise<void> {
   setState("authenticating");
   try {
-    const response = await fetch("/api/telegram/webapp-auth", {
+    const response = await fetch("/api/auth/telegram-webapp/sign-in", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ initData: webApp.initData }),
@@ -111,10 +111,10 @@ async function authenticateWithServer(
     if (response.ok && data.ok) {
       router.push(data.redirect || "/today");
       router.refresh();
-    } else if (response.status === 401 && data.error?.details?.code === "no_account") {
+    } else if (response.status === 401 && data.code === "NO_ACCOUNT") {
       setState("no_account");
     } else {
-      setErrorMessage(data.error?.message || "Authentication failed. Please try again.");
+      setErrorMessage(data.message || "Authentication failed. Please try again.");
       setState("error");
     }
   } catch {
