@@ -1,0 +1,1 @@
+ALTER TABLE "payment_orders" ALTER COLUMN "provider" SET DEFAULT 'yookassa';

@@ -10,6 +10,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pages: MetadataRoute.Sitemap = [
     { url: `${base}/`, changeFrequency: "weekly" },
     { url: `${base}/pricing`, changeFrequency: "monthly" },
+    { url: `${base}/terms`, changeFrequency: "yearly" },
+    { url: `${base}/privacy`, changeFrequency: "yearly" },
+    { url: `${base}/contacts`, changeFrequency: "yearly" },
   ];
   const tenantId = radarTenantId();
   if (tenantId === undefined) return pages;

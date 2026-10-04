@@ -7,6 +7,35 @@ Sized for a VPS with 1 CPU and 4 GiB of memory (Ubuntu 24.04). The containers
 are limited to about 2.5 GB together — database 512 MB, web 768 MB, worker 1 GB,
 Caddy and backups 128 MB each — leaving the rest to the system.
 
+## Hosting in Russia
+
+The hosted service for Russian customers runs on a server **in the Russian
+Federation**: 152-ФЗ (ст. 18 ч. 5) requires the personal data of Russian
+citizens to be recorded in databases located in Russia, and `/privacy` says so.
+What that changes:
+
+- **Models.** OpenAI, Anthropic, Gemini and DeepSeek do not serve Russian IP
+  addresses. Point `LLM_BASE_URL` at a Russian intermediary with an
+  OpenAI-compatible endpoint (for example ProxyAPI) and set `LLM_PRICE_*` in
+  USD per million tokens at today's rate — the worker refuses to start in
+  production while they are 0, because the daily cost cap is computed from them.
+- **Payments.** ЮKassa: `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`, and in the
+  ЮKassa dashboard the HTTP notification URL
+  `https://<PUBLIC_HOST>/api/billing/yookassa` with the events
+  `payment.succeeded` and `payment.canceled`. Receipts in «Мой налог» are
+  filed by ЮKassa; the owner also gets a Telegram message for every payment.
+- **The operator's details.** `OPERATOR_NAME`, `OPERATOR_INN`,
+  `OPERATOR_TELEGRAM`, `FEEDBACK_EMAIL` — shown on `/terms`, `/privacy` and
+  `/contacts`, which ЮKassa's moderation checks.
+- **Роскомнадзор.** 152-ФЗ (art. 22) requires anyone who stores customers'
+  personal data — email, Telegram id, name — to notify Роскомнадзор before
+  starting, самозанятые included. It is a free online form at pd.rkn.gov.ru
+  (sign in with Госуслуги), not a permission to wait for; the server address
+  goes in it. Skipping it is a fine under КоАП 19.7.
+- **The embedding model** (~120 MB from huggingface.co) is downloaded on the
+  first start. If the server cannot reach it, copy the `models` volume from a
+  machine that can.
+
 ## From a clean server to the first digest
 
 1. **Install Docker.**
@@ -113,11 +142,18 @@ docker compose exec backup mifluent-backup --now
 docker compose exec backup ls -l /backups
 ```
 
-Copy them off the server regularly — a backup on the same disk as the
-database does not survive losing the disk:
+Copy them off the server — a backup on the same disk as the database does not
+survive losing the disk. On the server:
 
 ```sh
 docker compose cp backup:/backups ./backups-$(date +%F)
+```
+
+Better, every night from your own computer (`crontab -e`), so the copy does
+not depend on remembering:
+
+```sh
+15 4 * * * ssh user@server 'cd mifluent && docker compose exec -T backup sh -c "cat /backups/\$(ls -t /backups | head -1)"' > ~/mifluent-backups/mifluent-$(date +\%F).sql.gz.enc
 ```
 
 Keep `BACKUP_PASSPHRASE` somewhere else than the copies.

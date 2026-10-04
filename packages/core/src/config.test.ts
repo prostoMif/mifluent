@@ -142,3 +142,35 @@ describe("blank variables", () => {
     expect(config.DAILY_COST_CAP_USD).toBe(1);
   });
 });
+
+describe("model prices in production", () => {
+  const WITH_MODEL = {
+    ...VALID,
+    NODE_ENV: "production",
+    LLM_API_KEY: "sk-test",
+    LLM_MODEL_CHEAP: "cheap-model",
+    LLM_MODEL_DEEP: "deep-model",
+  };
+  const PRICES = {
+    LLM_PRICE_CHEAP_IN: "0.14",
+    LLM_PRICE_CHEAP_OUT: "0.28",
+    LLM_PRICE_DEEP_IN: "0.14",
+    LLM_PRICE_DEEP_OUT: "0.28",
+  };
+
+  it("refuses to start with zero prices, because the cost cap would never trigger", () => {
+    expect(() => parseConfig(WITH_MODEL)).toThrow(/LLM_PRICE_CHEAP_IN/);
+  });
+
+  it("starts once every price is set", () => {
+    expect(parseConfig({ ...WITH_MODEL, ...PRICES }).features.llm).toBe(true);
+  });
+
+  it("allows zero prices when the cap itself is zero, which means no model calls at all", () => {
+    expect(() => parseConfig({ ...WITH_MODEL, DAILY_COST_CAP_USD: "0" })).not.toThrow();
+  });
+
+  it("does not insist outside production", () => {
+    expect(() => parseConfig({ ...WITH_MODEL, NODE_ENV: "development" })).not.toThrow();
+  });
+});

@@ -98,10 +98,24 @@ const TEXT = {
   },
 } as const;
 
+/**
+ * The offer and the consent to process personal data must be in front of a
+ * person before they send anything (152-ФЗ, ст. 9; ст. 437–438 ГК РФ):
+ * sending a site counts as accepting, so the links come with the first ask.
+ */
+function consentLine(language: "en" | "ru"): string {
+  const base = getConfig().APP_URL.replace(/\/+$/, "");
+  return language === "ru"
+    ? `Отправляя адрес, ты принимаешь оферту (${base}/terms) и соглашаешься на обработку данных по политике (${base}/privacy).`
+    : `By sending an address you accept the terms (${base}/terms) and the privacy policy (${base}/privacy).`;
+}
+
 export async function askForSite(context: SignupContext): Promise<void> {
   const text = TEXT[context.language];
   const isOpen = await isRegistrationOpenFor(context.db);
-  await context.api.sendMessage(context.chatId, { text: isOpen ? text.askSite : text.closed });
+  await context.api.sendMessage(context.chatId, {
+    text: isOpen ? `${text.askSite}\n\n${consentLine(context.language)}` : text.closed,
+  });
 }
 
 /** A message from someone with no account: their site, or a sentence about the business. */

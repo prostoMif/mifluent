@@ -11,6 +11,52 @@ first, in plain language.
 
 ## [Unreleased]
 
+### Breaking — manual steps when updating
+
+- **Payments moved from Prodamus to ЮKassa.** Remove `PRODAMUS_*` from `.env`
+  and set `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY` (and `YOOKASSA_ALLOW_USD`
+  only if the shop takes foreign currency). In the ЮKassa dashboard, set the
+  notification URL to `https://<host>/api/billing/yookassa` with the events
+  `payment.succeeded` and `payment.canceled`. Migration `0016` changes the
+  default payment provider; it runs on start.
+- **Production refuses to start with `LLM_PRICE_*` at 0** while a model is
+  configured and `DAILY_COST_CAP_USD` is above 0: the cap is computed from
+  those prices and never triggered before.
+- New optional settings for the legal pages: `OPERATOR_NAME`, `OPERATOR_INN`,
+  `OPERATOR_TELEGRAM`.
+
+### Fixed
+
+- A clean checkout now builds: `@mifluent/domain` no longer imports
+  `@mifluent/digest` (the time-zone check moved to `@mifluent/core`), and
+  `digest` and `delivery` declare the packages they use. Before, `tsc --build`
+  — and so `docker compose build` — failed on any machine without old `dist/`
+  folders.
+- CI runs on `master`, the branch the code lives on, and builds before testing.
+- The discovery cache matches the exact site: `https://a.ru` no longer returns
+  the cached result for `https://spa.ru`, and `%`/`_` in an address are literal.
+- Discovery retries once after a rate limit or an unavailable model instead of
+  failing the visitor's onboarding.
+- News and Reddit searches are polled every 4 hours instead of every hour, so
+  one server does not get blocked by Google for automated queries.
+- `/privacy` and `/terms` were English-only and named a server in Finland and
+  Finnish law. They are now the Russian offer and 152-ФЗ policy (with an
+  English summary): server in Russia, ЮKassa, refunds within 14 days. New
+  `/contacts` page; all three are in the sitemap.
+- The bot shows the offer and the privacy policy with its first question.
+- The landing page's comparison with Changeflow and its description of
+  marketplace sources match what the product actually does.
+
+### Added
+
+- `npm run account:delete` — erase a customer's business and data on request,
+  as the privacy policy promises.
+- Every ЮKassa payment sends the owner a Telegram reminder to file the receipt
+  in «Мой налог».
+- `leads:brief` writes a first message without a price (a sales offer sent
+  without consent is advertising under 38-ФЗ) and the offer for those who
+  reply, in `leads-out/reply-to-yes.txt`.
+
 ### Added
 
 - Repository foundation: contribution guide with CLA, code of conduct, security

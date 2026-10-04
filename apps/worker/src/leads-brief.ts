@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { getConfig } from "@mifluent/core";
 import { createLlmClient } from "@mifluent/llm";
 import { competitorPages } from "./leads/competitor-pages.js";
-import { pickFindings, renderMessage } from "./leads/outreach.js";
+import { pickFindings, renderMessage, renderOfferMessage } from "./leads/outreach.js";
 import { renderSendPage, type SendCard } from "./leads/send-page.js";
 import { competitorsFor, readTwoGisCsv } from "./leads/two-gis-csv.js";
 import { logger } from "./runtime.js";
@@ -113,7 +113,7 @@ async function main(): Promise<void> {
         )
       ).flat();
       const findings = await pickFindings(llm, lead, pages);
-      const message = renderMessage(lead, competitors, findings, link);
+      const message = renderMessage(lead, competitors, findings);
       cards.push({ lead, message, findings: findings.length });
       rows.push(
         [
@@ -138,9 +138,11 @@ async function main(): Promise<void> {
     writeFileSync(join(OUT_DIR, "index.html"), renderSendPage(cards));
     writeFileSync(join(OUT_DIR, "summary.csv"), `${rows.join("\n")}\n`);
   }
+  writeFileSync(join(OUT_DIR, "reply-to-yes.txt"), `${renderOfferMessage(link)}\n`);
 
   process.stderr.write(
-    `\nDone: ${cards.length} messages → ${OUT_DIR}/index.html · model cost $${costUsd.toFixed(3)}\n`,
+    `\nDone: ${cards.length} messages → ${OUT_DIR}/index.html · model cost $${costUsd.toFixed(3)}\n` +
+      `The offer with the price and link, for those who answer yes: ${OUT_DIR}/reply-to-yes.txt\n`,
   );
 }
 

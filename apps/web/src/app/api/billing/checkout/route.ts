@@ -1,6 +1,6 @@
 /**
- * Start a payment: create our order at today's price, and hand back the link
- * to the provider's payment page.
+ * Start a payment: create our order at today's price, create the ЮKassa
+ * payment for exactly that amount, and hand back the link to its payment page.
  *
  * // TODO: security review — payments
  */
@@ -11,8 +11,8 @@ import { z } from "zod";
 import { readJsonBody, route } from "@/lib/api";
 import { assertSameOrigin } from "@/lib/csrf";
 import { getDatabase } from "@/lib/db";
-import { buildPaymentLink } from "@/lib/prodamus";
 import { requireSessionWith } from "@/lib/session";
+import { createPayment, yookassaCredentials } from "@/lib/yookassa";
 
 const checkoutSchema = z.object({
   plan: z.enum(PAID_PLANS),
@@ -21,7 +21,7 @@ const checkoutSchema = z.object({
   promoCode: z.string().max(64).optional(),
 });
 
-const PLAN_TITLES = { starter: "Starter", pro: "Pro", team: "Team" } as const;
+const PLAN_TITLES = { starter: "Старт", pro: "Pro", team: "Команда" } as const;
 
 export async function POST(request: Request): Promise<Response> {
   return route({ event: "billing.checkout_started", status: 201 }, async () => {
@@ -30,14 +30,12 @@ export async function POST(request: Request): Promise<Response> {
     const input = parseOrThrow(checkoutSchema, await readJsonBody(request));
     const config = getConfig();
 
-    if (config.PRODAMUS_URL === undefined || config.PRODAMUS_SECRET === undefined) {
+    const credentials = yookassaCredentials(config);
+    if (credentials === undefined) {
       throw new AppError("payment_not_configured", "Payments are not switched on yet.");
     }
-    if (input.currency === "USD" && !config.PRODAMUS_FOREIGN_CARDS) {
-      throw new AppError(
-        "payment_not_configured",
-        "Card payments in dollars are not available yet.",
-      );
+    if (input.currency === "USD" && !config.YOOKASSA_ALLOW_USD) {
+      throw new AppError("payment_not_configured", "Payments in dollars are not available yet.");
     }
 
     const { orderId, quote } = await createOrder(getDatabase(), {
@@ -49,16 +47,18 @@ export async function POST(request: Request): Promise<Response> {
       promoCode: input.promoCode?.trim() === "" ? undefined : input.promoCode,
     });
 
-    const url = buildPaymentLink({
-      shopUrl: config.PRODAMUS_URL,
+    const { confirmationUrl } = await createPayment(credentials, {
       orderId,
-      amount: quote.amountMinor / 100,
-      productName: `Mifluent ${PLAN_TITLES[quote.plan]}, ${quote.months} mo`,
-      customerEmail: session.email,
-      notificationUrl: `${config.APP_URL}/api/billing/prodamus`,
-      successUrl: `${config.APP_URL}/settings?paid=1`,
-      returnUrl: `${config.APP_URL}/pricing`,
+      amountMinor: quote.amountMinor,
+      currency: quote.currency,
+      description: `Mifluent ${PLAN_TITLES[quote.plan]}, ${quote.months} мес., заказ ${orderId}`,
+      returnUrl: `${config.APP_URL}/settings?paid=1`,
     });
-    return { orderId, url, amountMinor: quote.amountMinor, currency: quote.currency };
+    return {
+      orderId,
+      url: confirmationUrl,
+      amountMinor: quote.amountMinor,
+      currency: quote.currency,
+    };
   });
 }

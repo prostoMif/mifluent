@@ -46,7 +46,8 @@
     "partners:report": "npm run build && npm run partners:report --workspace @mifluent/worker --",
     "partners:add": "npm run build && npm run partners:add --workspace @mifluent/worker --",
     "radar:sync": "npm run build && npm run radar:sync --workspace @mifluent/worker",
-    "build:web": "npm run build && scripts/build-web.sh"
+    "build:web": "npm run build && scripts/build-web.sh",
+    "account:delete": "npm run build && npm run account:delete --workspace @mifluent/worker --"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",

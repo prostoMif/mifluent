@@ -9,6 +9,8 @@
     { "path": "../core" },
     { "path": "../db" },
     { "path": "../digest" },
-    { "path": "../domain" }
+    { "path": "../discovery" },
+    { "path": "../domain" },
+    { "path": "../sources" }
   ]
 }

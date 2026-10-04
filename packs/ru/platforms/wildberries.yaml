@@ -1,4 +1,6 @@
-# Изменения правил, комиссий и логистики Wildberries для продавцов.
+# Изменения правил, комиссий и логистики Wildberries для продавцов — по публикациям
+# СМИ и разборам (Google News). Сама оферта и новости кабинета продавца
+# доступны только после входа, поэтому напрямую не отслеживаются.
 key: ru.platforms.wildberries
 title:
   ru: "Wildberries — правила и комиссии для продавцов"
@@ -11,8 +13,8 @@ applies_when:
   platforms_any: [wildberries, вайлдберриз]
   niches_any: []
 sources:
-  - label: "Новости о правилах для продавцов"
+  - label: "Новости об изменениях для продавцов (по публикациям СМИ)"
     type: query
-    url: "https://news.google.com/rss/search?q=Wildberries%20%D0%BF%D1%80%D0%BE%D0%B4%D0%B0%D0%B2%D1%86%D1%8B&hl=ru&gl=RU&ceid=RU:ru"
+    url: "https://news.google.com/rss/search?q=Wildberries%20%28%D0%BE%D1%84%D0%B5%D1%80%D1%82%D0%B0%20OR%20%D0%BA%D0%BE%D0%BC%D0%B8%D1%81%D1%81%D0%B8%D1%8F%20OR%20%D0%BB%D0%BE%D0%B3%D0%B8%D1%81%D1%82%D0%B8%D0%BA%D0%B0%20OR%20%D1%88%D1%82%D1%80%D0%B0%D1%84%D1%8B%20OR%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%D1%8B%29%20%D0%BF%D1%80%D0%BE%D0%B4%D0%B0%D0%B2%D1%86%D0%BE%D0%B2&hl=ru&gl=RU&ceid=RU:ru"
     interval_minutes: 180
 max_cards_per_digest: 3

@@ -33,12 +33,19 @@ const STATUS_FEED_PATHS = ["/history.rss", "/history.atom"] as const;
 /** A page this short is a redirect notice or an error page, not something to diff. */
 const MIN_PAGE_TEXT = 200;
 
-/** Minutes. A day for pages that change on business time, a week for hiring. */
+/**
+ * Minutes. A day for pages that change on business time, a week for hiring.
+ *
+ * Searches (Google News, Reddit) every four hours: one server asks for every
+ * profile from one address, and Google answers frequent automated queries
+ * with 503 "automated access blocked". A news story is not worse for arriving
+ * a few hours later in a daily or weekly digest.
+ */
 const INTERVAL = {
   feed: 60,
   diff: 1_440,
   jobs: 10_080,
-  query: 60,
+  query: 240,
 } as const;
 
 /** Telegram channel username pattern: t.me/<username> or telegram.me/<username>, not private invite links. */

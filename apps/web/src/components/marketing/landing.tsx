@@ -215,6 +215,7 @@ export function Landing({ botUsername, githubStars, earlySeatsLeft, contactEmail
         <span>© Mifluent</span>
         <Link href="/privacy">Privacy</Link>
         <Link href="/terms">Terms</Link>
+        <Link href="/contacts">Contacts</Link>
         <a href={GITHUB_URL}>Self-host</a>
         {contactEmail === undefined ? null : <a href={`mailto:${contactEmail}`}>Contact</a>}
         {botUsername === undefined ? null : (
@@ -256,7 +257,7 @@ function perMonth(yearly: number): string {
 const FAQ: readonly { q: string; a: string }[] = [
   {
     q: "What does it watch?",
-    a: "Public pages only: pricing and plan pages, changelogs and blogs, job boards, app stores and marketplace rules, news and the regulators of your country. Nothing behind a login.",
+    a: "Public pages only: pricing and plan pages, changelogs and blogs, job boards, app store and payment platform policies, news about marketplace rules, and the regulators of your country. Nothing behind a login: a marketplace's own seller offer is followed through the news about it, not read from your seller account.",
   },
   {
     q: "Where do the sources come from?",
@@ -276,6 +277,6 @@ const FAQ: readonly { q: string; a: string }[] = [
   },
   {
     q: "How is this different from Visualping or Changeflow?",
-    a: "They tell you a page changed. Mifluent decides which pages to watch, reads the change, keeps only what matters to your business and quotes the source.",
+    a: "Visualping tells you a page changed; Changeflow summarises the change, but you bring the list of pages. Mifluent starts from your own site: it proposes who and what to watch, keeps only what matters to your business, and quotes the source for every line.",
   },
 ];

@@ -7,9 +7,8 @@
  * empty for no reason the person could see.
  */
 
-import { uuidv7 } from "@mifluent/core";
+import { isKnownZone, uuidv7 } from "@mifluent/core";
 import { type Database, schema, scopedAlive } from "@mifluent/db";
-import { isKnownZone } from "@mifluent/digest";
 import { eq } from "drizzle-orm";
 import { getMarket } from "../geo/countries.js";
 import { assertProfileWithinPlan, findTenantPlan } from "../plans/limits.js";

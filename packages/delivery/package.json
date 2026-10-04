@@ -21,7 +21,9 @@
     "@mifluent/core": "*",
     "@mifluent/db": "*",
     "@mifluent/digest": "*",
+    "@mifluent/discovery": "*",
     "@mifluent/domain": "*",
+    "@mifluent/sources": "*",
     "drizzle-orm": "^0.44.0",
     "zod": "^4.0.0"
   }

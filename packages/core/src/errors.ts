@@ -32,6 +32,7 @@ export type ErrorCode =
   | "token_expired"
   | "refund_window_closed"
   | "payment_not_configured"
+  | "payment_provider_failed"
   | "promo_code_invalid"
   // Configuration and everything else
   | "configuration_invalid"
@@ -64,6 +65,7 @@ const HTTP_STATUS_BY_CODE: Readonly<Record<ErrorCode, number>> = {
   token_expired: 401,
   refund_window_closed: 409,
   payment_not_configured: 503,
+  payment_provider_failed: 502,
   promo_code_invalid: 422,
 
   configuration_invalid: 500,

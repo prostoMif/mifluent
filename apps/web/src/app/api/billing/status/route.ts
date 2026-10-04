@@ -5,6 +5,7 @@ import { findTenantPlan, getBillingStatus } from "@mifluent/domain";
 import { route } from "@/lib/api";
 import { getDatabase } from "@/lib/db";
 import { requireSession } from "@/lib/session";
+import { isPaymentEnabled } from "@/lib/yookassa";
 
 export async function GET(): Promise<Response> {
   return route({ event: "billing.status_read" }, async () => {
@@ -15,8 +16,8 @@ export async function GET(): Promise<Response> {
     return {
       ...(await getBillingStatus(db, session.tenantId, config.EARLY_SEATS)),
       effectivePlan: (await findTenantPlan(db, session.tenantId)).name,
-      isPaymentEnabled: config.PRODAMUS_URL !== undefined && config.PRODAMUS_SECRET !== undefined,
-      isDollarPaymentEnabled: config.PRODAMUS_FOREIGN_CARDS,
+      isPaymentEnabled: isPaymentEnabled(config),
+      isDollarPaymentEnabled: config.YOOKASSA_ALLOW_USD,
     };
   });
 }

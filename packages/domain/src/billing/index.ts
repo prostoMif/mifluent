@@ -57,6 +57,11 @@ export {
   whyUnusable,
 } from "./promo.js";
 export {
+  CHECKOUT_PROVIDER,
+  MONEY_PROVIDERS,
+  type MoneyProvider,
+} from "./providers.js";
+export {
   type Acquisition,
   getReferralCode,
   getReferralStats,

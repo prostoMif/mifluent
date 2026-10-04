@@ -15,7 +15,7 @@ import { AppError, getConfig, uuidv7 } from "@mifluent/core";
 import type { Queryable } from "@mifluent/db";
 import { schema } from "@mifluent/db";
 import type { DiscoveryResult, OnboardingChannel, PendingOnboarding } from "@mifluent/db/schema";
-import { and, eq, gte, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { QUEUES } from "../jobs/queues.js";
 import { assertCanRunDiscovery } from "../plans/limits.js";
 import { ANON_TENANT_ID } from "./anon-tenant.js";
@@ -118,41 +118,47 @@ export async function assertAnonDiscoveryAllowed(db: Queryable, ipHash: string):
   await assertCanRunDiscovery(db, "anon");
 }
 
-/** Find a cached discovery result for a domain (7 days). */
+/** How many recent same-domain candidates are checked for an exact host match. */
+const CACHE_CANDIDATES = 20;
+
+/**
+ * A cached discovery result for the same site (7 days).
+ *
+ * The SQL filter is only a pre-selection: `%a.ru%` also matches `spa.ru`, so
+ * every candidate's own input is parsed and its host compared exactly. Without
+ * that, one visitor could be shown another visitor's business as their own.
+ */
 export async function findCachedDiscovery(
   db: Queryable,
-  domain: string,
+  input: string,
 ): Promise<DiscoveryResult | undefined> {
   const cutoff = new Date(Date.now() - DOMAIN_CACHE_DAYS * 24 * 60 * 60 * 1000);
 
-  // Extract domain from input if it's a URL
-  const normalizedDomain = extractDomain(domain);
+  const normalizedDomain = extractDomain(input);
   if (!normalizedDomain) return undefined;
 
-  const [row] = await db
-    .select({ result: schema.pendingOnboardings.result })
+  const rows = await db
+    .select({ input: schema.pendingOnboardings.input, result: schema.pendingOnboardings.result })
     .from(schema.pendingOnboardings)
     .where(
       and(
-        // The input contains the domain
-        sql`${schema.pendingOnboardings.input} ILIKE ${`%${normalizedDomain}%`}`,
-        // Has a completed result
+        sql`${schema.pendingOnboardings.input} ILIKE ${`%${escapeLike(normalizedDomain)}%`} ESCAPE '\\'`,
         isNull(schema.pendingOnboardings.consumedAt),
-        // Not expired
         gte(schema.pendingOnboardings.expiresAt, new Date()),
-        // Recent enough for cache
         gte(schema.pendingOnboardings.createdAt, cutoff),
-        // Has a result
         sql`${schema.pendingOnboardings.result} IS NOT NULL`,
       ),
     )
-    .orderBy(schema.pendingOnboardings.createdAt)
-    .limit(1);
+    .orderBy(desc(schema.pendingOnboardings.createdAt))
+    .limit(CACHE_CANDIDATES);
 
-  if (row?.result) {
-    return row.result as DiscoveryResult;
-  }
-  return undefined;
+  const match = rows.find((row) => extractDomain(row.input) === normalizedDomain);
+  return match?.result ? (match.result as DiscoveryResult) : undefined;
+}
+
+/** `%`, `_` and the escape character itself, made literal for LIKE. */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
 }
 
 /** Extract domain from URL or return the input if it's not a URL. */

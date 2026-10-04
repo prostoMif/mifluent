@@ -20,9 +20,11 @@ relevant section of `docs/security.md` before writing, not after.
 ## What this project is
 
 Mifluent is open-source monitoring for people running a business online. It
-pulls material from sources (RSS, Reddit, Hacker News, Google News, an email
-inbox, page diffs), filters it down to what matters, and delivers a morning
-digest explaining what changed and why it touches that specific business.
+pulls material from sources (RSS/Atom feeds, ATS job boards, text diffs of
+public pages, Google News and Reddit searches, shared source packs), filters it
+down to what matters, and delivers a digest explaining what changed and why it
+touches that specific business. Payments go through ЮKassa; the hosted service
+runs on a server in Russia.
 AGPL-3.0, deployed with `docker compose`, multi-tenant from the first commit.
 
 ## Task workflow

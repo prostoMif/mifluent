@@ -23,6 +23,7 @@ import {
   type TermMonths,
 } from "./pricing.js";
 import { countPromoUse, usableDiscounts } from "./promo.js";
+import { CHECKOUT_PROVIDER, MONEY_PROVIDERS } from "./providers.js";
 import { rewardReferrer } from "./referral.js";
 
 /** A refund on request, no questions asked, within this many days of paying. */
@@ -102,6 +103,7 @@ export async function createOrder(
     currency: price.currency,
     isEarly: price.isEarly,
     promoCode: price.appliedCode,
+    provider: CHECKOUT_PROVIDER,
   });
   return { orderId, quote: price };
 }
@@ -154,7 +156,7 @@ export interface PaymentNotification {
   /** What the provider says was paid, in minor units. */
   readonly paidAmountMinor: number;
   readonly payload: Record<string, unknown>;
-  /** Who sent it; "prodamus" when not given. */
+  /** Who sent it; the checkout provider when not given. */
   readonly provider?: string | undefined;
 }
 
@@ -185,7 +187,7 @@ export async function applyPaymentNotification(
       .insert(schema.billingEvents)
       .values({
         id: uuidv7(),
-        provider: notification.provider ?? "prodamus",
+        provider: notification.provider ?? CHECKOUT_PROVIDER,
         providerEventKey: notification.eventKey,
         orderId: order?.id ?? null,
         payload: notification.payload,
@@ -300,7 +302,7 @@ export async function requestRefund(
         schema.paymentOrders,
         tenantId,
         eq(schema.paymentOrders.status, "paid"),
-        eq(schema.paymentOrders.provider, "prodamus"),
+        inArray(schema.paymentOrders.provider, [...MONEY_PROVIDERS]),
         gt(schema.paymentOrders.paidAt, new Date(now.getTime() - REFUND_WINDOW_DAYS * DAY_MS)),
       ),
     )
@@ -573,7 +575,7 @@ export async function getBillingStatus(
         schema.paymentOrders,
         tenantId,
         eq(schema.paymentOrders.status, "paid"),
-        eq(schema.paymentOrders.provider, "prodamus"),
+        inArray(schema.paymentOrders.provider, [...MONEY_PROVIDERS]),
       ),
     )
     .orderBy(desc(schema.paymentOrders.paidAt))

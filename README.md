@@ -2,71 +2,74 @@
 
 **Monitoring that works out what to monitor.**
 
-Tell Mifluent what your business does. It works out which competitors, which
-platforms you depend on and which rules apply to you — then every morning tells
-you what changed and what that means for you.
+Point Mifluent at your website. It proposes which competitors, platforms and
+rules are worth watching, you confirm the list, and from then on it tells you
+what changed and why it matters to *your* business — every line with a quote
+and a link to where it came from.
 
-> **Status: pre-alpha.** The repository foundation is in place; the product is
-> being built in the open. Nothing here runs yet. Watch the repo or check
-> [CHANGELOG.md](CHANGELOG.md) for progress.
+> **Status: pre-release.** The pipeline, delivery, onboarding and payments are
+> built and covered by tests, but the hosted service has not taken its first
+> customer yet. Expect rough edges.
 
 ## What it does
 
-Every other monitoring tool starts by asking you what to watch. That is the part
-you cannot do well — you would have to already know which competitor is about to
-move, which platform is about to change its terms, and which rule is about to
-start applying to you. Knowing that is the job you were trying to hand over.
-
-So Mifluent starts from the other end. You describe your business once, or point
-it at your site. It proposes what is worth watching — competitors, the platforms
-and suppliers you depend on, the external conditions that move your market — and
-shows you that list to confirm before it starts.
-
-From then on, every morning you get a short digest of what actually changed,
-with an explanation of why it matters to *your* business, a verbatim quote, and
-a link to the original source.
-
-Each card is built from four clearly separated parts:
-
-1. **The fact** — a verbatim quote plus a link to the primary source.
-2. **Why it touches you** — tied to your own business description.
-3. **What an analyst said** — a link to an independent take, when one exists.
-4. **Model interpretation** — explicitly labelled as such.
-
-If nothing relevant happened, you still get a digest telling you what was
-checked and why nothing passed. Silence reads like a broken pipeline.
-
-## Design principles
-
-- **Filtering beats volume.** An empty day stays empty. Padding a quiet morning
-  with generic news rebuilds the noise you left behind.
-- **Facts are separated from opinion**, in the product and in the sources it
-  draws on.
-- **Nothing is asserted without a quote.** Extracted claims are checked for an
-  exact match against the source; if the quote is not found, the claim is
-  dropped automatically.
-- **Relevance is decided by a trained classifier** over embeddings, not by
-  asking a language model to score things from 1 to 10.
-- **Your keys, your data.** Bring your own model key. Self-host it and nothing
-  leaves your machine.
+1. **Discovery.** You give a site (or a sentence about the business). A cheap
+   language model reads the site and proposes 3–8 targets — competitors,
+   platforms you depend on, external conditions — from what it knows; code
+   then finds where each one publishes changes: feeds, changelogs, pricing
+   pages, job boards, Telegram and YouTube channels, news searches. You edit
+   the list before anything is watched. Competitors the model does not know
+   (a small local business, say) you add yourself.
+2. **Collection.** RSS/Atom feeds, public ATS job boards (Greenhouse, Lever,
+   Ashby), text diffs of public pages, Google News and Reddit searches, and
+   shared *source packs* for platforms and regulators by country
+   (`packs/`). Nothing behind a login: a marketplace's own seller offer is
+   followed through the news about it.
+3. **Selection.** Local embeddings (multilingual-e5-small) narrow the day's
+   material; a cheap model decides "relevant to this business, and to which
+   target" for articles and "a material change, and of what kind" for page
+   diffs and job postings. Every rejection keeps its reason.
+4. **Extraction.** Facts come with a verbatim quote that code finds in the
+   stored text; a quote that is not there is dropped, never matched fuzzily.
+   For news items the stored text is the feed's title and snippet.
+5. **Delivery.** A Telegram bot (with a Mini App) or e-mail: urgent changes
+   (price, plan, policy) the same day, everything else in a daily or weekly
+   digest. An empty week still says what was checked.
 
 ## Running it
 
-Not yet. When the first release lands, this section becomes a `docker compose up`
-and a short list of environment variables.
+```sh
+cp .env.production.example .env   # fill it in — every line says how
+docker compose up -d
+```
+
+The full guide, including hosting in Russia (152-ФЗ, models through an
+intermediary, ЮKassa), is in [docs/deploy.md](docs/deploy.md).
+
+Self-hosted instances use their own model key (`LLM_BASE_URL`, `LLM_API_KEY`,
+any OpenAI-compatible API). The hosted service includes model costs in the
+price.
 
 ## Tech
 
 TypeScript in strict mode, Next.js (App Router), PostgreSQL with pgvector,
-Drizzle ORM, pg-boss for the queue, Better Auth, LiteLLM for model access, and
-local embeddings — no Redis, no separate broker. Multi-tenant from the first
-commit so the hosted version and the self-hosted one stay one codebase.
+Drizzle ORM, pg-boss for the queue, Better Auth, a small in-repo adapter for
+OpenAI-compatible model APIs, and local embeddings — no Redis, no separate
+broker. Multi-tenant, so the hosted version and the self-hosted one are one
+codebase.
+
+```sh
+npm ci
+npx tsc --build      # workspace packages compile to dist/
+npm test             # Vitest, including tests against an in-process Postgres
+npm run check        # Biome, types and tests
+```
 
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first — it covers the conventions this
 project holds to and the contributor licence agreement every pull request needs.
-Bug reports and broken-source reports are welcome from day one.
+Bug reports and broken-source reports are welcome.
 
 ## Licence
 

@@ -76,12 +76,19 @@ export async function pickFindings(
   });
 }
 
-/** Short enough for WhatsApp; the reader sees value before the offer. */
+/**
+ * Short enough for WhatsApp; the reader sees value before anything else.
+ *
+ * The first message carries no price and no payment link: a sales offer sent
+ * over a messenger or e-mail without the recipient's prior consent is
+ * advertising under ст. 18 38-ФЗ «О рекламе». It ends with a question; the
+ * offer and the link go out only to those who answered yes
+ * (`renderOfferMessage`).
+ */
 export function renderMessage(
   lead: Lead,
   competitors: readonly Lead[],
   findings: readonly Finding[],
-  link: string,
 ): string {
   const city = lead.city === "" ? "" : ` в ${lead.city}`;
   const intro =
@@ -98,7 +105,14 @@ export function renderMessage(
     intro,
     ...(lines.length === 0 ? [] : ["", ...lines]),
     "",
-    "Я сделал сервис Mifluent: каждое утро присылает в Telegram, что поменяли ваши конкуренты — цены, акции, новые услуги. С цитатой и ссылкой, без лишнего.",
-    `3 конкурента — бесплатно, все — 390 ₽ первый месяц: ${link}`,
+    "Могу присылать такое раз в неделю — что поменяли ваши конкуренты: цены, акции, новые услуги, с цитатой и ссылкой. Интересно?",
+  ].join("\n");
+}
+
+/** The second message, for those who answered yes to the first. */
+export function renderOfferMessage(link: string): string {
+  return [
+    "Отлично! Подключить можно здесь — 3 конкурента бесплатно, все — 390 ₽ первый месяц:",
+    link,
   ].join("\n");
 }

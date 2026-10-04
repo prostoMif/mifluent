@@ -6,6 +6,7 @@
  * here with `Intl`, which ships with Node and knows every IANA zone.
  */
 
+import { isKnownZone } from "@mifluent/core";
 import type { ProfileDelivery } from "@mifluent/db/schema";
 
 export interface ResolvedDelivery {
@@ -111,17 +112,7 @@ export function cadenceDays(cadence: ResolvedDelivery["cadence"]): number {
   return cadence === "daily" ? 1 : 7;
 }
 
-export function isKnownZone(zone: string | undefined): zone is string {
-  if (zone === undefined || zone === "") return false;
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: zone });
-    return true;
-  } catch {
-    // An unknown zone is an ordinary "no", not an error: the caller falls
-    // back to the instance default.
-    return false;
-  }
-}
+export { isKnownZone };
 
 function inRange(value: number | undefined, low: number, high: number): value is number {
   return value !== undefined && Number.isInteger(value) && value >= low && value <= high;

@@ -41,8 +41,11 @@ export const paymentOrders = pgTable(
     isEarly: boolean("is_early").notNull().default(false),
     /** created → paid → (refund_requested → refunded); created → failed */
     status: text("status").notNull().default("created"),
-    /** "prodamus", or "referral" for a free month earned by inviting a friend. */
-    provider: text("provider").notNull().default("prodamus"),
+    /**
+     * "yookassa" (paid on the site), "manual" (paid by hand and recorded by
+     * the owner), or "referral" / "bug_bounty" for free time.
+     */
+    provider: text("provider").notNull().default("yookassa"),
     /** The promo, partner or campaign code that set the price, if any. */
     promoCode: text("promo_code"),
     paidAt: timestamp("paid_at", { withTimezone: true }),

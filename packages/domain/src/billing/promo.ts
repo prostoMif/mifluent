@@ -12,8 +12,9 @@
 
 import { AppError, uuidv7 } from "@mifluent/core";
 import { type Queryable, schema } from "@mifluent/db";
-import { and, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { Discount, PaidPlan, TermMonths } from "./pricing.js";
+import { MONEY_PROVIDERS } from "./providers.js";
 
 type PromoRow = typeof schema.promoCodes.$inferSelect;
 
@@ -197,7 +198,7 @@ export async function listWinbackCandidates(db: Queryable, now: Date): Promise<s
         isNull(schema.tenants.winbackSentAt),
         isNull(schema.tenants.deletedAt),
         eq(schema.paymentOrders.status, "paid"),
-        eq(schema.paymentOrders.provider, "prodamus"),
+        inArray(schema.paymentOrders.provider, [...MONEY_PROVIDERS]),
       ),
     )
     .groupBy(schema.paymentOrders.tenantId)

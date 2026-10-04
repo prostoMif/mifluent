@@ -61,16 +61,18 @@ export async function registerOnboardingJobs(boss: PgBoss): Promise<void> {
         return failure("model_unavailable", message);
       }
 
-      const result = await discover({
-        input: data.input,
-        language: data.language,
-        llm,
-        userAgent: USER_AGENT,
-        tenantId: data.tenantId,
-        runId: job.id,
-        logger,
-        allowedInternalHost: getRsshubHostname(),
-      });
+      const result = await onceMoreIfTransient(() =>
+        discover({
+          input: data.input,
+          language: data.language,
+          llm,
+          userAgent: USER_AGENT,
+          tenantId: data.tenantId,
+          runId: job.id,
+          logger,
+          allowedInternalHost: getRsshubHostname(),
+        }),
+      );
       if (data.pendingId !== undefined) {
         await updatePendingDiscoveryResult(db, data.pendingId, result);
         await tellTelegramSignup(data.pendingId, undefined);
@@ -207,5 +209,30 @@ async function tellTelegramSignup(pendingId: string, failureReason: string | und
     }
   } catch (error) {
     logger.warn("telegram.signup_message_failed", { pendingId, cause: error });
+  }
+}
+
+/** Codes that mean "the model service hiccupped", not "this input is bad". */
+const TRANSIENT_CODES = new Set(["rate_limited", "model_unavailable"]);
+
+/** Long enough for a rate limit window to pass, short enough for a person watching a progress bar. */
+const RETRY_DELAY_MS = 4_000;
+
+/**
+ * A person is watching the progress screen while discovery runs, and one 429
+ * from the model provider would otherwise end their onboarding. One more try
+ * after a short pause; a second failure is reported as before.
+ */
+async function onceMoreIfTransient<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (thrown) {
+    const error = toAppError(thrown);
+    if (!TRANSIENT_CODES.has(error.code)) throw thrown;
+    logger.warn("discovery.retried", { code: error.code });
+    await new Promise((resolve) => {
+      setTimeout(resolve, RETRY_DELAY_MS);
+    });
+    return run();
   }
 }

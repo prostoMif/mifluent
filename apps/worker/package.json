@@ -24,7 +24,8 @@
     "billing:grant": "node --env-file-if-exists=../../.env --import tsx src/billing-grant.ts",
     "partners:report": "node --env-file-if-exists=../../.env --import tsx src/partners.ts report",
     "partners:add": "node --env-file-if-exists=../../.env --import tsx src/partners.ts add",
-    "radar:sync": "node --env-file-if-exists=../../.env --import tsx src/radar-sync.ts"
+    "radar:sync": "node --env-file-if-exists=../../.env --import tsx src/radar-sync.ts",
+    "account:delete": "node --env-file-if-exists=../../.env --import tsx src/account-delete.ts"
   },
   "dependencies": {
     "@mifluent/core": "*",

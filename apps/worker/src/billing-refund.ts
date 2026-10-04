@@ -1,7 +1,7 @@
 /**
  * `npm run billing:refund -- <orderId>` — the owner confirms a refund went
- * back in the Prodamus dashboard. The order becomes refunded and the tenant
- * falls back to its other paid time, or to Free; nothing is deleted.
+ * back in the ЮKassa dashboard (or by transfer for a manual payment). The
+ * order becomes refunded and the tenant falls back to its other paid time, or to Free; nothing is deleted.
  */
 
 import { isUuid } from "@mifluent/core";

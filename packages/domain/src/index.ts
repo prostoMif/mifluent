@@ -157,6 +157,7 @@ export {
   type TimelineEntry,
   type Vacancy,
 } from "./targets/history.js";
+export { type ErasedTenant, eraseTenant } from "./tenancy/erase.js";
 export { exportTenantData } from "./tenancy/export.js";
 export {
   type CreatedInvitation,

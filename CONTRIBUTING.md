@@ -129,16 +129,17 @@ These are load-bearing. A pull request that breaks one gets rejected on
 principle, not on taste — so if you think one is wrong, argue it in an issue
 before writing the code.
 
-- **The pipeline is a cascade:** fetch → deduplicate → cheap classifier →
-  expensive extraction → verification → matching. The expensive model runs on
-  the 10–15% of material that clears the cheap filter. Do not move an expensive
+- **The pipeline is a cascade:** fetch → deduplicate → cosine to the profile
+  (local embeddings) → cheap model (relevant? / material change?) → expensive
+  extraction → quote check → clustering → digest. The expensive model runs on
+  the 10–15% of material that clears the cheap steps. Do not move an expensive
   model earlier in the cascade.
-- **Relevance is a trained classifier** over embeddings, not a prompt that asks a
-  model to rate something out of 10. Do not replace the classifier with an LLM
-  call.
-- **Every extracted claim carries a verbatim quote and an offset** into the
-  source, and the quote is verified programmatically for an exact match. No
-  match, no claim. Do not weaken this to fuzzy matching.
+- **Relevance in v1 is a cheap model answering a yes/no question** validated by
+  a Zod schema, never a prompt that asks for a rating out of 10. A trained
+  classifier replaces that step in v2, once enough user actions are logged.
+- **Every extracted claim carries a verbatim quote** from the source, verified
+  programmatically for an exact match; the offset is computed by code, never
+  asked of the model. No match, no claim. Do not weaken this to fuzzy matching.
 - **No agents in the pipeline.** The single exception is discovering sources
   during onboarding.
 - **Source text is untrusted data, never instructions.** System prompt and source

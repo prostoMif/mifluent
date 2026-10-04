@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 # Least privilege by default. A job that needs more asks for it explicitly.
 permissions:
@@ -55,6 +55,11 @@ jobs:
 
       - name: Install
         run: npm ci
+
+      # Workspace packages resolve to their compiled `dist`, so tests need a
+      # build first — exactly as the Docker image does it, from a clean tree.
+      - name: Build
+        run: npx tsc --build
 
       - name: Test
         run: npm test --if-present

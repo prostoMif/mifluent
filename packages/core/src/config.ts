@@ -108,14 +108,17 @@ const configSchema = z.object({
     .optional(),
 
   /**
-   * The shop's Prodamus payment page, e.g. https://myshop.payform.ru. Absent
-   * means payments are off: the pricing page shows plans without a pay button.
+   * ЮKassa shop id and secret key (ЮKassa dashboard → Integration → API keys).
+   * Absent means payments are off: the pricing page shows plans without a
+   * pay button.
    */
-  PRODAMUS_URL: httpUrl.optional(),
-  /** The shop's secret key from the Prodamus dashboard; signs notifications. */
-  PRODAMUS_SECRET: z.string().min(16).optional(),
-  /** Whether the shop accepts foreign cards, so dollar prices can be charged. */
-  PRODAMUS_FOREIGN_CARDS: booleanish.default(false),
+  YOOKASSA_SHOP_ID: z.string().regex(/^\d+$/, "must be the numeric shop id").optional(),
+  YOOKASSA_SECRET_KEY: z.string().min(16).optional(),
+  /**
+   * Whether dollar prices can be charged. ЮKassa takes roubles; leave false
+   * unless the shop has foreign-currency acceptance switched on.
+   */
+  YOOKASSA_ALLOW_USD: booleanish.default(false),
   /** How many Pro accounts get the early price, across both markets. */
   EARLY_SEATS: z.coerce.number().int().min(0).default(100),
 
@@ -130,6 +133,22 @@ const configSchema = z.object({
 
   /** Email address for replies to digests. If not set, SMTP_FROM is used. */
   FEEDBACK_EMAIL: z.string().email().optional(),
+  /**
+   * Who runs this instance, for the offer, the privacy policy and the contacts
+   * page — required by payment providers' moderation and by 152-ФЗ. Kept in
+   * the environment, not in the repository: they are a person's details.
+   */
+  OPERATOR_NAME: z.string().max(200).optional(),
+  /** ИНН of the operator (12 digits for a person / самозанятый, 10 for a company). */
+  OPERATOR_INN: z
+    .string()
+    .regex(/^(\d{10}|\d{12})$/, "must be 10 or 12 digits")
+    .optional(),
+  /** Telegram username for questions, refunds and data requests, e.g. @owner. */
+  OPERATOR_TELEGRAM: z
+    .string()
+    .regex(/^@[A-Za-z0-9_]{5,32}$/, "must look like @username")
+    .optional(),
 
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
@@ -336,6 +355,37 @@ function withoutBlanks(
   return result;
 }
 
+/**
+ * The daily cost cap is a sum of what each model call cost, and a call's cost
+ * is computed from `LLM_PRICE_*`. With prices left at zero every call costs
+ * "$0", the cap is never reached and the operator's key is unprotected — the
+ * one failure the cap exists to prevent. In production that is refused at
+ * start-up rather than discovered on the bill.
+ */
+function assertModelPricesKnown(raw: RawConfig, features: Features, isProduction: boolean): void {
+  if (!isProduction || !features.llm || raw.DAILY_COST_CAP_USD === 0) return;
+  const missing = (
+    [
+      ["LLM_PRICE_CHEAP_IN", raw.LLM_PRICE_CHEAP_IN],
+      ["LLM_PRICE_CHEAP_OUT", raw.LLM_PRICE_CHEAP_OUT],
+      ["LLM_PRICE_DEEP_IN", raw.LLM_PRICE_DEEP_IN],
+      ["LLM_PRICE_DEEP_OUT", raw.LLM_PRICE_DEEP_OUT],
+    ] as const
+  ).filter(([, price]) => price <= 0);
+  if (missing.length === 0) return;
+
+  throw new AppError(
+    "configuration_invalid",
+    formatIssues(
+      missing.map(([name]) => ({
+        path: [name],
+        message:
+          "must be the model's price in USD per million tokens — with 0 the daily cost cap never triggers",
+      })),
+    ),
+  );
+}
+
 export function parseConfig(source: Record<string, string | undefined>): Config {
   const present = withoutBlanks(source);
   const result = configSchema.safeParse(present);
@@ -346,11 +396,15 @@ export function parseConfig(source: Record<string, string | undefined>): Config 
     });
   }
 
+  const features = deriveFeatures(result.data);
+  const isProduction = result.data.NODE_ENV === "production";
+  assertModelPricesKnown(result.data, features, isProduction);
+
   return {
     ...result.data,
-    features: deriveFeatures(result.data),
+    features,
     planOverrides: readPlanOverrides(present),
-    isProduction: result.data.NODE_ENV === "production",
+    isProduction,
     isDevelopment: result.data.NODE_ENV === "development",
   };
 }

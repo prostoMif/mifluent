@@ -5,7 +5,8 @@
  */
 
 import { type Queryable, schema } from "@mifluent/db";
-import { and, isNull, notInArray, sql } from "drizzle-orm";
+import { and, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { MONEY_PROVIDERS } from "../billing/providers.js";
 import { ANON_TENANT_ID } from "../onboarding/anon-tenant.js";
 import { PACKS_TENANT_ID } from "../packs/tenant.js";
 
@@ -17,7 +18,7 @@ export interface AcquisitionRow {
 }
 
 export async function acquisitionSummary(db: Queryable): Promise<AcquisitionRow[]> {
-  const paid = sql`exists (select 1 from ${schema.paymentOrders} where ${schema.paymentOrders.tenantId} = ${schema.tenants.id} and ${schema.paymentOrders.status} = 'paid' and ${schema.paymentOrders.provider} = 'prodamus')`;
+  const paid = sql`exists (select 1 from ${schema.paymentOrders} where ${schema.paymentOrders.tenantId} = ${schema.tenants.id} and ${schema.paymentOrders.status} = 'paid' and ${inArray(schema.paymentOrders.provider, [...MONEY_PROVIDERS])})`;
   return db
     .select({
       via: schema.tenants.acquiredVia,
