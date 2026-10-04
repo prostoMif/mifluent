@@ -23,7 +23,7 @@
     "@mifluent/domain": "*",
     "@mifluent/embeddings": "*",
     "@mifluent/llm": "*",
-    "drizzle-orm": "^0.44.0",
+    "drizzle-orm": "^0.45.3",
     "zod": "^4.0.0"
   }
 }

@@ -21,7 +21,10 @@ x-app: &app
 
 services:
   rsshub:
-    image: diygod/rsshub:latest
+    # Pinned: RSSHub publishes a new image every day, and `latest` would swap
+    # it under a running server on the next pull. Bump the date and digest
+    # deliberately (hub.docker.com/r/diygod/rsshub/tags).
+    image: diygod/rsshub:2026-10-03@sha256:f3bc956d2656782cf55a6ab64b8d48db5a864c8e82c6e165c79914d6ff473a5d
     restart: unless-stopped
     mem_limit: 256m
     healthcheck:

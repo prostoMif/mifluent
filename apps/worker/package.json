@@ -38,7 +38,7 @@
     "@mifluent/llm": "*",
     "@mifluent/pipeline": "*",
     "@mifluent/sources": "*",
-    "drizzle-orm": "^0.44.0",
+    "drizzle-orm": "^0.45.3",
     "pg-boss": "^12.27.0",
     "yaml": "2.9.1",
     "zod": "^4.0.0"
