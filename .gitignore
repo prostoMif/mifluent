@@ -64,6 +64,9 @@ desktop.ini
 # Claude Code local state
 .claude/settings.local.json
 
+# Unattended agent runs: logs and task state, machine-specific
+.autopilot/
+
 # Local symlink to the Obsidian task queue — machine-specific, never portable
 /docs/tasks
 
