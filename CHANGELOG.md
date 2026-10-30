@@ -70,8 +70,6 @@ first, in plain language.
   without consent is advertising under 38-ФЗ) and the offer for those who
   reply, in `leads-out/reply-to-yes.txt`.
 
-### Added
-
 - Repository foundation: contribution guide with CLA, code of conduct, security
   policy, issue and pull request templates.
 - Written conventions: `AGENTS.md`, `docs/code-style.md`, `docs/security.md`.
@@ -86,11 +84,5 @@ first, in plain language.
   plus the tenant-scoping helpers.
 - Development database via `docker-compose.dev.yml` (PostgreSQL 17 with
   pgvector).
-
-### Not done yet
-
-- `LICENSE` is not committed. See `docs/before-going-public.md`.
-- No migrations have been generated; the schema has never been applied.
-- Nothing in this repository has been run.
 
 [Unreleased]: https://github.com/prostoMif/mifluent/commits/master
